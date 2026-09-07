@@ -7,9 +7,7 @@ import { databaseConfig } from '../../config/database.config.js';
 import { PrismaClient } from '../../generated/prisma/client.js';
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(

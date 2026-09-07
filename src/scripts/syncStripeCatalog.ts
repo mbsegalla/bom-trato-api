@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import { databaseConfig } from '../config/database.config.js';
 import { stripeConfig } from '../config/stripe.config.js';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { parseStripePrice,parseStripeProduct } from '../infrastructure/billing/stripe/stripeCatalog.validation.js';
+import { parseStripePrice, parseStripeProduct } from '../infrastructure/billing/stripe/stripeCatalog.validation.js';
 
 const logger = new Logger('StripeCatalogSync');
 
@@ -90,9 +90,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    const priceIds = catalog.flatMap((entry) =>
-      entry.prices.map((price) => price.stripePriceId),
-    );
+    const priceIds = catalog.flatMap((entry) => entry.prices.map((price) => price.stripePriceId));
 
     const syncedAt = new Date();
 
