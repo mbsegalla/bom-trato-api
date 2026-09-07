@@ -94,3 +94,4 @@ report.*.json
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+/src/generated/prisma

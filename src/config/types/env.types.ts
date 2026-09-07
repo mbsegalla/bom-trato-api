@@ -9,4 +9,5 @@ export interface EnvironmentVariables {
   PORT: number;
   FRONTEND_URL: string;
   DATABASE_URL: string;
+  STRIPE_SECRET_KEY: string;
 }

@@ -7,7 +7,7 @@ import typescriptEslint from 'typescript-eslint';
 
 export default defineConfig(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'commitlint.config.cjs', 'eslint.config.mjs'],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'commitlint.config.cjs', 'eslint.config.mjs', 'src/generated/**'],
   },
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],

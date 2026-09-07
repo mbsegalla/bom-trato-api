@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+model Plan {
+  id                    String    @id @default(uuid()) @db.Uuid
+  code                  String    @unique @db.VarChar(50)
+  name                  String    @db.VarChar(100)
+  description           String?   @db.Text
+  stripeProductId       String    @unique
+  maxUsers              Int
+  teamManagementEnabled Boolean   @default(false)
+  displayOrder          Int       @default(0)
+  configVersion         Int       @default(1)
+  stripeActive          Boolean   @default(true)
+  published             Boolean   @default(false)
+  stripeMetadata        Json      @default("{}")
+  lastSyncedAt          DateTime? @db.Timestamptz(3)
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  planPrices PlanPrice[]
+}
+
+model PlanPrice {
+  id             String          @id @default(uuid()) @db.Uuid
+  planId         String          @db.Uuid
+  stripePriceId  String          @unique
+  lookupKey      String?         @unique
+  amountInCents  Int
+  currency       String          @db.VarChar(3)
+  interval       BillingInterval
+  intervalCount  Int             @default(1)
+  stripeActive   Boolean         @default(true)
+  published      Boolean         @default(false)
+  stripeMetadata Json            @default("{}")
+  lastSyncedAt   DateTime?       @db.Timestamptz(3)
+  createdAt      DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId])
+}
