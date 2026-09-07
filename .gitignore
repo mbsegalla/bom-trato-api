@@ -1,56 +1,96 @@
-# compiled output
-/dist
-/node_modules
-/build
+# Dependencies and package manager caches
+node_modules/
+.pnpm-store/
+.npm/
 
-# Logs
-logs
+# Build output and TypeScript cache
+/dist/
+/build/
+*.tsbuildinfo
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+.vitest/
+/test-results/
+
+# Tool caches
+.cache/
+.eslintcache
+.prettiercache
+
+# Environment files
+.env
+.env.*
+
+# Environment examples — placeholders only
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
+
+# Local credentials and private keys
+/secrets/
+/.secrets/
+/certs/private/
+*.key
+*.p12
+*.pfx
+
+# Logs and runtime diagnostics
+logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
-
-# OS
-.DS_Store
-
-# Tests
-/coverage
-/.nyc_output
-
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# temp directory
-.temp
-.tmp
-
-# Runtime data
-pids
+report.*.json
 *.pid
-*.seed
 *.pid.lock
+*.heapsnapshot
+*.heapprofile
+*.cpuprofile
 
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+# Temporary files and local runtime data
+/tmp/
+/temp/
+/uploads/
+/backups/
+/docker-data/
+
+# Generated Prisma Client
+# Adjust these paths to match the generator output
+/src/generated/prisma/
+/generated/prisma/
+
+# Local SQLite databases, if used during development
+/prisma/*.db
+/prisma/*.db-journal
+/prisma/*.db-shm
+/prisma/*.db-wal
+
+# Husky-generated internals
+# Custom hooks must remain tracked
+.husky/_/
+
+# IDE files
+.idea/
+.vscode/*
+
+# Shared VS Code configuration
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
