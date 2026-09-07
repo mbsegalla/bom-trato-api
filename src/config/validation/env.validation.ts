@@ -17,6 +17,11 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   DATABASE_URL: Joi.string()
     .uri({ scheme: ['postgresql', 'postgres'] })
     .required(),
+
+  STRIPE_SECRET_KEY: Joi.string()
+    .trim()
+    .pattern(/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/)
+    .required(),
 });
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {
