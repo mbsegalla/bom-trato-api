@@ -7,21 +7,11 @@ import typescriptEslint from 'typescript-eslint';
 
 export default defineConfig(
   {
-    ignores: [
-      '**/dist/**',
-      '**/node_modules/**',
-      '**/coverage/**',
-      'commitlint.config.cjs',
-      'eslint.config.mjs',
-    ],
+    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'commitlint.config.cjs', 'eslint.config.mjs'],
   },
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],
-    extends: [
-      eslint.configs.recommended,
-      typescriptEslint.configs.recommendedTypeChecked,
-      eslintConfigPrettier,
-    ],
+    extends: [eslint.configs.recommended, typescriptEslint.configs.recommendedTypeChecked, eslintConfigPrettier],
     languageOptions: {
       globals: {
         ...globals.node,
