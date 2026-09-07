@@ -1,8 +1,7 @@
 import Joi from 'joi';
 
-import type { EnvironmentVariables} from '../types/env.types.js';
+import type { EnvironmentVariables } from '../types/env.types.js';
 import { NodeEnvironment } from '../types/env.types.js';
-
 
 export const envValidationSchema = Joi.object<EnvironmentVariables>({
   NODE_ENV: Joi.string()
@@ -28,9 +27,7 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
   });
 
   if (result.error !== undefined) {
-    const messages = result.error.details
-      .map((detail) => detail.message)
-      .join('\n');
+    const messages = result.error.details.map((detail) => detail.message).join('\n');
 
     throw new Error(`Invalid environment configuration:\n${messages}`);
   }

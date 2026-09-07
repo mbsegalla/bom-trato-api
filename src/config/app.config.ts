@@ -10,6 +10,6 @@ export const appConfig = registerAs('app', () => {
     nodeEnv: env.NODE_ENV,
     port: env.PORT,
     frontendUrl: env.FRONTEND_URL,
-    swaggerEnabled: env.NODE_ENV !== NodeEnvironment.PRODUCTION
+    swaggerEnabled: env.NODE_ENV !== NodeEnvironment.PRODUCTION,
   };
 });
