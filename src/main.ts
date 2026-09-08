@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 
 import { appConfig } from './config/app.config.js';
 import { setupSwagger } from './infrastructure/http/swagger/swagger.setup.js';
@@ -19,6 +20,8 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   app.setGlobalPrefix('api');
+
+  app.use(cookieParser());
 
   app.enableCors({
     origin: configuration.frontendUrl,

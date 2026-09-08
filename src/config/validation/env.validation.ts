@@ -22,7 +22,40 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .trim()
     .pattern(/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/)
     .required(),
-});
+
+  AUTH_JWT_SECRET: Joi.string()
+    .pattern(/^[a-fA-F0-9]{64}$/)
+    .required(),
+
+  AUTH_CSRF_SECRET: Joi.string()
+    .pattern(/^[a-fA-F0-9]{64}$/)
+    .required(),
+
+  AUTH_JWT_ISSUER: Joi.string().trim().default('bom-trato-api'),
+
+  AUTH_JWT_AUDIENCE: Joi.string().trim().default('bom-trato-web'),
+
+  AUTH_ACCESS_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(900),
+
+  AUTH_IDLE_TTL_SECONDS: Joi.number().integer().min(900).max(2592000).default(604800),
+
+  AUTH_ABSOLUTE_TTL_SECONDS: Joi.number().integer().min(900).max(7776000).default(2592000),
+
+  MAIL_SMTP_HOST: Joi.string().hostname().required(),
+
+  MAIL_SMTP_PORT: Joi.number().integer().min(1).max(65535).default(1025),
+
+  MAIL_SMTP_SECURE: Joi.boolean().default(false),
+
+  MAIL_SMTP_USER: Joi.string().optional(),
+
+  MAIL_SMTP_PASSWORD: Joi.string().optional(),
+
+  MAIL_FROM_EMAIL: Joi.string()
+    .email({ tlds: { allow: false } })
+    .required(),
+  MAIL_FROM_NAME: Joi.string().trim().max(100).required(),
+}).and('MAIL_SMTP_USER', 'MAIL_SMTP_PASSWORD');
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {
   const result = envValidationSchema.validate(values, {
@@ -32,10 +65,38 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
   });
 
   if (result.error !== undefined) {
-    const messages = result.error.details.map((detail) => detail.message).join('\n');
+    const fields = [...new Set(result.error.details.flatMap((detail) => detail.path.map(String)))];
 
-    throw new Error(`Invalid environment configuration:\n${messages}`);
+    throw new Error(
+      `Invalid environment configuration. Check: ${fields.join(', ') || 'related environment variables'}`,
+    );
   }
 
-  return result.value;
+  const env = result.value;
+
+  if (env.AUTH_IDLE_TTL_SECONDS > env.AUTH_ABSOLUTE_TTL_SECONDS) {
+    throw new Error('AUTH_IDLE_TTL_SECONDS must not exceed AUTH_ABSOLUTE_TTL_SECONDS');
+  }
+
+  if (env.AUTH_JWT_SECRET.toLowerCase() === env.AUTH_CSRF_SECRET.toLowerCase()) {
+    throw new Error('AUTH_JWT_SECRET and AUTH_CSRF_SECRET must be different');
+  }
+
+  const frontend = new URL(env.FRONTEND_URL);
+
+  if (
+    frontend.username ||
+    frontend.password ||
+    frontend.search ||
+    frontend.hash ||
+    (frontend.pathname !== '/' && frontend.pathname !== '')
+  ) {
+    throw new Error('FRONTEND_URL must contain only an origin');
+  }
+
+  if (env.NODE_ENV === NodeEnvironment.PRODUCTION && frontend.protocol !== 'https:') {
+    throw new Error('FRONTEND_URL must use HTTPS in production');
+  }
+
+  return env;
 }
