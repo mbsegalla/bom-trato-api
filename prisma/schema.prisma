@@ -17,6 +17,21 @@ enum BillingInterval {
   YEAR
 }
 
+enum AuthActionPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum SessionRevocationReason {
+  LOGOUT
+  LOGOUT_ALL
+  SESSION_REPLACED
+  SESSION_REVOKED
+  REFRESH_REUSE
+  PASSWORD_RESET
+  SESSION_LIMIT
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -34,7 +49,7 @@ model Plan {
   createdAt             DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
 
-  planPrices PlanPrice[]
+  planPrices            PlanPrice[]
 }
 
 model PlanPrice {
@@ -53,7 +68,75 @@ model PlanPrice {
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  plan           Plan            @relation(fields: [planId], references: [id], onDelete: Restrict)
 
   @@index([planId])
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String    @db.VarChar(100)
+  email           String    @unique @db.VarChar(254)
+  passwordHash    String
+  emailVerifiedAt DateTime? @db.Timestamptz(3)
+  disabledAt      DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  authSessions     AuthSession[]
+  authActionTokens AuthActionToken[]
+}
+
+model AuthSession {
+  id                String                   @id @default(uuid()) @db.Uuid
+  userId            String                   @db.Uuid
+  lastRefreshedAt   DateTime                 @db.Timestamptz(3)
+  idleExpiresAt     DateTime                 @db.Timestamptz(3)
+  absoluteExpiresAt DateTime                 @db.Timestamptz(3)
+  revokedAt         DateTime?                @db.Timestamptz(3)
+  revocationReason  SessionRevocationReason?
+  userAgent         String?                  @db.VarChar(300)
+  createdAt         DateTime                 @default(now()) @db.Timestamptz(3)
+
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens     RefreshToken[]
+
+  @@index([userId, createdAt])
+  @@index([absoluteExpiresAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  sessionId String    @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  expiresAt DateTime  @db.Timestamptz(3)
+  usedAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model AuthActionToken {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @db.Uuid
+  purpose   AuthActionPurpose
+  tokenHash String            @unique @db.Char(64)
+  expiresAt DateTime          @db.Timestamptz(3)
+  usedAt    DateTime?         @db.Timestamptz(3)
+  createdAt DateTime          @default(now()) @db.Timestamptz(3)
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}
+
+model AuthRateLimit {
+  key       String   @id @db.Char(64)
+  count     Int
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
 }

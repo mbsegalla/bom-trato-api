@@ -1,5 +1,5 @@
-import type { Plan } from '../../domain/entities/plan.entity.js';
-import type { PlanResponseDto } from '../../presentation/http/dtos/responses/planResponse.dto.js';
+import type { Plan } from '../../../domain/entities/plan.entity.js';
+import type { PlanResponseDto } from '../dtos/responses/planResponse.dto.js';
 
 export function toPlanResponse(plan: Plan): PlanResponseDto {
   return {
