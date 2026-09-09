@@ -52,7 +52,10 @@ export class AccessTokenGuard implements CanActivate {
       return true;
     }
 
+    response.setHeader('Cache-Control', 'no-store');
+
     const authorization = request.get('authorization') ?? '';
+
     const match = /^Bearer ([^\s]+)$/i.exec(authorization);
 
     if (!match?.[1] || match[1].length > 4096) {

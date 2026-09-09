@@ -7,5 +7,8 @@ export const stripeConfig = registerAs('stripe', () => {
 
   return {
     secretKey: env.STRIPE_SECRET_KEY,
+    webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+    portalConfigurationId: env.STRIPE_PORTAL_CONFIGURATION_ID,
+    workerEnabled: env.BILLING_WORKER_ENABLED,
   };
 });

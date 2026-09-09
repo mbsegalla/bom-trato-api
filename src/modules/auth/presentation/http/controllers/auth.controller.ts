@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiHeader, ApiNoContentResponse, ApiOperation, ApiTags }
 import type { Response } from 'express';
 
 import { SessionRevocationReason } from '../../../../../generated/prisma/browser.js';
+import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import { UserError } from '../../../../users/domain/errors/user.error.js';
 import { ListSessionsUseCase } from '../../../application/useCases/listSessions.useCase.js';
 import { LoginUseCase } from '../../../application/useCases/login.useCase.js';
@@ -17,8 +18,7 @@ import { VerifyEmailUseCase } from '../../../application/useCases/verifyEmail.us
 import { AuthError } from '../../../domain/errors/auth.error.js';
 import { AuthCookies } from '../authCookies.js';
 import { authOperation } from '../authHttpError.js';
-import type { AuthPrincipal, AuthRequest } from '../authRequest.js';
-import { ApiAuthResponse } from '../decorators/apiAuthResponse.decorator.js';
+import type { AuthContext, AuthRequest } from '../authRequest.js';
 import { AuthEndpoint } from '../decorators/authEndpoint.decorator.js';
 import { CurrentAuth } from '../decorators/currentAuth.decorator.js';
 import { PublicRoute } from '../decorators/publicRoute.decorator.js';
@@ -63,7 +63,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Obtain a CSRF token before authentication mutations',
   })
-  @ApiAuthResponse(CsrfResponseDto)
+  @ApiDataResponse(CsrfResponseDto)
   csrf(@Req() request: AuthRequest, @Res({ passthrough: true }) response: Response): CsrfResponseDto {
     return {
       csrfToken: this.cookies.issueCsrf(response, this.cookies.refresh(request)),
@@ -74,7 +74,7 @@ export class AuthController {
   @HttpCode(201)
   @PublicRoute()
   @AuthEndpoint('register')
-  @ApiAuthResponse(AuthMessageDto, 201)
+  @ApiDataResponse(AuthMessageDto, { status: 201 })
   async register(@Body() dto: RegisterDto): Promise<AuthMessageDto> {
     await authOperation(() => this.registerUseCase.execute(dto));
 
@@ -85,7 +85,7 @@ export class AuthController {
   @HttpCode(200)
   @PublicRoute()
   @AuthEndpoint('login')
-  @ApiAuthResponse(TokenResponseDto)
+  @ApiDataResponse(TokenResponseDto, { status: 200 })
   async login(
     @Body() dto: LoginDto,
     @Req() request: AuthRequest,
@@ -118,7 +118,7 @@ export class AuthController {
   @HttpCode(200)
   @PublicRoute()
   @AuthEndpoint('refresh')
-  @ApiAuthResponse(TokenResponseDto)
+  @ApiDataResponse(TokenResponseDto, { status: 200 })
   async refresh(
     @Req() request: AuthRequest,
     @Res({ passthrough: true }) response: Response,
@@ -164,11 +164,8 @@ export class AuthController {
   @AuthEndpoint('logout/all')
   @ApiBearerAuth('access-token')
   @ApiNoContentResponse()
-  async logoutAll(
-    @CurrentAuth() principal: AuthPrincipal,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<void> {
-    await authOperation(() => this.logoutAllUseCase.execute(principal.user.id));
+  async logoutAll(@CurrentAuth() auth: AuthContext, @Res({ passthrough: true }) response: Response): Promise<void> {
+    await authOperation(() => this.logoutAllUseCase.execute(auth.user.id));
 
     this.cookies.clear(response);
   }
@@ -176,17 +173,17 @@ export class AuthController {
   @Get('me')
   @AuthEndpoint('me', false)
   @ApiBearerAuth('access-token')
-  @ApiAuthResponse(UserResponseDto)
-  me(@CurrentAuth() principal: AuthPrincipal): UserResponseDto {
-    return principal.user.toPublic();
+  @ApiDataResponse(UserResponseDto, { status: 200 })
+  me(@CurrentAuth() auth: AuthContext): UserResponseDto {
+    return auth.user.toPublic();
   }
 
   @Get('sessions')
   @AuthEndpoint('sessions', false)
   @ApiBearerAuth('access-token')
-  @ApiAuthResponse(SessionResponseDto, 200, true)
-  sessions(@CurrentAuth() principal: AuthPrincipal): Promise<SessionResponseDto[]> {
-    return authOperation(() => this.listSessionsUseCase.execute(principal.user.id, principal.sessionId));
+  @ApiDataResponse(SessionResponseDto, { status: 200, array: true })
+  sessions(@CurrentAuth() auth: AuthContext): Promise<SessionResponseDto[]> {
+    return authOperation(() => this.listSessionsUseCase.execute(auth.user.id, auth.sessionId));
   }
 
   @Delete('sessions/:sessionId')
@@ -197,12 +194,12 @@ export class AuthController {
   async revoke(
     @Param('sessionId', new ParseUUIDPipe({ version: '4' }))
     sessionId: string,
-    @CurrentAuth() principal: AuthPrincipal,
+    @CurrentAuth() auth: AuthContext,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    await authOperation(() => this.revokeSessionUseCase.execute(principal.user.id, sessionId));
+    await authOperation(() => this.revokeSessionUseCase.execute(auth.user.id, sessionId));
 
-    if (sessionId === principal.sessionId) {
+    if (sessionId === auth.sessionId) {
       this.cookies.clear(response);
     }
   }
@@ -211,7 +208,7 @@ export class AuthController {
   @HttpCode(202)
   @PublicRoute()
   @AuthEndpoint('forgot/password')
-  @ApiAuthResponse(AuthMessageDto, 202)
+  @ApiDataResponse(AuthMessageDto, { status: 202 })
   async forgotPassword(@Body() dto: EmailDto): Promise<AuthMessageDto> {
     await authOperation(() => this.requestEmailUseCase.execute(dto.email, 'RESET_PASSWORD'));
 
@@ -222,7 +219,7 @@ export class AuthController {
   @HttpCode(202)
   @PublicRoute()
   @AuthEndpoint('resend/verification')
-  @ApiAuthResponse(AuthMessageDto, 202)
+  @ApiDataResponse(AuthMessageDto, { status: 202 })
   async resendVerification(@Body() dto: EmailDto): Promise<AuthMessageDto> {
     await authOperation(() => this.requestEmailUseCase.execute(dto.email, 'VERIFY_EMAIL'));
 
