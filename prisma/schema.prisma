@@ -32,6 +32,34 @@ enum SessionRevocationReason {
   SESSION_LIMIT
 }
 
+enum OrganizationRole {
+  OWNER
+  MEMBER
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+}
+
+enum CheckoutAttemptStatus {
+  PENDING
+  COMPLETE
+  EXPIRED
+}
+
+enum PaymentMethodUpdateStatus {
+  PENDING
+  APPLIED
+  CANCELED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -49,7 +77,7 @@ model Plan {
   createdAt             DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
 
-  planPrices            PlanPrice[]
+  planPrices PlanPrice[]
 }
 
 model PlanPrice {
@@ -68,7 +96,9 @@ model PlanPrice {
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
 
-  plan           Plan            @relation(fields: [planId], references: [id], onDelete: Restrict)
+  plan             Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
+  checkoutAttempts CheckoutAttempt[]
+  subscriptions    Subscription[]
 
   @@index([planId])
 }
@@ -83,8 +113,10 @@ model User {
   createdAt       DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 
-  authSessions     AuthSession[]
-  authActionTokens AuthActionToken[]
+  authSessions        AuthSession[]
+  authActionTokens    AuthActionToken[]
+  organizationMembers OrganizationMember[]
+  organizations       Organization[]       @relation("OrganizationOwner")
 }
 
 model AuthSession {
@@ -98,8 +130,8 @@ model AuthSession {
   userAgent         String?                  @db.VarChar(300)
   createdAt         DateTime                 @default(now()) @db.Timestamptz(3)
 
-  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokens     RefreshToken[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
 
   @@index([userId, createdAt])
   @@index([absoluteExpiresAt])
@@ -113,7 +145,7 @@ model RefreshToken {
   usedAt    DateTime? @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
 
-  session   AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  authSession AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
 }
@@ -127,7 +159,7 @@ model AuthActionToken {
   usedAt    DateTime?         @db.Timestamptz(3)
   createdAt DateTime          @default(now()) @db.Timestamptz(3)
 
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, purpose])
   @@index([expiresAt])
@@ -139,4 +171,165 @@ model AuthRateLimit {
   expiresAt DateTime @db.Timestamptz(3)
 
   @@index([expiresAt])
+}
+
+model Organization {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  ownerId     String   @db.Uuid
+  creationKey String? @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  owner                User                 @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  organizationMembers  OrganizationMember[]
+  billingCustomer      BillingCustomer?
+  subscriptions        Subscription[]
+  checkoutAttempts     CheckoutAttempt[]
+  billingInvoices      BillingInvoice[]
+  paymentMethodUpdates PaymentMethodUpdate[]
+
+  @@unique([ownerId, creationKey])
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  userId         String           @db.Uuid
+  role           OrganizationRole
+  createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model BillingCustomer {
+  id                  String    @id @default(uuid()) @db.Uuid
+  organizationId      String    @unique @db.Uuid
+  stripeCustomerId    String?   @unique
+  billingEmail        String    @db.VarChar(254)
+  billingName         String    @db.VarChar(100)
+  creationRequestedAt DateTime? @db.Timestamptz(3)
+  nextReconcileAt     DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([nextReconcileAt, id])
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  organizationId       String             @db.Uuid
+  planPriceId          String             @db.Uuid
+  stripeSubscriptionId String             @unique
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime           @db.Timestamptz(3)
+  currentPeriodEnd     DateTime           @db.Timestamptz(3)
+  paidThrough          DateTime?          @db.Timestamptz(3)
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?          @db.Timestamptz(3)
+  endedAt              DateTime?          @db.Timestamptz(3)
+  stripeCreatedAt      DateTime           @db.Timestamptz(3)
+  lastSyncedAt         DateTime           @db.Timestamptz(3)
+  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  planPrice       PlanPrice        @relation(fields: [planPriceId], references: [id], onDelete: Restrict)
+  billingInvoices BillingInvoice[]
+
+  @@index([organizationId, stripeCreatedAt(sort: Desc), id(sort: Desc)])
+}
+
+model CheckoutAttempt {
+  id                   String                @id @default(uuid()) @db.Uuid
+  organizationId       String                @db.Uuid
+  activeOrganizationId String?               @unique @db.Uuid
+  planPriceId          String                @db.Uuid
+  stripePriceId        String
+  stripeSessionId      String?               @unique
+  returnUrl            String                @db.Text
+  status               CheckoutAttemptStatus @default(PENDING)
+  expiresAt            DateTime              @db.Timestamptz(3)
+  createdAt            DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime              @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  planPrice    PlanPrice    @relation(fields: [planPriceId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+model BillingInvoice {
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String    @db.Uuid
+  subscriptionId   String    @db.Uuid
+  stripeInvoiceId  String    @unique
+  number           String?
+  status           String    @db.VarChar(30)
+  currency         String    @db.VarChar(3)
+  amountDue        Int
+  amountPaid       Int
+  hostedInvoiceUrl String?   @db.Text
+  invoicePdf       String?   @db.Text
+  paidAt           DateTime? @db.Timestamptz(3)
+  stripeCreatedAt  DateTime  @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, stripeCreatedAt(sort: Desc), id(sort: Desc)])
+  @@index([subscriptionId])
+}
+
+model BillingMutex {
+  key              String   @id @db.VarChar(200)
+  token            String   @unique @db.Uuid
+  acquiredAt       DateTime @default(now()) @db.Timestamptz(3)
+  recoveryRequired Boolean  @default(false)
+}
+
+model PaymentMethodUpdate {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  organizationId       String                    @db.Uuid
+  activeOrganizationId String?                   @unique @db.Uuid
+  requestedById        String                    @db.Uuid
+  stripeCustomerId     String
+  stripeSubscriptionId String
+  stripeSetupIntentId  String?                   @unique
+  status               PaymentMethodUpdateStatus @default(PENDING)
+  consentVersion       String                    @db.VarChar(50)
+  consentAcceptedAt    DateTime                  @db.Timestamptz(3)
+  expiresAt            DateTime                  @db.Timestamptz(3)
+  nextCheckAt          DateTime                  @default(now()) @db.Timestamptz(3)
+  completedAt          DateTime?                 @db.Timestamptz(3)
+  createdAt            DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId],references: [id], onDelete: Restrict)
+
+  @@index([status, nextCheckAt])
+  @@index([organizationId, createdAt])
+}
+    
+model StripeWebhookEvent {
+  id               String    @id
+  type             String    @db.VarChar(100)
+  stripeCustomerId String
+  stripeObjectId   String
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now()) @db.Timestamptz(3)
+  processedAt      DateTime? @db.Timestamptz(3)
+  lastErrorCode    String?   @db.VarChar(100)
+  receivedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  failedAt         DateTime? @db.Timestamptz(3)
+
+  @@index([processedAt, nextAttemptAt])
 }

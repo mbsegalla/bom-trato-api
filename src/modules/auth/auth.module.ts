@@ -25,7 +25,7 @@ import { PrismaAuthRepository } from './infrastructure/repositories/prismaAuth.r
 import { NodeAuthSecurity } from './infrastructure/security/nodeAuthSecurity.js';
 import { PostgresAuthRateLimiter } from './infrastructure/security/postgresAuthRateLimiter.js';
 import { AuthCookies } from './presentation/http/authCookies.js';
-import { AuthController } from './presentation/http/controller/auth.controller.js';
+import { AuthController } from './presentation/http/controllers/auth.controller.js';
 import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.js';
 
 @Module({

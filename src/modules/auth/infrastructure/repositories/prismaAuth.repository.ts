@@ -146,27 +146,31 @@ export class PrismaAuthRepository extends AuthRepository {
     const result = await this.prisma.$transaction(async (tx) => {
       const locator = await tx.refreshToken.findUnique({
         where: { tokenHash },
-        select: {
-          session: {
-            select: { userId: true },
-          },
-        },
+        select: { sessionId: true },
       });
 
       if (locator === null) {
         throw new AuthError('INVALID_TOKEN');
       }
 
-      await this.lockUser(tx, locator.session.userId);
+      const sessionLocator = await tx.authSession.findUnique({
+        where: { id: locator.sessionId },
+        select: { userId: true },
+      });
+
+      if (sessionLocator === null) {
+        throw new AuthError('INVALID_TOKEN');
+      }
+
+      await this.lockUser(tx, sessionLocator.userId);
 
       const row = await tx.refreshToken.findUnique({
         where: { tokenHash },
-        include: {
-          session: {
-            include: {
-              user: { select: userSelect },
-            },
-          },
+        select: {
+          id: true,
+          sessionId: true,
+          expiresAt: true,
+          usedAt: true,
         },
       });
 
@@ -174,7 +178,18 @@ export class PrismaAuthRepository extends AuthRepository {
         throw new AuthError('INVALID_TOKEN');
       }
 
-      const session = AuthSession.restore(row.session);
+      const sessionRow = await tx.authSession.findUnique({
+        where: { id: row.sessionId },
+        include: {
+          user: { select: userSelect },
+        },
+      });
+
+      if (sessionRow === null) {
+        throw new AuthError('INVALID_TOKEN');
+      }
+
+      const session = AuthSession.restore(sessionRow);
       const token = new RefreshToken(row.id, row.sessionId, row.expiresAt, row.usedAt);
 
       try {
@@ -199,7 +214,7 @@ export class PrismaAuthRepository extends AuthRepository {
         throw error;
       }
 
-      User.restore(row.session.user).assertCanAuthenticate();
+      User.restore(sessionRow.user).assertCanAuthenticate();
       session.renew(now, idleSeconds);
 
       const state = session.snapshot();
@@ -316,21 +331,25 @@ export class PrismaAuthRepository extends AuthRepository {
   async revokeByToken({ tokenHash, now, reason }: RevokeByTokenParams): Promise<void> {
     const row = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
-      select: {
-        sessionId: true,
-        session: {
-          select: { userId: true },
-        },
-      },
+      select: { sessionId: true },
     });
 
     if (row === null) {
       return;
     }
 
+    const session = await this.prisma.authSession.findUnique({
+      where: { id: row.sessionId },
+      select: { userId: true },
+    });
+
+    if (session === null) {
+      return;
+    }
+
     await this.revoke({
       identity: {
-        userId: row.session.userId,
+        userId: session.userId,
         sessionId: row.sessionId,
       },
       now,

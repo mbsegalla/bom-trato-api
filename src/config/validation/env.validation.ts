@@ -23,6 +23,17 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .pattern(/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/)
     .required(),
 
+  STRIPE_WEBHOOK_SECRET: Joi.string()
+    .trim()
+    .pattern(/^whsec_[A-Za-z0-9]+$/)
+    .required(),
+
+  BILLING_WORKER_ENABLED: Joi.boolean().default(true),
+
+  STRIPE_PORTAL_CONFIGURATION_ID: Joi.string()
+    .pattern(/^bpc_[A-Za-z0-9]+$/)
+    .optional(),
+
   AUTH_JWT_SECRET: Joi.string()
     .pattern(/^[a-fA-F0-9]{64}$/)
     .required(),

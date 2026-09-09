@@ -10,6 +10,9 @@ export interface EnvironmentVariables {
   FRONTEND_URL: string;
   DATABASE_URL: string;
   STRIPE_SECRET_KEY: string;
+  STRIPE_WEBHOOK_SECRET: string;
+  STRIPE_PORTAL_CONFIGURATION_ID?: string;
+  BILLING_WORKER_ENABLED: boolean;
   AUTH_JWT_SECRET: string;
   AUTH_CSRF_SECRET: string;
   AUTH_JWT_ISSUER: string;
