@@ -1,4 +1,4 @@
-import type { PaymentMethodUpdateProps } from '../../domain/repositories/paymentMethodUpdate.repository.js';
+import type { PaymentMethodUpdateProps } from '../../domain/entities/paymentMethodUpdate.entity.js';
 
 export type PaymentSetupStatus =
   'requires_payment_method' | 'requires_confirmation' | 'requires_action' | 'processing' | 'canceled' | 'succeeded';

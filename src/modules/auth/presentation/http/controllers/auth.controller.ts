@@ -159,9 +159,9 @@ export class AuthController {
     this.cookies.clear(response);
   }
 
-  @Post('logout/all')
+  @Post('logout-all')
   @HttpCode(204)
-  @AuthEndpoint('logout/all')
+  @AuthEndpoint('logout-all')
   @ApiBearerAuth('access-token')
   @ApiNoContentResponse()
   async logoutAll(@CurrentAuth() auth: AuthContext, @Res({ passthrough: true }) response: Response): Promise<void> {
@@ -204,10 +204,10 @@ export class AuthController {
     }
   }
 
-  @Post('forgot/password')
+  @Post('forgot-password')
   @HttpCode(202)
   @PublicRoute()
-  @AuthEndpoint('forgot/password')
+  @AuthEndpoint('forgot-password')
   @ApiDataResponse(AuthMessageDto, { status: 202 })
   async forgotPassword(@Body() dto: EmailDto): Promise<AuthMessageDto> {
     await authOperation(() => this.requestEmailUseCase.execute(dto.email, 'RESET_PASSWORD'));
@@ -215,10 +215,10 @@ export class AuthController {
     return genericMessage;
   }
 
-  @Post('resend/verification')
+  @Post('resend-verification')
   @HttpCode(202)
   @PublicRoute()
-  @AuthEndpoint('resend/verification')
+  @AuthEndpoint('resend-verification')
   @ApiDataResponse(AuthMessageDto, { status: 202 })
   async resendVerification(@Body() dto: EmailDto): Promise<AuthMessageDto> {
     await authOperation(() => this.requestEmailUseCase.execute(dto.email, 'VERIFY_EMAIL'));
@@ -226,19 +226,19 @@ export class AuthController {
     return genericMessage;
   }
 
-  @Post('verify/email')
+  @Post('verify-email')
   @HttpCode(204)
   @PublicRoute()
-  @AuthEndpoint('verify/email')
+  @AuthEndpoint('verify-email')
   @ApiNoContentResponse()
   async verifyEmail(@Body() dto: ActionTokenDto): Promise<void> {
     await authOperation(() => this.verifyEmailUseCase.execute(dto.token));
   }
 
-  @Post('reset/password')
+  @Post('reset-password')
   @HttpCode(204)
   @PublicRoute()
-  @AuthEndpoint('reset/password')
+  @AuthEndpoint('reset-password')
   @ApiNoContentResponse()
   async resetPassword(@Body() dto: ResetPasswordDto, @Res({ passthrough: true }) response: Response): Promise<void> {
     await authOperation(() => this.resetPasswordUseCase.execute(dto.token, dto.password));

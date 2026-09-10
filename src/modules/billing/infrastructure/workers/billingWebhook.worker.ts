@@ -3,11 +3,13 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
+import { ChangePlanUseCase } from '../../application/useCases/changePlan.useCase.js';
 import { SyncBillingUseCase } from '../../application/useCases/syncBilling.useCase.js';
 import { UpdatePaymentMethodUseCase } from '../../application/useCases/updatePaymentMethod.useCase.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
+import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 
 @Injectable()
 export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
@@ -22,6 +24,8 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
     private readonly configuration: ConfigType<typeof stripeConfig>,
 
     private readonly billingRepository: BillingRepository,
+    private readonly planChangeRepository: PlanChangeRepository,
+    private readonly changePlanUseCase: ChangePlanUseCase,
     private readonly syncBillingUseCase: SyncBillingUseCase,
     private readonly updatePaymentMethodUseCase: UpdatePaymentMethodUseCase,
     private readonly paymentMethodUpdateRepository: PaymentMethodUpdateRepository,
@@ -52,6 +56,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async process(): Promise<void> {
+    await this.processPlanChanges();
     await this.processPaymentMethodUpdates();
 
     for (const event of await this.billingRepository.pendingEvents()) {
@@ -65,6 +70,8 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         if (customer === null) {
           throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
         }
+
+        await this.changePlanUseCase.reconcile(customer.organizationId);
 
         if (event.type.startsWith('setup_intent.')) {
           await this.updatePaymentMethodUseCase.synchronize({
@@ -116,6 +123,31 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
             organizationId: customer.organizationId,
           });
         }
+      }
+    }
+  }
+
+  private async processPlanChanges(): Promise<void> {
+    for (const change of await this.planChangeRepository.due()) {
+      if (this.stopping) {
+        return;
+      }
+
+      try {
+        await this.changePlanUseCase.reconcile(change.organizationId);
+      } catch (error: unknown) {
+        await this.planChangeRepository.postpone(change.id, 60);
+
+        if (error instanceof BillingError && error.code === 'BILLING_BUSY') {
+          continue;
+        }
+
+        this.logger.error({
+          message: 'Plan change reconciliation failed',
+          changeId: change.id,
+          organizationId: change.organizationId,
+          code: error instanceof BillingError ? error.code : 'PLAN_CHANGE_RECONCILIATION_FAILED',
+        });
       }
     }
   }

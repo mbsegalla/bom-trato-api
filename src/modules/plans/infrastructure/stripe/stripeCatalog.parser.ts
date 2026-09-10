@@ -1,7 +1,7 @@
 import Joi from 'joi';
 import type Stripe from 'stripe';
 
-import { BillingInterval } from '../../../generated/prisma/client.js';
+import { BillingInterval } from '../../../../generated/prisma/enums.js';
 
 interface PlanMetadata {
   plan_code: string;
@@ -85,11 +85,9 @@ export function parseStripePrice(price: Stripe.Price) {
     case 'month':
       interval = BillingInterval.MONTH;
       break;
-
     case 'year':
       interval = BillingInterval.YEAR;
       break;
-
     default:
       throw new Error(`Price ${price.id} must use a monthly or yearly interval`);
   }

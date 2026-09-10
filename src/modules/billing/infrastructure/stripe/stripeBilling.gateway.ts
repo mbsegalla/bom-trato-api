@@ -21,6 +21,8 @@ const supportedEvents = new Set([
   'customer.subscription.deleted',
   'customer.subscription.paused',
   'customer.subscription.resumed',
+  'customer.subscription.pending_update_applied',
+  'customer.subscription.pending_update_expired',
   'invoice.paid',
   'invoice.payment_failed',
   'invoice.payment_action_required',
@@ -31,6 +33,11 @@ const supportedEvents = new Set([
   'setup_intent.succeeded',
   'setup_intent.setup_failed',
   'setup_intent.canceled',
+  'subscription_schedule.updated',
+  'subscription_schedule.completed',
+  'subscription_schedule.released',
+  'subscription_schedule.canceled',
+  'subscription_schedule.aborted',
 ]);
 
 function date(seconds: number): Date {

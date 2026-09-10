@@ -7,8 +7,8 @@ import type {
   SubscriptionPaymentParams,
 } from '../../application/ports/paymentMethodGateway.port.js';
 import { PaymentMethodGateway } from '../../application/ports/paymentMethodGateway.port.js';
+import type { PaymentMethodUpdateProps } from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
-import type { PaymentMethodUpdateProps } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 
 function objectId(value: string | { id: string } | null): string | null {
   return typeof value === 'string' ? value : (value?.id ?? null);
@@ -62,7 +62,6 @@ export class StripePaymentMethodGateway extends PaymentMethodGateway {
     try {
       return toSetup(await this.stripe.setupIntents.cancel(id));
     } catch (error: unknown) {
-      // Confirmation can finish while cancellation is in flight.
       if (error instanceof Stripe.errors.StripeInvalidRequestError) {
         const current = await this.retrieveSetup(id);
 
@@ -108,7 +107,20 @@ export class StripePaymentMethodGateway extends PaymentMethodGateway {
   }
 
   async apply({ customerId, subscriptionId, updateId, paymentMethodId }: ApplyPaymentMethodParams): Promise<void> {
-    await this.subscription({ customerId, subscriptionId });
+    const subscription = await this.subscription({
+      customerId,
+      subscriptionId,
+    });
+
+    const scheduleId = objectId(subscription.schedule);
+
+    if (scheduleId !== null) {
+      const schedule = await this.stripe.subscriptionSchedules.retrieve(scheduleId);
+
+      if (!schedule.metadata?.planChangeId || schedule.phases.some((phase) => phase.default_payment_method !== null)) {
+        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+      }
+    }
 
     const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
 
@@ -116,7 +128,6 @@ export class StripePaymentMethodGateway extends PaymentMethodGateway {
       throw new BillingError('INVALID_PAYMENT_METHOD_UPDATE');
     }
 
-    // The subscription default takes precedence over the customer default.
     await this.stripe.subscriptions.update(
       subscriptionId,
       {
@@ -138,6 +149,20 @@ export class StripePaymentMethodGateway extends PaymentMethodGateway {
         idempotencyKey: `payment-method-customer:${updateId}`,
       },
     );
+
+    if (scheduleId !== null) {
+      await this.stripe.subscriptionSchedules.update(
+        scheduleId,
+        {
+          default_settings: {
+            default_payment_method: paymentMethodId,
+          },
+        },
+        {
+          idempotencyKey: `payment-method-schedule:${updateId}`,
+        },
+      );
+    }
   }
 
   async current({ customerId, subscriptionId }: SubscriptionPaymentParams): Promise<CardSummary | null> {
@@ -155,7 +180,6 @@ export class StripePaymentMethodGateway extends PaymentMethodGateway {
         throw new BillingError('SUBSCRIPTION_NOT_FOUND');
       }
 
-      // Legacy sources are not part of this PaymentMethod integration.
       if (subscription.default_source !== null) {
         return null;
       }

@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
+import { PaymentMethodUpdateStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type {
-  CreatePaymentMethodUpdateParams,
-  FinishPaymentMethodUpdateParams,
+  PaymentMethodUpdate,
   PaymentMethodUpdateProps,
-  SaveSetupIntentParams,
-} from '../../domain/repositories/paymentMethodUpdate.repository.js';
+} from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 
 @Injectable()
@@ -15,27 +14,13 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
     super();
   }
 
-  async create({
-    id,
-    organizationId,
-    requestedById,
-    stripeCustomerId,
-    stripeSubscriptionId,
-    consentVersion,
-    consentAcceptedAt,
-    expiresAt,
-  }: CreatePaymentMethodUpdateParams): Promise<PaymentMethodUpdateProps> {
+  async create(update: PaymentMethodUpdate): Promise<PaymentMethodUpdateProps> {
+    const state = update.snapshot();
+
     return this.prisma.paymentMethodUpdate.create({
       data: {
-        id,
-        organizationId,
-        activeOrganizationId: organizationId,
-        requestedById,
-        stripeCustomerId,
-        stripeSubscriptionId,
-        consentVersion,
-        consentAcceptedAt,
-        expiresAt,
+        ...state,
+        activeOrganizationId: state.organizationId,
       },
     });
   }
@@ -54,20 +39,16 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
     });
   }
 
-  async saveSetupIntent({ id, stripeSetupIntentId }: SaveSetupIntentParams): Promise<PaymentMethodUpdateProps> {
-    return this.prisma.paymentMethodUpdate.update({
-      where: { id },
-      data: { stripeSetupIntentId },
-    });
-  }
+  async save(update: PaymentMethodUpdate): Promise<PaymentMethodUpdateProps> {
+    const state = update.snapshot();
 
-  async finish({ id, status }: FinishPaymentMethodUpdateParams): Promise<PaymentMethodUpdateProps> {
     return this.prisma.paymentMethodUpdate.update({
-      where: { id },
+      where: { id: state.id },
       data: {
-        status,
-        activeOrganizationId: null,
-        completedAt: new Date(),
+        status: state.status,
+        stripeSetupIntentId: state.stripeSetupIntentId,
+        activeOrganizationId: update.isPending() ? state.organizationId : null,
+        ...(update.isPending() ? {} : { completedAt: new Date() }),
       },
     });
   }
@@ -76,7 +57,7 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
     await this.prisma.paymentMethodUpdate.updateMany({
       where: {
         id,
-        status: 'PENDING',
+        status: PaymentMethodUpdateStatus.PENDING,
       },
       data: {
         nextCheckAt: new Date(Date.now() + seconds * 1000),
@@ -87,7 +68,7 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
   async due(): Promise<PaymentMethodUpdateProps[]> {
     return this.prisma.paymentMethodUpdate.findMany({
       where: {
-        status: 'PENDING',
+        status: PaymentMethodUpdateStatus.PENDING,
         nextCheckAt: { lte: new Date() },
       },
       orderBy: [{ nextCheckAt: 'asc' }, { id: 'asc' }],
