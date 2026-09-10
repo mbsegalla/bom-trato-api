@@ -195,11 +195,11 @@ model Organization {
   id          String   @id @default(uuid()) @db.Uuid
   name        String   @db.VarChar(100)
   ownerId     String   @db.Uuid
-  creationKey String? @db.Uuid
+  creationKey String?  @db.Uuid
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
-  owner                User                 @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner                User                  @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   organizationMembers  OrganizationMember[]
   billingCustomer      BillingCustomer?
   subscriptions        Subscription[]
@@ -332,7 +332,7 @@ model PaymentMethodUpdate {
   createdAt            DateTime                  @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId],references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   @@index([status, nextCheckAt])
   @@index([organizationId, createdAt])
@@ -376,7 +376,7 @@ model PlanChange {
   @@index([status, nextCheckAt])
   @@index([organizationId, createdAt])
 }
-    
+
 model StripeWebhookEvent {
   id               String    @id
   type             String    @db.VarChar(100)
