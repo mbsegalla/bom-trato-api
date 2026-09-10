@@ -86,6 +86,30 @@ const billingHttpErrors = {
     status: HttpStatus.CONFLICT,
     message: 'The payment method update is not valid for this organization.',
   },
+  PLAN_CHANGE_NOT_FOUND: {
+    status: HttpStatus.NOT_FOUND,
+    message: 'Plan change not found.',
+  },
+  PLAN_CHANGE_CONFLICT: {
+    status: HttpStatus.CONFLICT,
+    message: 'Another billing change is pending or the subscription cannot be changed now.',
+  },
+  PLAN_CHANGE_SAME_PRICE: {
+    status: HttpStatus.CONFLICT,
+    message: 'The subscription already uses this price.',
+  },
+  PLAN_CHANGE_QUOTE_EXPIRED: {
+    status: HttpStatus.CONFLICT,
+    message: 'The quote is no longer valid. Request a new preview.',
+  },
+  PLAN_CHANGE_UNSUPPORTED: {
+    status: HttpStatus.CONFLICT,
+    message: 'The subscription configuration is not supported by this plan change flow.',
+  },
+  PLAN_MEMBER_LIMIT: {
+    status: HttpStatus.CONFLICT,
+    message: 'Remove members before switching to a plan with a lower member limit.',
+  },
 } satisfies Record<BillingErrorCode, BillingHttpErrorDefinition>;
 
 export async function billingOperation<T>(operation: () => Promise<T>): Promise<T> {

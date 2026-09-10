@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import type { PaymentMethodUpdateStatus } from '../../../../generated/prisma/enums.js';
+import type { PaymentMethodUpdateProps } from '../../domain/entities/paymentMethodUpdate.entity.js';
+import { PaymentMethodUpdate } from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
-import type {
-  PaymentMethodUpdateProps,
-  PaymentMethodUpdateRepository,
-} from '../../domain/repositories/paymentMethodUpdate.repository.js';
+import type { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { CardSummary, PaymentMethodGateway, PaymentSetup } from '../ports/paymentMethodGateway.port.js';
@@ -35,8 +34,6 @@ export interface PaymentMethodUpdateResult {
 const consentVersion = 'subscription-card-v1';
 const lifetimeMs = 2 * 60 * 60 * 1000;
 
-const supportedStatuses = new Set(['ACTIVE', 'TRIALING', 'PAST_DUE', 'UNPAID', 'PAUSED']);
-
 export class UpdatePaymentMethodUseCase {
   constructor(
     private readonly billingRepository: BillingRepository,
@@ -47,11 +44,7 @@ export class UpdatePaymentMethodUseCase {
   ) {}
 
   private result(update: PaymentMethodUpdateProps, clientSecret: string | null = null): PaymentMethodUpdateResult {
-    return {
-      updateId: update.id,
-      status: update.status,
-      clientSecret,
-    };
+    return PaymentMethodUpdate.restore(update).toPublic(clientSecret);
   }
 
   private async setup(update: PaymentMethodUpdateProps): Promise<PaymentSetup> {
@@ -70,15 +63,14 @@ export class UpdatePaymentMethodUseCase {
 
       setup = await this.paymentMethodGateway.createSetup(update);
 
-      await this.paymentMethodUpdateRepository.saveSetupIntent({
-        id: update.id,
-        stripeSetupIntentId: setup.id,
-      });
+      const entity = PaymentMethodUpdate.restore(update);
+
+      entity.attachSetup(setup);
+
+      await this.paymentMethodUpdateRepository.save(entity);
     }
 
-    if (setup.customerId !== update.stripeCustomerId || setup.updateId !== update.id) {
-      throw new BillingError('INVALID_PAYMENT_METHOD_UPDATE');
-    }
+    PaymentMethodUpdate.restore(update).attachSetup(setup);
 
     return setup;
   }
@@ -92,12 +84,12 @@ export class UpdatePaymentMethodUseCase {
       const active = await this.paymentMethodUpdateRepository.active(organizationId);
 
       if (active !== null) {
-        // An ownership change invalidates the previous authorization.
-        if (active.requestedById !== userId) {
-          await this.paymentMethodUpdateRepository.finish({
-            id: active.id,
-            status: 'CANCELED',
-          });
+        if (!PaymentMethodUpdate.restore(active).wasRequestedBy(userId)) {
+          const previous = PaymentMethodUpdate.restore(active);
+
+          previous.markCanceled();
+
+          await this.paymentMethodUpdateRepository.save(previous);
         } else {
           return this.process(active);
         }
@@ -120,13 +112,11 @@ export class UpdatePaymentMethodUseCase {
         throw new BillingError('SUBSCRIPTION_NOT_FOUND');
       }
 
-      if (!supportedStatuses.has(subscription.status)) {
-        throw new BillingError('INVALID_SUBSCRIPTION_STATE');
-      }
+      PaymentMethodUpdate.assertSubscriptionCanUpdate(subscription.status);
 
       const now = new Date();
 
-      const update = await this.paymentMethodUpdateRepository.create({
+      const entity = PaymentMethodUpdate.create({
         id: randomUUID(),
         organizationId,
         requestedById: userId,
@@ -137,7 +127,7 @@ export class UpdatePaymentMethodUseCase {
         expiresAt: new Date(now.getTime() + lifetimeMs),
       });
 
-      return this.process(update);
+      return this.process(await this.paymentMethodUpdateRepository.create(entity));
     });
   }
 
@@ -159,8 +149,10 @@ export class UpdatePaymentMethodUseCase {
 
       const result = await this.process(update);
 
-      // Completion does not need to expose the client secret.
-      return { ...result, clientSecret: null };
+      return {
+        ...result,
+        clientSecret: null,
+      };
     });
   }
 
@@ -168,6 +160,7 @@ export class UpdatePaymentMethodUseCase {
     await this.billingRepository.assertOwner(organizationId, userId);
 
     const customer = await this.billingRepository.customer(organizationId);
+
     const subscription = await this.billingRepository.currentSubscription(organizationId);
 
     if (customer.stripeCustomerId === null || subscription === null) {
@@ -187,12 +180,14 @@ export class UpdatePaymentMethodUseCase {
           ? await this.paymentMethodUpdateRepository.active(organizationId)
           : await this.paymentMethodUpdateRepository.find(updateId);
 
-      if (update === null || update.organizationId !== organizationId || update.status !== 'PENDING') {
+      if (
+        update === null ||
+        update.organizationId !== organizationId ||
+        !PaymentMethodUpdate.restore(update).isPending()
+      ) {
         return;
       }
 
-      // Ignore events from other SetupIntent flows or older attempts.
-      // A missing local ID is recovered by the periodic worker.
       if (setupIntentId !== undefined && update.stripeSetupIntentId !== setupIntentId) {
         return;
       }
@@ -202,7 +197,9 @@ export class UpdatePaymentMethodUseCase {
   }
 
   private async process(update: PaymentMethodUpdateProps): Promise<PaymentMethodUpdateResult> {
-    if (update.status !== 'PENDING') {
+    const entity = PaymentMethodUpdate.restore(update);
+
+    if (!entity.isPending()) {
       return this.result(update);
     }
 
@@ -215,12 +212,9 @@ export class UpdatePaymentMethodUseCase {
           error.code === 'EMAIL_NOT_VERIFIED' ||
           error.code === 'ORGANIZATION_NOT_FOUND')
       ) {
-        return this.result(
-          await this.paymentMethodUpdateRepository.finish({
-            id: update.id,
-            status: 'CANCELED',
-          }),
-        );
+        entity.markCanceled();
+
+        return this.result(await this.paymentMethodUpdateRepository.save(entity));
       }
 
       throw error;
@@ -228,36 +222,26 @@ export class UpdatePaymentMethodUseCase {
 
     const customer = await this.billingRepository.customer(update.organizationId);
 
-    if (customer.stripeCustomerId !== update.stripeCustomerId) {
-      throw new BillingError('INVALID_PAYMENT_METHOD_UPDATE');
-    }
+    entity.assertCustomer(customer.stripeCustomerId);
 
     let setup = await this.setup(update);
 
-    // Processing and successful confirmations must be resolved,
-    // even if the user completed authentication near the deadline.
-    if (
-      Date.now() >= update.expiresAt.getTime() &&
-      setup.status !== 'succeeded' &&
-      setup.status !== 'processing' &&
-      setup.status !== 'canceled'
-    ) {
+    entity.attachSetup(setup);
+
+    if (entity.shouldCancelSetup(setup.status, new Date())) {
       setup = await this.paymentMethodGateway.cancelSetup(setup.id);
     }
 
     if (setup.status === 'canceled') {
-      return this.result(
-        await this.paymentMethodUpdateRepository.finish({
-          id: update.id,
-          status: 'CANCELED',
-        }),
-      );
+      entity.markCanceled();
+
+      return this.result(await this.paymentMethodUpdateRepository.save(entity));
     }
 
     if (setup.status !== 'succeeded') {
       await this.paymentMethodUpdateRepository.postpone(update.id, 30);
 
-      const canConfirm = setup.status !== 'processing' && Date.now() < update.expiresAt.getTime();
+      const canConfirm = entity.canConfirmSetup(setup.status, new Date());
 
       return this.result(update, canConfirm ? setup.clientSecret : null);
     }
@@ -273,11 +257,8 @@ export class UpdatePaymentMethodUseCase {
       paymentMethodId: setup.paymentMethodId,
     });
 
-    return this.result(
-      await this.paymentMethodUpdateRepository.finish({
-        id: update.id,
-        status: 'APPLIED',
-      }),
-    );
+    entity.markApplied();
+
+    return this.result(await this.paymentMethodUpdateRepository.save(entity));
   }
 }

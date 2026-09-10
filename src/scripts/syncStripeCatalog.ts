@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import { databaseConfig } from '../config/database.config.js';
 import { stripeConfig } from '../config/stripe.config.js';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { parseStripePrice, parseStripeProduct } from '../infrastructure/billing/stripe/stripeCatalog.validation.js';
+import { parseStripePrice, parseStripeProduct } from '../modules/plans/infrastructure/stripe/stripeCatalog.parser.js';
 
 const logger = new Logger('StripeCatalogSync');
 

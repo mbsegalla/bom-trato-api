@@ -1,5 +1,6 @@
 import { Subscription } from '../../domain/entities/subscription.entity.js';
 import type { BillingRepository, InvoicePageParams } from '../../domain/repositories/billing.repository.js';
+import type { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 
 export interface ReadSubscriptionParams {
   organizationId: string;
@@ -7,7 +8,10 @@ export interface ReadSubscriptionParams {
 }
 
 export class ReadBillingUseCase {
-  constructor(private readonly billingRepository: BillingRepository) {}
+  constructor(
+    private readonly billingRepository: BillingRepository,
+    private readonly planChangeRepository: PlanChangeRepository,
+  ) {}
 
   async subscription(params: ReadSubscriptionParams) {
     const { organizationId, userId } = params;
@@ -19,7 +23,9 @@ export class ReadBillingUseCase {
     return state === null ? null : Subscription.restore(state).toPublic(new Date());
   }
 
-  async entitlements({ organizationId, userId }: ReadSubscriptionParams) {
+  async entitlements(params: ReadSubscriptionParams) {
+    const { organizationId, userId } = params;
+
     await this.billingRepository.assertMember(organizationId, userId);
 
     const state = await this.billingRepository.currentSubscription(organizationId);
@@ -32,12 +38,16 @@ export class ReadBillingUseCase {
     const memberCount = limits?.memberCount ?? 0;
     const teamManagementEnabled = limits?.teamManagementEnabled ?? false;
 
+    const pending = await this.planChangeRepository.active(organizationId);
+
+    const memberLimit = Math.min(maxUsers, pending?.targetMaxUsers ?? maxUsers);
+
     return {
       hasAccess,
       maxUsers,
       memberCount,
       teamManagementEnabled,
-      canAddMember: hasAccess && limits.isOwner && teamManagementEnabled && memberCount < maxUsers,
+      canAddMember: hasAccess && limits.isOwner && teamManagementEnabled && memberCount < memberLimit,
     };
   }
 

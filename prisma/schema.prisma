@@ -60,6 +60,21 @@ enum PaymentMethodUpdateStatus {
   CANCELED
 }
 
+enum PlanChangeMode {
+  IMMEDIATE
+  PERIOD_END
+}
+
+enum PlanChangeStatus {
+  QUOTED
+  PROCESSING
+  PENDING_PAYMENT
+  SCHEDULED
+  APPLIED
+  CANCELED
+  EXPIRED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -69,6 +84,7 @@ model Plan {
   maxUsers              Int
   teamManagementEnabled Boolean   @default(false)
   displayOrder          Int       @default(0)
+  changeLevel           Int       @default(0)
   configVersion         Int       @default(1)
   stripeActive          Boolean   @default(true)
   published             Boolean   @default(false)
@@ -96,9 +112,11 @@ model PlanPrice {
   createdAt      DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime        @updatedAt @db.Timestamptz(3)
 
-  plan             Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
-  checkoutAttempts CheckoutAttempt[]
-  subscriptions    Subscription[]
+  plan              Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
+  sourcePlanChanges PlanChange[]      @relation("PlanChangeSource")
+  targetPlanChanges PlanChange[]      @relation("PlanChangeTarget")
+  checkoutAttempts  CheckoutAttempt[]
+  subscriptions     Subscription[]
 
   @@index([planId])
 }
@@ -188,6 +206,7 @@ model Organization {
   checkoutAttempts     CheckoutAttempt[]
   billingInvoices      BillingInvoice[]
   paymentMethodUpdates PaymentMethodUpdate[]
+  planChanges          PlanChange[]
 
   @@unique([ownerId, creationKey])
 }
@@ -314,6 +333,45 @@ model PaymentMethodUpdate {
   updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId],references: [id], onDelete: Restrict)
+
+  @@index([status, nextCheckAt])
+  @@index([organizationId, createdAt])
+}
+
+model PlanChange {
+  id                   String           @id @default(uuid()) @db.Uuid
+  organizationId       String           @db.Uuid
+  activeOrganizationId String?          @unique @db.Uuid
+  requestedById        String           @db.Uuid
+  sourcePlanPriceId    String           @db.Uuid
+  targetPlanPriceId    String           @db.Uuid
+  targetMaxUsers       Int
+  stripeCustomerId     String
+  stripeSubscriptionId String
+  stripeItemId         String
+  sourceStripePriceId  String
+  targetStripePriceId  String
+  mode                 PlanChangeMode
+  status               PlanChangeStatus @default(QUOTED)
+  currency             String           @db.VarChar(3)
+  amountDueNow         Int
+  targetAmountInCents  Int
+  targetInterval       BillingInterval
+  targetIntervalCount  Int
+  periodStart          Int
+  periodEnd            Int
+  prorationDate        Int
+  expiresAt            DateTime         @db.Timestamptz(3)
+  startedAt            DateTime?        @db.Timestamptz(3)
+  stripeInvoiceId      String?
+  stripeScheduleId     String?
+  nextCheckAt          DateTime         @default(now()) @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  sourcePlanPrice PlanPrice    @relation("PlanChangeSource", fields: [sourcePlanPriceId], references: [id], onDelete: Restrict)
+  targetPlanPrice PlanPrice    @relation("PlanChangeTarget", fields: [targetPlanPriceId], references: [id], onDelete: Restrict)
 
   @@index([status, nextCheckAt])
   @@index([organizationId, createdAt])
