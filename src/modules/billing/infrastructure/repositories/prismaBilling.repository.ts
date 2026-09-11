@@ -229,6 +229,13 @@ export class PrismaBillingRepository extends BillingRepository {
 
     await this.prisma.$transaction(
       async (tx) => {
+        await tx.$queryRaw`
+          SELECT "id"
+          FROM "Organization"
+          WHERE "id" = ${organizationId}::uuid
+          FOR UPDATE
+        `;
+
         const subscriptions = new Map<string, string>();
 
         for (const remote of snapshot.subscriptions) {

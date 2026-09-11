@@ -21,9 +21,9 @@ import { RevokeSessionUseCase } from './application/useCases/revokeSession.useCa
 import { VerifyEmailUseCase } from './application/useCases/verifyEmail.useCase.js';
 import { AuthRepository } from './domain/repositories/auth.repository.js';
 import { SmtpAuthMail } from './infrastructure/mail/smtpAuthMail.js';
+import { PostgresAuthRateLimit } from './infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { PrismaAuthRepository } from './infrastructure/repositories/prismaAuth.repository.js';
 import { NodeAuthSecurity } from './infrastructure/security/nodeAuthSecurity.js';
-import { PostgresAuthRateLimiter } from './infrastructure/security/postgresAuthRateLimiter.js';
 import { AuthCookies } from './presentation/http/authCookies.js';
 import { AuthController } from './presentation/http/controllers/auth.controller.js';
 import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.js';
@@ -59,9 +59,9 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       inject: [authConfig.KEY, appConfig.KEY],
     },
     {
-      provide: PostgresAuthRateLimiter,
+      provide: PostgresAuthRateLimit,
       useFactory: (prisma: PrismaService, config: ConfigType<typeof authConfig>) =>
-        new PostgresAuthRateLimiter(prisma, config.csrfSecret),
+        new PostgresAuthRateLimit(prisma, config.csrfSecret),
       inject: [PrismaService, authConfig.KEY],
     },
     {
@@ -71,9 +71,9 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
         security: AuthSecurity,
         authRepository: AuthRepository,
         cookies: AuthCookies,
-        rateLimiter: PostgresAuthRateLimiter,
-      ) => new AccessTokenGuard(reflector, security, authRepository, cookies, rateLimiter),
-      inject: [Reflector, AuthSecurity, AuthRepository, AuthCookies, PostgresAuthRateLimiter],
+        rateLimit: PostgresAuthRateLimit,
+      ) => new AccessTokenGuard(reflector, security, authRepository, cookies, rateLimit),
+      inject: [Reflector, AuthSecurity, AuthRepository, AuthCookies, PostgresAuthRateLimit],
     },
     {
       provide: RegisterUseCase,

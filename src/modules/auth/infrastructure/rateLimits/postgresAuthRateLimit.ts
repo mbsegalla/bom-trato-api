@@ -5,7 +5,7 @@ import type { Request, Response } from 'express';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 
-export class PostgresAuthRateLimiter {
+export class PostgresAuthRateLimit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly secret: string,

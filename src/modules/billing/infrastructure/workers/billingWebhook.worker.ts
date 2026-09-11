@@ -56,20 +56,28 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async process(): Promise<void> {
-    await this.processPlanChanges();
-    await this.processPaymentMethodUpdates();
-
     for (const event of await this.billingRepository.pendingEvents()) {
       if (this.stopping) {
         return;
       }
 
       try {
+        if (await this.billingRepository.isProcessed(event.id)) {
+          continue;
+        }
+
         const customer = await this.billingRepository.customerByStripeId(event.stripeCustomerId);
 
         if (customer === null) {
           throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
         }
+
+        // Persist billing before processing related operations.
+        // The event remains pending until all required steps succeed.
+        await this.syncBillingUseCase.execute({
+          organizationId: customer.organizationId,
+          invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
+        });
 
         await this.changePlanUseCase.reconcile(customer.organizationId);
 
@@ -80,11 +88,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
           });
         }
 
-        await this.syncBillingUseCase.execute({
-          organizationId: customer.organizationId,
-          eventId: event.id,
-          invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
-        });
+        await this.billingRepository.completeEvent(event.id);
       } catch (error: unknown) {
         if (error instanceof BillingError && error.code === 'BILLING_BUSY') {
           await this.billingRepository.deferEvent(event.id);
@@ -103,6 +107,9 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+
+    await this.processPlanChanges();
+    await this.processPaymentMethodUpdates();
 
     for (const customer of await this.billingRepository.dueCustomers()) {
       if (this.stopping) {

@@ -75,6 +75,13 @@ enum PlanChangeStatus {
   EXPIRED
 }
 
+enum OrganizationInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -199,14 +206,16 @@ model Organization {
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
-  owner                User                  @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  organizationMembers  OrganizationMember[]
-  billingCustomer      BillingCustomer?
-  subscriptions        Subscription[]
-  checkoutAttempts     CheckoutAttempt[]
-  billingInvoices      BillingInvoice[]
-  paymentMethodUpdates PaymentMethodUpdate[]
-  planChanges          PlanChange[]
+  owner                            User                              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  organizationMembers              OrganizationMember[]
+  billingCustomer                  BillingCustomer?
+  subscriptions                    Subscription[]
+  checkoutAttempts                 CheckoutAttempt[]
+  billingInvoices                  BillingInvoice[]
+  paymentMethodUpdates             PaymentMethodUpdate[]
+  planChanges                      PlanChange[]
+  organizationInvitations          OrganizationInvitation[]
+  organizationInvitationRateLimits OrganizationInvitationRateLimit[]
 
   @@unique([ownerId, creationKey])
 }
@@ -390,4 +399,35 @@ model StripeWebhookEvent {
   failedAt         DateTime? @db.Timestamptz(3)
 
   @@index([processedAt, nextAttemptAt])
+}
+
+model OrganizationInvitation {
+  id             String                       @id @default(uuid()) @db.Uuid
+  organizationId String                       @db.Uuid
+  email          String                       @db.VarChar(254)
+  pendingEmail   String?                      @db.VarChar(254)
+  invitedById    String                       @db.Uuid
+  tokenHash      String                       @unique @db.Char(64)
+  status         OrganizationInvitationStatus @default(PENDING)
+  expiresAt      DateTime                     @db.Timestamptz(3)
+  lastSentAt     DateTime                     @db.Timestamptz(3)
+  acceptedById   String?                      @db.Uuid
+  acceptedAt     DateTime?                    @db.Timestamptz(3)
+  revokedAt      DateTime?                    @db.Timestamptz(3)
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                     @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, pendingEmail])
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, expiresAt])
+}
+
+model OrganizationInvitationRateLimit {
+  organizationId String   @id @db.Uuid
+  count          Int
+  expiresAt      DateTime @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

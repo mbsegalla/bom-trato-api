@@ -9,6 +9,7 @@ interface PlanMetadata {
   team_management_enabled: boolean;
   display_order: number;
   config_version: number;
+  change_level: number;
 }
 
 const planMetadataSchema = Joi.object<PlanMetadata>({
@@ -20,6 +21,7 @@ const planMetadataSchema = Joi.object<PlanMetadata>({
   team_management_enabled: Joi.boolean().required(),
   display_order: Joi.number().integer().min(0).max(2147483647).required(),
   config_version: Joi.number().integer().min(1).max(2147483647).required(),
+  change_level: Joi.number().integer().min(1).max(2147483647).required(),
 });
 
 export function parseStripeProduct(product: Stripe.Product) {
@@ -50,6 +52,7 @@ export function parseStripeProduct(product: Stripe.Product) {
     teamManagementEnabled: metadata.team_management_enabled,
     displayOrder: metadata.display_order,
     configVersion: metadata.config_version,
+    changeLevel: metadata.change_level,
     stripeActive: product.active,
     stripeMetadata: { ...product.metadata },
   };
