@@ -5,7 +5,7 @@ import type { Response } from 'express';
 
 import type { AuthSecurity } from '../../../application/ports/authSecurity.port.js';
 import type { AuthRepository } from '../../../domain/repositories/auth.repository.js';
-import type { PostgresAuthRateLimiter } from '../../../infrastructure/security/postgresAuthRateLimiter.js';
+import type { PostgresAuthRateLimit } from '../../../infrastructure/rateLimits/postgresAuthRateLimit.js';
 import type { AuthCookies } from '../authCookies.js';
 import { toAuthHttpError } from '../authHttpError.js';
 import type { AuthRequest } from '../authRequest.js';
@@ -19,7 +19,7 @@ export class AccessTokenGuard implements CanActivate {
     private readonly security: AuthSecurity,
     private readonly authRepository: AuthRepository,
     private readonly cookies: AuthCookies,
-    private readonly rateLimiter: PostgresAuthRateLimiter,
+    private readonly rateLimit: PostgresAuthRateLimit,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -37,7 +37,7 @@ export class AccessTokenGuard implements CanActivate {
     if (endpoint) {
       response.setHeader('Cache-Control', 'no-store');
 
-      await this.rateLimiter.check(request, response, endpoint.bucket);
+      await this.rateLimit.check(request, response, endpoint.bucket);
 
       if (endpoint.mutation) {
         this.cookies.assertCsrf(request);

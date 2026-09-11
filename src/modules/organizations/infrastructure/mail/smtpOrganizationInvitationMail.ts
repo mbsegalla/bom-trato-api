@@ -4,10 +4,12 @@ import nodemailer from 'nodemailer';
 
 import type { appConfig } from '../../../../config/app.config.js';
 import type { mailConfig } from '../../../../config/mail.config.js';
-import { AuthMail } from '../../application/ports/authSecurity.port.js';
+import type { SendInvitationParams } from '../../application/ports/organizationInvitationSecurity.port.js';
+import { OrganizationInvitationMail } from '../../application/ports/organizationInvitationSecurity.port.js';
 
-export class SmtpAuthMail extends AuthMail {
-  private readonly logger = new Logger(SmtpAuthMail.name);
+export class SmtpOrganizationInvitationMail extends OrganizationInvitationMail {
+  private readonly logger = new Logger(SmtpOrganizationInvitationMail.name);
+
   private readonly transport;
 
   constructor(
@@ -33,37 +35,35 @@ export class SmtpAuthMail extends AuthMail {
     });
   }
 
-  async sendVerification(email: string, token: string): Promise<void> {
-    await this.send(email, token, '/verify-email', 'Verify your Bom Trato email');
-  }
-
-  async sendPasswordReset(email: string, token: string): Promise<void> {
-    await this.send(email, token, '/reset-password', 'Reset your Bom Trato password');
-  }
-
-  private async send(email: string, token: string, path: string, subject: string): Promise<void> {
-    const url = new URL(path, this.app.frontendUrl);
+  async send({ email, organizationName, token }: SendInvitationParams): Promise<boolean> {
+    const url = new URL('/organization-invitations/accept', this.app.frontendUrl);
 
     url.hash = new URLSearchParams({ token }).toString();
 
     try {
-      await this.transport.sendMail({
+      const result = await this.transport.sendMail({
         from: {
           name: this.config.from.name,
           address: this.config.from.email,
         },
         to: email,
-        subject,
+        subject: 'Invitation to join a Bom Trato organization',
         text: [
-          subject,
+          `You were invited to join ${organizationName}.`,
           '',
           `Open this link: ${url.toString()}`,
           '',
-          'If you did not request this, ignore this email.',
+          'Sign in with the email address that received this invitation.',
+          'This invitation expires in 48 hours.',
+          'If you did not expect this invitation, ignore this email.',
         ].join('\n'),
       });
+
+      return result.accepted.length > 0;
     } catch {
-      this.logger.error('Authentication email delivery failed');
+      this.logger.error('Organization invitation email delivery failed');
+
+      return false;
     }
   }
 }
