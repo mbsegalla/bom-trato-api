@@ -4,7 +4,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
-import { ChangePlanUseCase } from '../../../application/useCases/changePlan.useCase.js';
+import { CancelPlanChangeUseCase } from '../../../application/useCases/cancelPlanChange.useCase.js';
+import { ConfirmPlanChangeUseCase } from '../../../application/useCases/confirmPlanChange.useCase.js';
+import { GetPlanChangeUseCase } from '../../../application/useCases/getPlanChange.useCase.js';
+import { PreviewPlanChangeUseCase } from '../../../application/useCases/previewPlanChange.useCase.js';
+import { SyncPlanChangeUseCase } from '../../../application/useCases/syncPlanChange.useCase.js';
 import { billingOperation } from '../billingHttpError.js';
 import { PreviewPlanChangeDto } from '../dtos/requests/planChangeRequest.dto.js';
 import { PlanChangeResponseDto } from '../dtos/responses/planChangeResponse.dto.js';
@@ -13,7 +17,13 @@ import { PlanChangeResponseDto } from '../dtos/responses/planChangeResponse.dto.
 @ApiBearerAuth('access-token')
 @Controller('organizations/:organizationId/billing/plan-changes')
 export class PlanChangeController {
-  constructor(private readonly changePlanUseCase: ChangePlanUseCase) {}
+  constructor(
+    private readonly previewPlanChangeUseCase: PreviewPlanChangeUseCase,
+    private readonly confirmPlanChangeUseCase: ConfirmPlanChangeUseCase,
+    private readonly getPlanChangeUseCase: GetPlanChangeUseCase,
+    private readonly syncPlanChangeUseCase: SyncPlanChangeUseCase,
+    private readonly cancelPlanChangeUseCase: CancelPlanChangeUseCase,
+  ) {}
 
   @Post('preview')
   @HttpCode(200)
@@ -26,7 +36,7 @@ export class PlanChangeController {
     @Body() dto: PreviewPlanChangeDto,
   ): Promise<PlanChangeResponseDto> {
     return billingOperation(() =>
-      this.changePlanUseCase.preview({
+      this.previewPlanChangeUseCase.execute({
         organizationId,
         userId: auth.user.id,
         planPriceId: dto.planPriceId,
@@ -46,7 +56,7 @@ export class PlanChangeController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<PlanChangeResponseDto> {
     return billingOperation(() =>
-      this.changePlanUseCase.confirm({
+      this.confirmPlanChangeUseCase.execute({
         organizationId,
         userId: auth.user.id,
         changeId,
@@ -66,7 +76,7 @@ export class PlanChangeController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<PlanChangeResponseDto> {
     return billingOperation(() =>
-      this.changePlanUseCase.read({
+      this.getPlanChangeUseCase.execute({
         organizationId,
         userId: auth.user.id,
         changeId,
@@ -86,7 +96,7 @@ export class PlanChangeController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<PlanChangeResponseDto> {
     return billingOperation(() =>
-      this.changePlanUseCase.sync({
+      this.syncPlanChangeUseCase.execute({
         organizationId,
         userId: auth.user.id,
         changeId,
@@ -106,7 +116,7 @@ export class PlanChangeController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<PlanChangeResponseDto> {
     return billingOperation(() =>
-      this.changePlanUseCase.cancel({
+      this.cancelPlanChangeUseCase.execute({
         organizationId,
         userId: auth.user.id,
         changeId,

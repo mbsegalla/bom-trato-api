@@ -10,13 +10,27 @@ import { BillingGateway } from './application/ports/billingGateway.port.js';
 import { BillingLock } from './application/ports/billingLock.port.js';
 import { PaymentMethodGateway } from './application/ports/paymentMethodGateway.port.js';
 import { PlanChangeGateway } from './application/ports/planChangeGateway.port.js';
-import { ChangePlanUseCase } from './application/useCases/changePlan.useCase.js';
+import { PaymentMethodUpdateProcessor } from './application/services/paymentMethodUpdateProcessor.service.js';
+import { PlanChangeProcessor } from './application/services/planChangeProcessor.service.js';
+import { SubscriptionCancellationService } from './application/services/subscriptionCancellationService.service.js';
+import { CancelPlanChangeUseCase } from './application/useCases/cancelPlanChange.useCase.js';
+import { CancelSubscriptionUseCase } from './application/useCases/cancelSubscription.useCase.js';
+import { CompletePaymentMethodUpdateUseCase } from './application/useCases/completePaymentMethodUpdate.useCase.js';
+import { ConfirmPlanChangeUseCase } from './application/useCases/confirmPlanChange.useCase.js';
 import { CreateBillingPortalUseCase } from './application/useCases/createBillingPortal.useCase.js';
-import { ReadBillingUseCase } from './application/useCases/readBilling.useCase.js';
-import { SetCancellationUseCase } from './application/useCases/setCancellation.useCase.js';
+import { GetEntitlementsUseCase } from './application/useCases/getEntitlements.useCase.js';
+import { GetPaymentMethodUseCase } from './application/useCases/getPaymentMethod.useCase.js';
+import { GetPlanChangeUseCase } from './application/useCases/getPlanChange.useCase.js';
+import { GetSubscriptionUseCase } from './application/useCases/getSubscription.useCase.js';
+import { ListBillingInvoicesUseCase } from './application/useCases/listBillingInvoices.useCase.js';
+import { PreviewPlanChangeUseCase } from './application/useCases/previewPlanChange.useCase.js';
+import { ReconcilePlanChangeUseCase } from './application/useCases/reconcilePlanChange.useCase.js';
+import { ResumeSubscriptionUseCase } from './application/useCases/resumeSubscription.useCase.js';
 import { StartCheckoutUseCase } from './application/useCases/startCheckout.useCase.js';
+import { StartPaymentMethodUpdateUseCase } from './application/useCases/startPaymentMethodUpdate.useCase.js';
 import { SyncBillingUseCase } from './application/useCases/syncBilling.useCase.js';
-import { UpdatePaymentMethodUseCase } from './application/useCases/updatePaymentMethod.useCase.js';
+import { SyncPaymentMethodUpdateUseCase } from './application/useCases/syncPaymentMethodUpdate.useCase.js';
+import { SyncPlanChangeUseCase } from './application/useCases/syncPlanChange.useCase.js';
 import { BillingRepository } from './domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from './domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from './domain/repositories/planChange.repository.js';
@@ -43,15 +57,73 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
       inject: [STRIPE_CLIENT],
     },
     {
-      provide: ChangePlanUseCase,
+      provide: PlanChangeProcessor,
+      useFactory: (
+        billing: BillingRepository,
+        changes: PlanChangeRepository,
+        gateway: BillingGateway,
+        planGateway: PlanChangeGateway,
+      ) => new PlanChangeProcessor(billing, changes, gateway, planGateway),
+      inject: [BillingRepository, PlanChangeRepository, BillingGateway, PlanChangeGateway],
+    },
+    {
+      provide: PreviewPlanChangeUseCase,
       useFactory: (
         billing: BillingRepository,
         changes: PlanChangeRepository,
         gateway: BillingGateway,
         planGateway: PlanChangeGateway,
         lock: BillingLock,
-      ) => new ChangePlanUseCase(billing, changes, gateway, planGateway, lock),
+      ) => new PreviewPlanChangeUseCase(billing, changes, gateway, planGateway, lock),
       inject: [BillingRepository, PlanChangeRepository, BillingGateway, PlanChangeGateway, BillingLock],
+    },
+    {
+      provide: ConfirmPlanChangeUseCase,
+      useFactory: (
+        billing: BillingRepository,
+        changes: PlanChangeRepository,
+        gateway: BillingGateway,
+        planGateway: PlanChangeGateway,
+        lock: BillingLock,
+        processor: PlanChangeProcessor,
+      ) => new ConfirmPlanChangeUseCase(billing, changes, gateway, planGateway, lock, processor),
+      inject: [
+        BillingRepository,
+        PlanChangeRepository,
+        BillingGateway,
+        PlanChangeGateway,
+        BillingLock,
+        PlanChangeProcessor,
+      ],
+    },
+    {
+      provide: GetPlanChangeUseCase,
+      useFactory: (planGateway: PlanChangeGateway, processor: PlanChangeProcessor) =>
+        new GetPlanChangeUseCase(planGateway, processor),
+      inject: [PlanChangeGateway, PlanChangeProcessor],
+    },
+    {
+      provide: SyncPlanChangeUseCase,
+      useFactory: (billing: BillingRepository, lock: BillingLock, processor: PlanChangeProcessor) =>
+        new SyncPlanChangeUseCase(billing, lock, processor),
+      inject: [BillingRepository, BillingLock, PlanChangeProcessor],
+    },
+    {
+      provide: CancelPlanChangeUseCase,
+      useFactory: (
+        billing: BillingRepository,
+        changes: PlanChangeRepository,
+        planGateway: PlanChangeGateway,
+        lock: BillingLock,
+        processor: PlanChangeProcessor,
+      ) => new CancelPlanChangeUseCase(billing, changes, planGateway, lock, processor),
+      inject: [BillingRepository, PlanChangeRepository, PlanChangeGateway, BillingLock, PlanChangeProcessor],
+    },
+    {
+      provide: ReconcilePlanChangeUseCase,
+      useFactory: (changes: PlanChangeRepository, lock: BillingLock, processor: PlanChangeProcessor) =>
+        new ReconcilePlanChangeUseCase(changes, lock, processor),
+      inject: [PlanChangeRepository, BillingLock, PlanChangeProcessor],
     },
 
     {
@@ -85,20 +157,40 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
       inject: [BillingRepository, BillingGateway, BillingLock, appConfig.KEY],
     },
     {
-      provide: ReadBillingUseCase,
+      provide: GetSubscriptionUseCase,
+      useFactory: (repository: BillingRepository) => new GetSubscriptionUseCase(repository),
+      inject: [BillingRepository],
+    },
+    {
+      provide: GetEntitlementsUseCase,
       useFactory: (repository: BillingRepository, changes: PlanChangeRepository) =>
-        new ReadBillingUseCase(repository, changes),
+        new GetEntitlementsUseCase(repository, changes),
       inject: [BillingRepository, PlanChangeRepository],
     },
     {
-      provide: SetCancellationUseCase,
+      provide: ListBillingInvoicesUseCase,
+      useFactory: (repository: BillingRepository) => new ListBillingInvoicesUseCase(repository),
+      inject: [BillingRepository],
+    },
+    {
+      provide: SubscriptionCancellationService,
       useFactory: (
         repository: BillingRepository,
         gateway: BillingGateway,
         lock: BillingLock,
         changes: PlanChangeRepository,
-      ) => new SetCancellationUseCase(repository, gateway, lock, changes),
+      ) => new SubscriptionCancellationService(repository, gateway, lock, changes),
       inject: [BillingRepository, BillingGateway, BillingLock, PlanChangeRepository],
+    },
+    {
+      provide: CancelSubscriptionUseCase,
+      useFactory: (processor: SubscriptionCancellationService) => new CancelSubscriptionUseCase(processor),
+      inject: [SubscriptionCancellationService],
+    },
+    {
+      provide: ResumeSubscriptionUseCase,
+      useFactory: (processor: SubscriptionCancellationService) => new ResumeSubscriptionUseCase(processor),
+      inject: [SubscriptionCancellationService],
     },
     {
       provide: SyncBillingUseCase,
@@ -117,30 +209,78 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
       inject: [STRIPE_CLIENT],
     },
     {
-      provide: UpdatePaymentMethodUseCase,
+      provide: PaymentMethodUpdateProcessor,
+      useFactory: (billing: BillingRepository, updates: PaymentMethodUpdateRepository, gateway: PaymentMethodGateway) =>
+        new PaymentMethodUpdateProcessor(billing, updates, gateway),
+      inject: [BillingRepository, PaymentMethodUpdateRepository, PaymentMethodGateway],
+    },
+    {
+      provide: StartPaymentMethodUpdateUseCase,
       useFactory: (
         billing: BillingRepository,
         updates: PaymentMethodUpdateRepository,
-        gateway: PaymentMethodGateway,
         billingGateway: BillingGateway,
         lock: BillingLock,
-      ) => new UpdatePaymentMethodUseCase(billing, updates, gateway, billingGateway, lock),
-      inject: [BillingRepository, PaymentMethodUpdateRepository, PaymentMethodGateway, BillingGateway, BillingLock],
+        processor: PaymentMethodUpdateProcessor,
+      ) => new StartPaymentMethodUpdateUseCase(billing, updates, billingGateway, lock, processor),
+      inject: [
+        BillingRepository,
+        PaymentMethodUpdateRepository,
+        BillingGateway,
+        BillingLock,
+        PaymentMethodUpdateProcessor,
+      ],
+    },
+    {
+      provide: CompletePaymentMethodUpdateUseCase,
+      useFactory: (
+        billing: BillingRepository,
+        updates: PaymentMethodUpdateRepository,
+        lock: BillingLock,
+        processor: PaymentMethodUpdateProcessor,
+      ) => new CompletePaymentMethodUpdateUseCase(billing, updates, lock, processor),
+      inject: [BillingRepository, PaymentMethodUpdateRepository, BillingLock, PaymentMethodUpdateProcessor],
+    },
+    {
+      provide: GetPaymentMethodUseCase,
+      useFactory: (billing: BillingRepository, gateway: PaymentMethodGateway) =>
+        new GetPaymentMethodUseCase(billing, gateway),
+      inject: [BillingRepository, PaymentMethodGateway],
+    },
+    {
+      provide: SyncPaymentMethodUpdateUseCase,
+      useFactory: (
+        updates: PaymentMethodUpdateRepository,
+        lock: BillingLock,
+        processor: PaymentMethodUpdateProcessor,
+      ) => new SyncPaymentMethodUpdateUseCase(updates, lock, processor),
+      inject: [PaymentMethodUpdateRepository, BillingLock, PaymentMethodUpdateProcessor],
     },
   ],
   exports: [
     PlanChangeRepository,
-    ChangePlanUseCase,
+    PreviewPlanChangeUseCase,
+    ConfirmPlanChangeUseCase,
+    GetPlanChangeUseCase,
+    SyncPlanChangeUseCase,
+    CancelPlanChangeUseCase,
+    ReconcilePlanChangeUseCase,
     BillingRepository,
     BillingGateway,
     BillingLock,
     StartCheckoutUseCase,
-    ReadBillingUseCase,
-    SetCancellationUseCase,
+    GetSubscriptionUseCase,
+    GetEntitlementsUseCase,
+    ListBillingInvoicesUseCase,
+    CancelSubscriptionUseCase,
+    ResumeSubscriptionUseCase,
     SyncBillingUseCase,
     CreateBillingPortalUseCase,
     PaymentMethodUpdateRepository,
-    UpdatePaymentMethodUseCase,
+    StartPaymentMethodUpdateUseCase,
+    CompletePaymentMethodUpdateUseCase,
+    GetPaymentMethodUseCase,
+    SyncPaymentMethodUpdateUseCase,
   ],
 })
 export class BillingCoreModule {}

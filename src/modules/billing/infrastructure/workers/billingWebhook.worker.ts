@@ -3,9 +3,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
-import { ChangePlanUseCase } from '../../application/useCases/changePlan.useCase.js';
+import { ReconcilePlanChangeUseCase } from '../../application/useCases/reconcilePlanChange.useCase.js';
 import { SyncBillingUseCase } from '../../application/useCases/syncBilling.useCase.js';
-import { UpdatePaymentMethodUseCase } from '../../application/useCases/updatePaymentMethod.useCase.js';
+import { SyncPaymentMethodUpdateUseCase } from '../../application/useCases/syncPaymentMethodUpdate.useCase.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
@@ -25,9 +25,9 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
 
     private readonly billingRepository: BillingRepository,
     private readonly planChangeRepository: PlanChangeRepository,
-    private readonly changePlanUseCase: ChangePlanUseCase,
+    private readonly reconcilePlanChangeUseCase: ReconcilePlanChangeUseCase,
     private readonly syncBillingUseCase: SyncBillingUseCase,
-    private readonly updatePaymentMethodUseCase: UpdatePaymentMethodUseCase,
+    private readonly syncPaymentMethodUpdateUseCase: SyncPaymentMethodUpdateUseCase,
     private readonly paymentMethodUpdateRepository: PaymentMethodUpdateRepository,
   ) {}
 
@@ -79,10 +79,10 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
           invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
         });
 
-        await this.changePlanUseCase.reconcile(customer.organizationId);
+        await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
 
         if (event.type.startsWith('setup_intent.')) {
-          await this.updatePaymentMethodUseCase.synchronize({
+          await this.syncPaymentMethodUpdateUseCase.execute({
             organizationId: customer.organizationId,
             setupIntentId: event.stripeObjectId,
           });
@@ -141,7 +141,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
       }
 
       try {
-        await this.changePlanUseCase.reconcile(change.organizationId);
+        await this.reconcilePlanChangeUseCase.execute(change.organizationId);
       } catch (error: unknown) {
         await this.planChangeRepository.postpone(change.id, 60);
 
@@ -168,7 +168,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
       }
 
       try {
-        await this.updatePaymentMethodUseCase.synchronize({
+        await this.syncPaymentMethodUpdateUseCase.execute({
           organizationId: update.organizationId,
           updateId: update.id,
         });

@@ -5,7 +5,7 @@ import { isUUID } from 'class-validator';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
 import { CreateOrganizationUseCase } from '../../../application/useCases/createOrganization.useCase.js';
-import { OrganizationRepository } from '../../../domain/repositories/organization.repository.js';
+import { ListOwnedOrganizationsUseCase } from '../../../application/useCases/listOwnedOrganizations.useCase.js';
 import { CreateOrganizationDto } from '../dtos/requests/createOrganization.dto.js';
 import { organizationOperation } from '../organizationHttpError.js';
 
@@ -15,7 +15,7 @@ import { organizationOperation } from '../organizationHttpError.js';
 export class OrganizationsController {
   constructor(
     private readonly createOrganizationUseCase: CreateOrganizationUseCase,
-    private readonly organizationRepository: OrganizationRepository,
+    private readonly listOwnedOrganizationsUseCase: ListOwnedOrganizationsUseCase,
   ) {}
 
   @Post()
@@ -51,6 +51,6 @@ export class OrganizationsController {
   @Get()
   @ApiOperation({ summary: 'List owned organizations' })
   list(@CurrentAuth() auth: AuthContext) {
-    return this.organizationRepository.listOwned(auth.user.id);
+    return this.listOwnedOrganizationsUseCase.execute(auth.user.id);
   }
 }

@@ -4,22 +4,16 @@ import type { BillingRepository } from '../../domain/repositories/billing.reposi
 import type { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
+import type { SetCancellationParams } from '../types/setCancellation.types.js';
 
-export interface SetCancellationParams {
-  organizationId: string;
-  userId: string;
-  cancelAtPeriodEnd: boolean;
-}
-
-export class SetCancellationUseCase {
+export class SubscriptionCancellationService {
   constructor(
     private readonly billingRepository: BillingRepository,
     private readonly billingGateway: BillingGateway,
     private readonly billingLock: BillingLock,
     private readonly planChangeRepository: PlanChangeRepository,
   ) {}
-
-  async execute(params: SetCancellationParams): Promise<void> {
+  async apply(params: SetCancellationParams): Promise<void> {
     const { organizationId, userId, cancelAtPeriodEnd } = params;
 
     await this.billingRepository.assertOwner(organizationId, userId);

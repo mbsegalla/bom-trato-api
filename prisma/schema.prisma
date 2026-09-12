@@ -216,6 +216,7 @@ model Organization {
   planChanges                      PlanChange[]
   organizationInvitations          OrganizationInvitation[]
   organizationInvitationRateLimits OrganizationInvitationRateLimit[]
+  customers                        Customer[]
 
   @@unique([ownerId, creationKey])
 }
@@ -430,4 +431,20 @@ model OrganizationInvitationRateLimit {
   expiresAt      DateTime @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Customer {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @db.Uuid
+  name           String    @db.VarChar(100)
+  email          String?   @db.VarChar(254)
+  phone          String?   @db.VarChar(30)
+  notes          String?   @db.VarChar(5000)
+  archivedAt     DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
 }

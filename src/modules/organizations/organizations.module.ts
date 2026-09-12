@@ -11,8 +11,18 @@ import {
   OrganizationInvitationTokens,
 } from './application/ports/organizationInvitationSecurity.port.js';
 import { OrganizationUnitOfWork } from './application/ports/organizationUnitOfWork.port.js';
+import { OrganizationTeamApplicationService } from './application/services/organizationTeamApplicationService.service.js';
+import { AcceptOrganizationInvitationUseCase } from './application/useCases/acceptOrganizationInvitation.useCase.js';
 import { CreateOrganizationUseCase } from './application/useCases/createOrganization.useCase.js';
-import { ManageOrganizationTeamUseCase } from './application/useCases/manageOrganizationTeam.useCase.js';
+import { InviteOrganizationMemberUseCase } from './application/useCases/inviteOrganizationMember.useCase.js';
+import { ListJoinedOrganizationsUseCase } from './application/useCases/listJoinedOrganizations.useCase.js';
+import { ListOrganizationInvitationsUseCase } from './application/useCases/listOrganizationInvitations.useCase.js';
+import { ListOrganizationMembersUseCase } from './application/useCases/listOrganizationMembers.useCase.js';
+import { ListOwnedOrganizationsUseCase } from './application/useCases/listOwnedOrganizations.useCase.js';
+import { PreviewOrganizationInvitationUseCase } from './application/useCases/previewOrganizationInvitation.useCase.js';
+import { RemoveOrganizationMemberUseCase } from './application/useCases/removeOrganizationMember.useCase.js';
+import { ResendOrganizationInvitationUseCase } from './application/useCases/resendOrganizationInvitation.useCase.js';
+import { RevokeOrganizationInvitationUseCase } from './application/useCases/revokeOrganizationInvitation.useCase.js';
 import { OrganizationRepository } from './domain/repositories/organization.repository.js';
 import { OrganizationInvitationRepository } from './domain/repositories/organizationInvitation.repository.js';
 import { OrganizationMemberRepository } from './domain/repositories/organizationMember.repository.js';
@@ -30,6 +40,11 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
   imports: [DatabaseModule],
   controllers: [OrganizationsController, OrganizationTeamController, OrganizationInvitationController],
   providers: [
+    {
+      provide: ListOwnedOrganizationsUseCase,
+      useFactory: (repository: OrganizationRepository) => new ListOwnedOrganizationsUseCase(repository),
+      inject: [OrganizationRepository],
+    },
     {
       provide: OrganizationRepository,
       useClass: PrismaOrganizationRepository,
@@ -64,21 +79,65 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
       inject: [OrganizationRepository],
     },
     {
-      provide: ManageOrganizationTeamUseCase,
+      provide: OrganizationTeamApplicationService,
+      useFactory: (invitations: OrganizationInvitationRepository, unitOfWork: OrganizationUnitOfWork) =>
+        new OrganizationTeamApplicationService(invitations, unitOfWork),
+      inject: [OrganizationInvitationRepository, OrganizationUnitOfWork],
+    },
+    {
+      provide: ListJoinedOrganizationsUseCase,
+      useFactory: (members: OrganizationMemberRepository) => new ListJoinedOrganizationsUseCase(members),
+      inject: [OrganizationMemberRepository],
+    },
+    {
+      provide: ListOrganizationMembersUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService) => new ListOrganizationMembersUseCase(processor),
+      inject: [OrganizationTeamApplicationService],
+    },
+    {
+      provide: ListOrganizationInvitationsUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService) => new ListOrganizationInvitationsUseCase(processor),
+      inject: [OrganizationTeamApplicationService],
+    },
+    {
+      provide: InviteOrganizationMemberUseCase,
       useFactory: (
-        members: OrganizationMemberRepository,
-        invitations: OrganizationInvitationRepository,
-        unitOfWork: OrganizationUnitOfWork,
         tokens: OrganizationInvitationTokens,
         mail: OrganizationInvitationMail,
-      ) => new ManageOrganizationTeamUseCase(members, invitations, unitOfWork, tokens, mail),
-      inject: [
-        OrganizationMemberRepository,
-        OrganizationInvitationRepository,
-        OrganizationUnitOfWork,
-        OrganizationInvitationTokens,
-        OrganizationInvitationMail,
-      ],
+        processor: OrganizationTeamApplicationService,
+      ) => new InviteOrganizationMemberUseCase(tokens, mail, processor),
+      inject: [OrganizationInvitationTokens, OrganizationInvitationMail, OrganizationTeamApplicationService],
+    },
+    {
+      provide: ResendOrganizationInvitationUseCase,
+      useFactory: (
+        tokens: OrganizationInvitationTokens,
+        mail: OrganizationInvitationMail,
+        processor: OrganizationTeamApplicationService,
+      ) => new ResendOrganizationInvitationUseCase(tokens, mail, processor),
+      inject: [OrganizationInvitationTokens, OrganizationInvitationMail, OrganizationTeamApplicationService],
+    },
+    {
+      provide: RevokeOrganizationInvitationUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService) => new RevokeOrganizationInvitationUseCase(processor),
+      inject: [OrganizationTeamApplicationService],
+    },
+    {
+      provide: PreviewOrganizationInvitationUseCase,
+      useFactory: (tokens: OrganizationInvitationTokens, processor: OrganizationTeamApplicationService) =>
+        new PreviewOrganizationInvitationUseCase(tokens, processor),
+      inject: [OrganizationInvitationTokens, OrganizationTeamApplicationService],
+    },
+    {
+      provide: AcceptOrganizationInvitationUseCase,
+      useFactory: (tokens: OrganizationInvitationTokens, processor: OrganizationTeamApplicationService) =>
+        new AcceptOrganizationInvitationUseCase(tokens, processor),
+      inject: [OrganizationInvitationTokens, OrganizationTeamApplicationService],
+    },
+    {
+      provide: RemoveOrganizationMemberUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService) => new RemoveOrganizationMemberUseCase(processor),
+      inject: [OrganizationTeamApplicationService],
     },
   ],
 })
