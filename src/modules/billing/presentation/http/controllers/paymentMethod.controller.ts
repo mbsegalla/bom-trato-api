@@ -4,7 +4,9 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
-import { UpdatePaymentMethodUseCase } from '../../../application/useCases/updatePaymentMethod.useCase.js';
+import { CompletePaymentMethodUpdateUseCase } from '../../../application/useCases/completePaymentMethodUpdate.useCase.js';
+import { GetPaymentMethodUseCase } from '../../../application/useCases/getPaymentMethod.useCase.js';
+import { StartPaymentMethodUpdateUseCase } from '../../../application/useCases/startPaymentMethodUpdate.useCase.js';
 import { billingOperation } from '../billingHttpError.js';
 import { StartPaymentMethodUpdateDto } from '../dtos/requests/paymentMethodRequest.dto.js';
 import { CardResponseDto, PaymentMethodUpdateResponseDto } from '../dtos/responses/paymentMethodResponse.dto.js';
@@ -13,7 +15,11 @@ import { CardResponseDto, PaymentMethodUpdateResponseDto } from '../dtos/respons
 @ApiBearerAuth('access-token')
 @Controller('organizations/:organizationId/billing/payment-method')
 export class PaymentMethodController {
-  constructor(private readonly updatePaymentMethodUseCase: UpdatePaymentMethodUseCase) {}
+  constructor(
+    private readonly getPaymentMethodUseCase: GetPaymentMethodUseCase,
+    private readonly startPaymentMethodUpdateUseCase: StartPaymentMethodUpdateUseCase,
+    private readonly completePaymentMethodUpdateUseCase: CompletePaymentMethodUpdateUseCase,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get the subscription payment card' })
@@ -24,7 +30,7 @@ export class PaymentMethodController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<CardResponseDto | null> {
     return billingOperation(() =>
-      this.updatePaymentMethodUseCase.current({
+      this.getPaymentMethodUseCase.execute({
         organizationId,
         userId: auth.user.id,
       }),
@@ -42,7 +48,7 @@ export class PaymentMethodController {
     @Body() _dto: StartPaymentMethodUpdateDto,
   ): Promise<PaymentMethodUpdateResponseDto> {
     return billingOperation(() =>
-      this.updatePaymentMethodUseCase.start({
+      this.startPaymentMethodUpdateUseCase.execute({
         organizationId,
         userId: auth.user.id,
       }),
@@ -61,7 +67,7 @@ export class PaymentMethodController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<PaymentMethodUpdateResponseDto> {
     return billingOperation(() =>
-      this.updatePaymentMethodUseCase.complete({
+      this.completePaymentMethodUpdateUseCase.execute({
         organizationId,
         userId: auth.user.id,
         updateId,

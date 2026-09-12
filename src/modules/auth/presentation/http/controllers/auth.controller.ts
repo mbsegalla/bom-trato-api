@@ -11,7 +11,8 @@ import { LogoutUseCase } from '../../../application/useCases/logout.useCase.js';
 import { LogoutAllUseCase } from '../../../application/useCases/logoutAll.useCase.js';
 import { RefreshSessionUseCase } from '../../../application/useCases/refreshSession.useCase.js';
 import { RegisterUseCase } from '../../../application/useCases/register.useCase.js';
-import { RequestAuthEmailUseCase } from '../../../application/useCases/requestAuthEmail.useCase.js';
+import { RequestPasswordResetUseCase } from '../../../application/useCases/requestPasswordReset.useCase.js';
+import { ResendVerificationEmailUseCase } from '../../../application/useCases/resendVerificationEmail.useCase.js';
 import { ResetPasswordUseCase } from '../../../application/useCases/resetPassword.useCase.js';
 import { RevokeSessionUseCase } from '../../../application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from '../../../application/useCases/verifyEmail.useCase.js';
@@ -52,7 +53,8 @@ export class AuthController {
     private readonly logoutAllUseCase: LogoutAllUseCase,
     private readonly listSessionsUseCase: ListSessionsUseCase,
     private readonly revokeSessionUseCase: RevokeSessionUseCase,
-    private readonly requestEmailUseCase: RequestAuthEmailUseCase,
+    private readonly requestPasswordResetUseCase: RequestPasswordResetUseCase,
+    private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
   ) {}
@@ -210,7 +212,7 @@ export class AuthController {
   @AuthEndpoint('forgot-password')
   @ApiDataResponse(AuthMessageDto, { status: 202 })
   async forgotPassword(@Body() dto: EmailDto): Promise<AuthMessageDto> {
-    await authOperation(() => this.requestEmailUseCase.execute(dto.email, 'RESET_PASSWORD'));
+    await authOperation(() => this.requestPasswordResetUseCase.execute(dto.email));
 
     return genericMessage;
   }
@@ -221,7 +223,7 @@ export class AuthController {
   @AuthEndpoint('resend-verification')
   @ApiDataResponse(AuthMessageDto, { status: 202 })
   async resendVerification(@Body() dto: EmailDto): Promise<AuthMessageDto> {
-    await authOperation(() => this.requestEmailUseCase.execute(dto.email, 'VERIFY_EMAIL'));
+    await authOperation(() => this.resendVerificationEmailUseCase.execute(dto.email));
 
     return genericMessage;
   }

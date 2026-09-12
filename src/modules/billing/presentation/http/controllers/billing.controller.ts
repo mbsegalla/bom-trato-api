@@ -4,9 +4,12 @@ import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nes
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
+import { CancelSubscriptionUseCase } from '../../../application/useCases/cancelSubscription.useCase.js';
 import { CreateBillingPortalUseCase } from '../../../application/useCases/createBillingPortal.useCase.js';
-import { ReadBillingUseCase } from '../../../application/useCases/readBilling.useCase.js';
-import { SetCancellationUseCase } from '../../../application/useCases/setCancellation.useCase.js';
+import { GetEntitlementsUseCase } from '../../../application/useCases/getEntitlements.useCase.js';
+import { GetSubscriptionUseCase } from '../../../application/useCases/getSubscription.useCase.js';
+import { ListBillingInvoicesUseCase } from '../../../application/useCases/listBillingInvoices.useCase.js';
+import { ResumeSubscriptionUseCase } from '../../../application/useCases/resumeSubscription.useCase.js';
 import { StartCheckoutUseCase } from '../../../application/useCases/startCheckout.useCase.js';
 import { billingOperation } from '../billingHttpError.js';
 import { InvoiceQueryDto, StartCheckoutDto } from '../dtos/requests/billingRequest.dto.js';
@@ -24,8 +27,11 @@ import {
 export class BillingController {
   constructor(
     private readonly startCheckoutUseCase: StartCheckoutUseCase,
-    private readonly readBillingUseCase: ReadBillingUseCase,
-    private readonly setCancellationUseCase: SetCancellationUseCase,
+    private readonly getSubscriptionUseCase: GetSubscriptionUseCase,
+    private readonly listBillingInvoicesUseCase: ListBillingInvoicesUseCase,
+    private readonly getEntitlementsUseCase: GetEntitlementsUseCase,
+    private readonly cancelSubscriptionUseCase: CancelSubscriptionUseCase,
+    private readonly resumeSubscriptionUseCase: ResumeSubscriptionUseCase,
     private readonly createBillingPortalUseCase: CreateBillingPortalUseCase,
   ) {}
 
@@ -55,7 +61,7 @@ export class BillingController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<SubscriptionResponseDto | null> {
     return billingOperation(() =>
-      this.readBillingUseCase.subscription({
+      this.getSubscriptionUseCase.execute({
         organizationId,
         userId: auth.user.id,
       }),
@@ -71,7 +77,7 @@ export class BillingController {
     @Query() query: InvoiceQueryDto,
   ): Promise<InvoicePageResponseDto> {
     return billingOperation(() =>
-      this.readBillingUseCase.invoices({
+      this.listBillingInvoicesUseCase.execute({
         organizationId,
         userId: auth.user.id,
         cursor: query.cursor,
@@ -88,13 +94,7 @@ export class BillingController {
     @Param('organizationId', new ParseUUIDPipe({ version: '4' })) organizationId: string,
     @CurrentAuth() auth: AuthContext,
   ): Promise<void> {
-    return billingOperation(() =>
-      this.setCancellationUseCase.execute({
-        organizationId,
-        userId: auth.user.id,
-        cancelAtPeriodEnd: true,
-      }),
-    );
+    return billingOperation(() => this.cancelSubscriptionUseCase.execute({ organizationId, userId: auth.user.id }));
   }
 
   @Post('resume')
@@ -105,13 +105,7 @@ export class BillingController {
     @Param('organizationId', new ParseUUIDPipe({ version: '4' })) organizationId: string,
     @CurrentAuth() auth: AuthContext,
   ): Promise<void> {
-    return billingOperation(() =>
-      this.setCancellationUseCase.execute({
-        organizationId,
-        userId: auth.user.id,
-        cancelAtPeriodEnd: false,
-      }),
-    );
+    return billingOperation(() => this.resumeSubscriptionUseCase.execute({ organizationId, userId: auth.user.id }));
   }
 
   @Post('portal')
@@ -140,7 +134,7 @@ export class BillingController {
     @CurrentAuth() auth: AuthContext,
   ): Promise<EntitlementsResponseDto> {
     return billingOperation(() =>
-      this.readBillingUseCase.entitlements({
+      this.getEntitlementsUseCase.execute({
         organizationId,
         userId: auth.user.id,
       }),

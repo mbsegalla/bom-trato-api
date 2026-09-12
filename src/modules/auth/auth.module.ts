@@ -9,13 +9,15 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 import { AuthMail, AuthSecurity } from './application/ports/authSecurity.port.js';
+import { AuthEmailSender } from './application/services/authEmailSender.service.js';
 import { ListSessionsUseCase } from './application/useCases/listSessions.useCase.js';
 import { LoginUseCase } from './application/useCases/login.useCase.js';
 import { LogoutUseCase } from './application/useCases/logout.useCase.js';
 import { LogoutAllUseCase } from './application/useCases/logoutAll.useCase.js';
 import { RefreshSessionUseCase } from './application/useCases/refreshSession.useCase.js';
 import { RegisterUseCase } from './application/useCases/register.useCase.js';
-import { RequestAuthEmailUseCase } from './application/useCases/requestAuthEmail.useCase.js';
+import { RequestPasswordResetUseCase } from './application/useCases/requestPasswordReset.useCase.js';
+import { ResendVerificationEmailUseCase } from './application/useCases/resendVerificationEmail.useCase.js';
 import { ResetPasswordUseCase } from './application/useCases/resetPassword.useCase.js';
 import { RevokeSessionUseCase } from './application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from './application/useCases/verifyEmail.useCase.js';
@@ -119,14 +121,24 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       inject: [AuthRepository],
     },
     {
-      provide: RequestAuthEmailUseCase,
+      provide: AuthEmailSender,
       useFactory: (
         authRepository: AuthRepository,
         security: AuthSecurity,
         mail: AuthMail,
         config: ConfigType<typeof authConfig>,
-      ) => new RequestAuthEmailUseCase(authRepository, security, mail, config),
+      ) => new AuthEmailSender(authRepository, security, mail, config),
       inject: [AuthRepository, AuthSecurity, AuthMail, authConfig.KEY],
+    },
+    {
+      provide: RequestPasswordResetUseCase,
+      useFactory: (processor: AuthEmailSender) => new RequestPasswordResetUseCase(processor),
+      inject: [AuthEmailSender],
+    },
+    {
+      provide: ResendVerificationEmailUseCase,
+      useFactory: (processor: AuthEmailSender) => new ResendVerificationEmailUseCase(processor),
+      inject: [AuthEmailSender],
     },
     {
       provide: VerifyEmailUseCase,

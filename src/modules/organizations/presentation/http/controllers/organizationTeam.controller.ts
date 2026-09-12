@@ -4,7 +4,13 @@ import { ApiBearerAuth, ApiNoContentResponse, ApiOperation, ApiTags } from '@nes
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
-import { ManageOrganizationTeamUseCase } from '../../../application/useCases/manageOrganizationTeam.useCase.js';
+import { InviteOrganizationMemberUseCase } from '../../../application/useCases/inviteOrganizationMember.useCase.js';
+import { ListJoinedOrganizationsUseCase } from '../../../application/useCases/listJoinedOrganizations.useCase.js';
+import { ListOrganizationInvitationsUseCase } from '../../../application/useCases/listOrganizationInvitations.useCase.js';
+import { ListOrganizationMembersUseCase } from '../../../application/useCases/listOrganizationMembers.useCase.js';
+import { RemoveOrganizationMemberUseCase } from '../../../application/useCases/removeOrganizationMember.useCase.js';
+import { ResendOrganizationInvitationUseCase } from '../../../application/useCases/resendOrganizationInvitation.useCase.js';
+import { RevokeOrganizationInvitationUseCase } from '../../../application/useCases/revokeOrganizationInvitation.useCase.js';
 import { InvitationPageDto, InviteMemberDto, TeamPageDto } from '../dtos/requests/organizationTeam.dto.js';
 import {
   InvitationsResponseDto,
@@ -20,7 +26,15 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 @ApiBearerAuth('access-token')
 @Controller('organizations')
 export class OrganizationTeamController {
-  constructor(private readonly manageOrganizationTeamUseCase: ManageOrganizationTeamUseCase) {}
+  constructor(
+    private readonly listJoinedOrganizationsUseCase: ListJoinedOrganizationsUseCase,
+    private readonly listOrganizationMembersUseCase: ListOrganizationMembersUseCase,
+    private readonly listOrganizationInvitationsUseCase: ListOrganizationInvitationsUseCase,
+    private readonly inviteOrganizationMemberUseCase: InviteOrganizationMemberUseCase,
+    private readonly resendOrganizationInvitationUseCase: ResendOrganizationInvitationUseCase,
+    private readonly revokeOrganizationInvitationUseCase: RevokeOrganizationInvitationUseCase,
+    private readonly removeOrganizationMemberUseCase: RemoveOrganizationMemberUseCase,
+  ) {}
 
   @Get('mine')
   @ApiOperation({
@@ -28,7 +42,7 @@ export class OrganizationTeamController {
   })
   @ApiDataResponse(JoinedOrganizationsResponseDto)
   mine(@CurrentAuth() auth: AuthContext, @Query() page: TeamPageDto): Promise<JoinedOrganizationsResponseDto> {
-    return organizationTeamOperation(() => this.manageOrganizationTeamUseCase.mine(auth.user.id, page));
+    return organizationTeamOperation(() => this.listJoinedOrganizationsUseCase.execute(auth.user.id, page));
   }
 
   @Get(':organizationId/members')
@@ -40,7 +54,7 @@ export class OrganizationTeamController {
     @Query() page: TeamPageDto,
   ): Promise<TeamMembersResponseDto> {
     return organizationTeamOperation(() =>
-      this.manageOrganizationTeamUseCase.members({ organizationId, userId: auth.user.id }, page),
+      this.listOrganizationMembersUseCase.execute({ organizationId, userId: auth.user.id }, page),
     );
   }
 
@@ -53,7 +67,7 @@ export class OrganizationTeamController {
     @Query() page: InvitationPageDto,
   ): Promise<InvitationsResponseDto> {
     return organizationTeamOperation(() =>
-      this.manageOrganizationTeamUseCase.invitations({ organizationId, userId: auth.user.id }, page),
+      this.listOrganizationInvitationsUseCase.execute({ organizationId, userId: auth.user.id }, page),
     );
   }
 
@@ -66,7 +80,7 @@ export class OrganizationTeamController {
     @Body() dto: InviteMemberDto,
   ): Promise<SendInvitationResponseDto> {
     return organizationTeamOperation(() =>
-      this.manageOrganizationTeamUseCase.invite({
+      this.inviteOrganizationMemberUseCase.execute({
         organizationId,
         userId: auth.user.id,
         email: dto.email,
@@ -84,7 +98,7 @@ export class OrganizationTeamController {
     @Param('invitationId', uuid) invitationId: string,
   ): Promise<SendInvitationResponseDto> {
     return organizationTeamOperation(() =>
-      this.manageOrganizationTeamUseCase.resend({
+      this.resendOrganizationInvitationUseCase.execute({
         organizationId,
         userId: auth.user.id,
         invitationId,
@@ -101,7 +115,7 @@ export class OrganizationTeamController {
     @Param('invitationId', uuid) invitationId: string,
   ): Promise<void> {
     return organizationTeamOperation(() =>
-      this.manageOrganizationTeamUseCase.revoke({
+      this.revokeOrganizationInvitationUseCase.execute({
         organizationId,
         userId: auth.user.id,
         invitationId,
@@ -118,7 +132,7 @@ export class OrganizationTeamController {
     @Param('memberId', uuid) memberId: string,
   ): Promise<void> {
     return organizationTeamOperation(() =>
-      this.manageOrganizationTeamUseCase.remove({
+      this.removeOrganizationMemberUseCase.execute({
         organizationId,
         userId: auth.user.id,
         memberId,

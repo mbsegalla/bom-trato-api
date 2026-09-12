@@ -1,0 +1,21 @@
+import type { CustomerDetails } from '../../domain/entities/customer.entity.js';
+import type { CustomerApplicationService } from '../services/customerApplicationService.service.js';
+import type { CustomerByIdParams } from '../types/manageCustomers.types.js';
+
+export class UpdateCustomerUseCase {
+  constructor(private readonly processor: CustomerApplicationService) {}
+
+  execute(params: CustomerByIdParams, details: Partial<CustomerDetails>) {
+    const { customerId } = params;
+
+    return this.processor.run(params, async (tx) => {
+      const customer = await this.processor.load(tx, customerId);
+
+      customer.update(details, new Date());
+
+      await tx.customers.save(customer);
+
+      return customer.snapshot();
+    });
+  }
+}

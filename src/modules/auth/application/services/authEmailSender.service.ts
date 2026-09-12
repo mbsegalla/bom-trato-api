@@ -4,15 +4,14 @@ import type { AuthRepository } from '../../domain/repositories/auth.repository.j
 import type { AuthPolicy } from '../ports/authPolicy.js';
 import type { AuthMail, AuthSecurity } from '../ports/authSecurity.port.js';
 
-export class RequestAuthEmailUseCase {
+export class AuthEmailSender {
   constructor(
     private readonly authRepository: AuthRepository,
     private readonly security: AuthSecurity,
     private readonly mail: AuthMail,
     private readonly policy: AuthPolicy,
   ) {}
-
-  async execute(emailInput: string, purpose: AuthActionPurpose): Promise<void> {
+  async send(emailInput: string, purpose: AuthActionPurpose): Promise<void> {
     const email = User.normalizeEmail(emailInput);
     const token = this.security.newToken();
 
