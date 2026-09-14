@@ -82,6 +82,14 @@ enum OrganizationInvitationStatus {
   EXPIRED
 }
 
+enum ServiceUnit {
+  SERVICE
+  HOUR
+  DAY
+  UNIT
+  SQUARE_METER
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -217,6 +225,7 @@ model Organization {
   organizationInvitations          OrganizationInvitation[]
   organizationInvitationRateLimits OrganizationInvitationRateLimit[]
   customers                        Customer[]
+  catalogServices                  CatalogService[]
 
   @@unique([ownerId, creationKey])
 }
@@ -443,6 +452,23 @@ model Customer {
   archivedAt     DateTime? @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model CatalogService {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  name           String      @db.VarChar(100)
+  description    String?     @db.VarChar(2000)
+  unit           ServiceUnit @default(SERVICE)
+  amountInCents  Int
+  currency       String      @default("brl") @db.VarChar(3)
+  archivedAt     DateTime?   @db.Timestamptz(3)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
