@@ -7,12 +7,14 @@ import type {
 } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 import type { InviteMemberParams } from '../types/manageOrganizationTeam.types.js';
+
 export class InviteOrganizationMemberUseCase {
   constructor(
     private readonly tokens: OrganizationInvitationTokens,
     private readonly mail: OrganizationInvitationMail,
     private readonly processor: OrganizationTeamApplicationService,
   ) {}
+
   async execute(params: InviteMemberParams) {
     const token = this.tokens.create();
 

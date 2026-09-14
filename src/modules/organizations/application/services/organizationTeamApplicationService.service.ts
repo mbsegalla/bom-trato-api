@@ -33,6 +33,7 @@ export class OrganizationTeamApplicationService {
       return operation(tx, policy);
     });
   }
+
   async assertCanInvite(
     tx: OrganizationTransaction,
     policy: OrganizationTeamPolicy,
@@ -53,6 +54,7 @@ export class OrganizationTeamApplicationService {
       await tx.members.count(organizationId),
     );
   }
+
   async clearExpiredInvitation(
     tx: OrganizationTransaction,
     email: string,
@@ -78,6 +80,7 @@ export class OrganizationTeamApplicationService {
 
     await tx.invitations.save(previous);
   }
+
   async find(tx: OrganizationTransaction, invitationId: string): Promise<OrganizationInvitation> {
     const row = await tx.invitations.findById({
       organizationId: tx.organization.id,
@@ -90,6 +93,7 @@ export class OrganizationTeamApplicationService {
 
     return OrganizationInvitation.restore(row);
   }
+
   async locate(hash: string) {
     const locator = await this.invitationRepository.findByTokenHash(hash);
 

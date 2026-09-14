@@ -12,9 +12,11 @@ export class PaymentMethodUpdateProcessor {
     private readonly paymentMethodUpdateRepository: PaymentMethodUpdateRepository,
     private readonly paymentMethodGateway: PaymentMethodGateway,
   ) {}
+
   result(update: PaymentMethodUpdateProps, clientSecret: string | null = null): PaymentMethodUpdateResult {
     return PaymentMethodUpdate.restore(update).toPublic(clientSecret);
   }
+
   async setup(update: PaymentMethodUpdateProps): Promise<PaymentSetup> {
     let setup: PaymentSetup;
 
@@ -42,6 +44,7 @@ export class PaymentMethodUpdateProcessor {
 
     return setup;
   }
+
   async process(update: PaymentMethodUpdateProps): Promise<PaymentMethodUpdateResult> {
     const entity = PaymentMethodUpdate.restore(update);
 

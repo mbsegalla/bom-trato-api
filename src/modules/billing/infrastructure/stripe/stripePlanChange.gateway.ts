@@ -18,10 +18,9 @@ export class StripePlanChangeGateway extends PlanChangeGateway {
     super();
   }
 
-  private async subscription({
-    customerId,
-    subscriptionId,
-  }: PlanChangeSubscriptionParams): Promise<Stripe.Subscription> {
+  private async subscription(params: PlanChangeSubscriptionParams): Promise<Stripe.Subscription> {
+    const { customerId, subscriptionId } = params;
+
     const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
 
     if (objectId(subscription.customer) !== customerId) {

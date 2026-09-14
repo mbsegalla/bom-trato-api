@@ -3,6 +3,7 @@ import type { OrganizationPageParams } from '../../domain/types/organizationPagi
 
 export class ListJoinedOrganizationsUseCase {
   constructor(private readonly memberRepository: OrganizationMemberRepository) {}
+
   execute(userId: string, page: OrganizationPageParams) {
     return this.memberRepository.listJoined({
       userId,

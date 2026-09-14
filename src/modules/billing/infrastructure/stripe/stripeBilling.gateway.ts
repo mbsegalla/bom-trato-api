@@ -141,23 +141,23 @@ export class StripeBillingGateway extends BillingGateway {
     return result.id;
   }
 
-  async validatePrice(local: AvailablePrice): Promise<void> {
-    const price = await this.stripe.prices.retrieve(local.stripePriceId);
-    const product = await this.stripe.products.retrieve(local.stripeProductId);
+  async validatePrice(availablePrice: AvailablePrice): Promise<void> {
+    const price = await this.stripe.prices.retrieve(availablePrice.stripePriceId);
+    const product = await this.stripe.products.retrieve(availablePrice.stripeProductId);
 
     if (
       product.deleted ||
       !product.active ||
       !price.active ||
-      objectId(price.product) !== local.stripeProductId ||
+      objectId(price.product) !== availablePrice.stripeProductId ||
       price.type !== 'recurring' ||
       price.billing_scheme !== 'per_unit' ||
       price.transform_quantity !== null ||
-      price.unit_amount !== local.amountInCents ||
-      price.currency !== local.currency.toLowerCase() ||
+      price.unit_amount !== availablePrice.amountInCents ||
+      price.currency !== availablePrice.currency.toLowerCase() ||
       price.currency !== 'brl' ||
-      price.recurring?.interval !== local.interval.toLowerCase() ||
-      price.recurring.interval_count !== local.intervalCount ||
+      price.recurring?.interval !== availablePrice.interval.toLowerCase() ||
+      price.recurring.interval_count !== availablePrice.intervalCount ||
       price.recurring.usage_type !== 'licensed'
     ) {
       throw new BillingError('PRICE_MISMATCH');

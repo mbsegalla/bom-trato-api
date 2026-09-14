@@ -13,6 +13,7 @@ export class PlanChangeProcessor {
     private readonly billingGateway: BillingGateway,
     private readonly planChangeGateway: PlanChangeGateway,
   ) {}
+
   async ownedChange(params: PlanChangeActionParams): Promise<PlanChange> {
     const { organizationId, userId, changeId } = params;
 
@@ -30,9 +31,11 @@ export class PlanChangeProcessor {
 
     return change;
   }
+
   async execute(change: PlanChange) {
     return this.saveRemote(change, await this.planChangeGateway.execute(change.snapshot()));
   }
+
   async refresh(change: PlanChange) {
     if (change.isQuoted() || change.isTerminal()) {
       return change.toPublic();
@@ -56,6 +59,7 @@ export class PlanChangeProcessor {
 
     return this.execute(change);
   }
+
   async saveRemote(change: PlanChange, remote: RemotePlanChangeState) {
     switch (remote.status) {
       case 'PENDING_PAYMENT':
