@@ -20,13 +20,15 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   }
 
   read<T>(params: QuoteActorParams, operation: (context: QuoteReadContext) => Promise<T>): Promise<T> {
+    const { organizationId } = params;
+
     return this.prisma.$transaction(
       async (db) => {
         await db.$executeRaw`SET TRANSACTION READ ONLY`;
 
         const organization = await db.organization.findUnique({
           where: {
-            id: params.organizationId,
+            id: organizationId,
           },
           select: {
             id: true,
@@ -50,6 +52,8 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   }
 
   async run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
+    const { organizationId } = params;
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         return await this.prisma.$transaction(
@@ -57,7 +61,7 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
             const locked = await db.$queryRaw<Array<{ id: string }>>`
               SELECT "id"
               FROM "Organization"
-              WHERE "id" = ${params.organizationId}::uuid
+              WHERE "id" = ${organizationId}::uuid
               FOR UPDATE
             `;
 
@@ -88,11 +92,13 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   }
 
   private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
+    const { organizationId, userId } = params;
+
     const member = await db.organizationMember.findUnique({
       where: {
         organizationId_userId: {
-          organizationId: params.organizationId,
-          userId: params.userId,
+          organizationId,
+          userId,
         },
       },
       select: {
@@ -107,7 +113,7 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
 
     const subscriptions = await db.subscription.findMany({
       where: {
-        organizationId: params.organizationId,
+        organizationId,
         status: {
           notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE_EXPIRED],
         },
@@ -119,19 +125,19 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
     const current = subscriptions[0];
 
     return {
-      quotes: new PrismaQuoteRepository(db, params.organizationId),
+      quotes: new PrismaQuoteRepository(db, organizationId),
       findCustomer: (id: string) =>
         db.customer.findFirst({
           where: {
             id,
-            organizationId: params.organizationId,
+            organizationId,
           },
         }),
       findCatalogService: (id: string) =>
         db.catalogService.findFirst({
           where: {
             id,
-            organizationId: params.organizationId,
+            organizationId,
           },
         }),
       access: {

@@ -11,6 +11,7 @@ import { CreateQuoteUseCase } from './application/useCases/createQuote.useCase.j
 import { DeclineQuoteUseCase } from './application/useCases/declineQuote.useCase.js';
 import { GetQuoteUseCase } from './application/useCases/getQuote.useCase.js';
 import { ListQuotesUseCase } from './application/useCases/listQuotes.useCase.js';
+import { ListQuoteStatusHistoryUseCase } from './application/useCases/listQuoteStatusHistory.useCase.js';
 import { RemoveQuoteItemUseCase } from './application/useCases/removeQuoteItem.useCase.js';
 import { ReplaceQuoteItemUseCase } from './application/useCases/replaceQuoteItem.useCase.js';
 import { SendQuoteUseCase } from './application/useCases/sendQuote.useCase.js';
@@ -84,6 +85,11 @@ import { QuotesController } from './presentation/http/controllers/quotes.control
     {
       provide: CancelQuoteUseCase,
       useFactory: (processor: QuoteApplicationService) => new CancelQuoteUseCase(processor),
+      inject: [QuoteApplicationService],
+    },
+    {
+      provide: ListQuoteStatusHistoryUseCase,
+      useFactory: (processor: QuoteApplicationService) => new ListQuoteStatusHistoryUseCase(processor),
       inject: [QuoteApplicationService],
     },
   ],

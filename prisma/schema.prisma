@@ -98,6 +98,14 @@ enum QuoteStatus {
   CANCELED
 }
 
+enum WorkOrderStatus {
+  OPEN
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -154,10 +162,11 @@ model User {
   createdAt       DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 
+  organizations       Organization[]       @relation("OrganizationOwner")
+  workOrders          WorkOrder[]          @relation("AssignedWorkOrders")
   authSessions        AuthSession[]
   authActionTokens    AuthActionToken[]
   organizationMembers OrganizationMember[]
-  organizations       Organization[]       @relation("OrganizationOwner")
 }
 
 model AuthSession {
@@ -235,6 +244,7 @@ model Organization {
   customers                        Customer[]
   catalogServices                  CatalogService[]
   quotes                           Quote[]
+  workOrders                       WorkOrder[]
 
   @@unique([ownerId, creationKey])
 }
@@ -464,6 +474,7 @@ model Customer {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   quotes       Quote[]
+  workOrders   WorkOrder[]
 
   @@unique([id, organizationId])
   @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
@@ -511,10 +522,13 @@ model Quote {
   createdAt       DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  customer     Customer     @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  quoteItems   QuoteItem[]
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer             Customer             @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  quoteItems           QuoteItem[]
+  quoteStatusHistories QuoteStatusHistory[]
+  workOrders           WorkOrder[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([organizationId, customerId])
 }
@@ -536,4 +550,94 @@ model QuoteItem {
 
   @@index([quoteId, position])
   @@index([catalogServiceId])
+}
+
+model QuoteStatusHistory {
+  id         String       @id @default(uuid()) @db.Uuid
+  quoteId    String       @db.Uuid
+  fromStatus QuoteStatus?
+  toStatus   QuoteStatus
+  actorId    String       @db.Uuid
+  version    Int
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteId, version])
+  @@index([quoteId, createdAt, id])
+}
+
+model WorkOrder {
+  id                 String          @id @default(uuid()) @db.Uuid
+  organizationId     String          @db.Uuid
+  quoteId            String          @unique @db.Uuid
+  customerId         String          @db.Uuid
+  customerName       String          @db.VarChar(100)
+  customerEmail      String?         @db.VarChar(254)
+  customerPhone      String?         @db.VarChar(30)
+  title              String          @db.VarChar(150)
+  instructions       String?         @db.VarChar(5000)
+  serviceAddress     String?         @db.VarChar(500)
+  executionNotes     String?         @db.VarChar(10000)
+  assignedToId       String?         @db.Uuid
+  status             WorkOrderStatus @default(OPEN)
+  currency           String          @db.VarChar(3)
+  subtotalInCents    Int
+  discountInCents    Int
+  totalInCents       Int
+  scheduledStartAt   DateTime?       @db.Timestamptz(3)
+  scheduledEndAt     DateTime?       @db.Timestamptz(3)
+  startedAt          DateTime?       @db.Timestamptz(3)
+  completedAt        DateTime?       @db.Timestamptz(3)
+  canceledAt         DateTime?       @db.Timestamptz(3)
+  cancellationReason String?         @db.VarChar(1000)
+  version            Int             @default(1)
+  createdById        String          @db.Uuid
+  updatedById        String          @db.Uuid
+  createdAt          DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @db.Timestamptz(3)
+
+  organization           Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quote                  Quote                    @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  customer               Customer                 @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  assignedTo             User?                    @relation("AssignedWorkOrders", fields: [assignedToId], references: [id], onDelete: Restrict)
+  workOrderItems         WorkOrderItem[]
+  workOrderStatusHistory WorkOrderStatusHistory[]
+
+  @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([organizationId, customerId])
+  @@index([organizationId, assignedToId, scheduledStartAt])
+}
+
+model WorkOrderItem {
+  id                    String      @id @default(uuid()) @db.Uuid
+  workOrderId           String      @db.Uuid
+  sourceQuoteItemId     String      @db.Uuid
+  name                  String      @db.VarChar(100)
+  description           String?     @db.VarChar(2000)
+  unit                  ServiceUnit
+  quantityInThousandths Int
+  unitAmountInCents     Int
+  totalInCents          Int
+  position              Int
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@index([workOrderId, position])
+}
+
+model WorkOrderStatusHistory {
+  id          String           @id @default(uuid()) @db.Uuid
+  workOrderId String           @db.Uuid
+  fromStatus  WorkOrderStatus?
+  toStatus    WorkOrderStatus
+  actorId     String           @db.Uuid
+  version     Int
+  reason      String?          @db.VarChar(1000)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([workOrderId, version])
+  @@index([workOrderId, createdAt, id])
 }

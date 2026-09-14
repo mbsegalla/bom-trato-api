@@ -42,6 +42,15 @@ export class PrismaQuoteRepository extends QuoteRepository {
         quoteItems: {
           create: items,
         },
+        statusHistory: {
+          create: {
+            fromStatus: null,
+            toStatus: state.status,
+            actorId: state.createdById,
+            version: state.version,
+            createdAt: state.createdAt,
+          },
+        },
       },
     });
   }
@@ -82,6 +91,21 @@ export class PrismaQuoteRepository extends QuoteRepository {
 
   async save(quote: Quote, expectedVersion: number): Promise<void> {
     const state = this.scopedState(quote);
+
+    const previous = await this.db.quote.findFirst({
+      where: {
+        id: state.id,
+        organizationId: this.organizationId,
+        version: expectedVersion,
+      },
+      select: {
+        status: true,
+      },
+    });
+
+    if (previous === null) {
+      throw new QuoteError('QUOTE_VERSION_CONFLICT');
+    }
 
     const result = await this.db.quote.updateMany({
       where: {
@@ -127,6 +151,45 @@ export class PrismaQuoteRepository extends QuoteRepository {
         })),
       });
     }
+
+    if (previous.status !== state.status) {
+      await this.db.quoteStatusHistory.create({
+        data: {
+          quoteId: state.id,
+          fromStatus: previous.status,
+          toStatus: state.status,
+          actorId: state.updatedById,
+          version: state.version,
+          createdAt: state.updatedAt,
+        },
+      });
+    }
+  }
+
+  async listStatusHistory(quoteId: string) {
+    const quote = await this.db.quote.findFirst({
+      where: {
+        id: quoteId,
+        organizationId: this.organizationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (quote === null) {
+      throw new QuoteError('QUOTE_NOT_FOUND');
+    }
+
+    return this.db.quoteStatusHistory.findMany({
+      where: {
+        quoteId,
+        quote: {
+          organizationId: this.organizationId,
+        },
+      },
+      orderBy: [{ version: 'asc' }, { id: 'asc' }],
+    });
   }
 
   private toProps(row: QuoteRow): QuoteProps {
