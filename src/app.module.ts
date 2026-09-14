@@ -10,6 +10,7 @@ import { CustomersModule } from './modules/customers/customers.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
+import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.module.js';
 import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
 
@@ -27,6 +28,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
     ServiceCatalogModule,
     QuotesModule,
     WorkOrdersModule,
+    ReceivablesModule,
   ],
   controllers: [],
   providers: [],

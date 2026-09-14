@@ -106,6 +106,22 @@ enum WorkOrderStatus {
   CANCELED
 }
 
+enum ReceivableStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  CANCELED
+}
+
+enum ReceivablePaymentMethod {
+  CASH
+  PIX
+  BANK_TRANSFER
+  CREDIT_CARD
+  DEBIT_CARD
+  OTHER
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -245,6 +261,7 @@ model Organization {
   catalogServices                  CatalogService[]
   quotes                           Quote[]
   workOrders                       WorkOrder[]
+  receivables                      Receivable[]
 
   @@unique([ownerId, creationKey])
 }
@@ -477,6 +494,7 @@ model Customer {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   quotes       Quote[]
   workOrders   WorkOrder[]
+  receivables  Receivable[]
 
   @@unique([id, organizationId])
   @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
@@ -605,7 +623,9 @@ model WorkOrder {
   assignedTo             User?                    @relation("AssignedWorkOrders", fields: [assignedToId], references: [id], onDelete: Restrict)
   workOrderItems         WorkOrderItem[]
   workOrderStatusHistory WorkOrderStatusHistory[]
+  receivables            Receivable[]
 
+  @@unique([id, organizationId])
   @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([organizationId, customerId])
   @@index([organizationId, assignedToId, scheduledStartAt])
@@ -642,4 +662,56 @@ model WorkOrderStatusHistory {
 
   @@unique([workOrderId, version])
   @@index([workOrderId, createdAt, id])
+}
+
+model Receivable {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @db.Uuid
+  workOrderId        String           @unique @db.Uuid
+  customerId         String           @db.Uuid
+  customerName       String           @db.VarChar(100)
+  title              String           @db.VarChar(150)
+  currency           String           @db.VarChar(3)
+  amountInCents      Int
+  receivedInCents    Int              @default(0)
+  status             ReceivableStatus @default(OPEN)
+  dueAt              DateTime         @db.Timestamptz(3)
+  notes              String?          @db.VarChar(2000)
+  canceledAt         DateTime?        @db.Timestamptz(3)
+  canceledById       String?          @db.Uuid
+  cancellationReason String?          @db.VarChar(1000)
+  version            Int              @default(1)
+  createdById        String           @db.Uuid
+  updatedById        String           @db.Uuid
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workOrder          WorkOrder           @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  customer           Customer            @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  receivablePayments ReceivablePayment[]
+
+  @@index([organizationId, status, dueAt, id])
+  @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([organizationId, customerId])
+}
+
+model ReceivablePayment {
+  id             String                  @id @default(uuid()) @db.Uuid
+  receivableId   String                  @db.Uuid
+  requestId      String                  @db.Uuid
+  amountInCents  Int
+  method         ReceivablePaymentMethod
+  receivedAt     DateTime                @db.Timestamptz(3)
+  notes          String?                 @db.VarChar(2000)
+  recordedById   String                  @db.Uuid
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  reversedAt     DateTime?               @db.Timestamptz(3)
+  reversedById   String?                 @db.Uuid
+  reversalReason String?                 @db.VarChar(1000)
+
+  receivable Receivable @relation(fields: [receivableId], references: [id], onDelete: Restrict)
+
+  @@unique([receivableId, requestId])
+  @@index([receivableId, createdAt(sort: Desc), id(sort: Desc)])
 }
