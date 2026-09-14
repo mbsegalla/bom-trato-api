@@ -45,9 +45,11 @@ export class ReceivableApplicationService {
     params: ChangeReceivableParams,
     now: Date,
   ): Promise<ReceivableView> {
-    receivable.recordChange(params.userId, now);
+    const { version, userId } = params;
 
-    await tx.receivables.save(receivable, params.version);
+    receivable.recordChange(userId, now);
+
+    await tx.receivables.save(receivable, version);
 
     return receivable.view(now);
   }
@@ -56,10 +58,12 @@ export class ReceivableApplicationService {
     params: ChangeReceivableParams,
     operation: (receivable: Receivable, now: Date) => void,
   ): Promise<ReceivableView> {
-    return this.run(params, async (tx) => {
-      const receivable = await this.load(tx, params.receivableId);
+    const { version, receivableId } = params;
 
-      receivable.assertVersion(params.version);
+    return this.run(params, async (tx) => {
+      const receivable = await this.load(tx, receivableId);
+
+      receivable.assertVersion(version);
 
       const now = new Date();
 

@@ -49,14 +49,16 @@ export class PrismaReceivableUnitOfWork extends ReceivableUnitOfWork {
     db: Prisma.TransactionClient,
     params: ReceivableActorParams,
   ): Promise<ReceivableTransaction> {
+    const { organizationId } = params;
+
     return {
-      receivables: new PrismaReceivableRepository(db, params.organizationId),
+      receivables: new PrismaReceivableRepository(db, organizationId),
       access: await readOrganizationAccess(db, params),
       findWorkOrder: (id: string) =>
         db.workOrder.findFirst({
           where: {
             id,
-            organizationId: params.organizationId,
+            organizationId,
           },
           select: {
             id: true,

@@ -149,9 +149,7 @@ export class ReceivablesController {
     @Param('receivableId', uuid) receivableId: string,
     @Body() dto: RecordReceivablePaymentDto,
   ): Promise<ReceivablePaymentResultDto> {
-    const { version } = dto as unknown as {
-      version: number;
-    };
+    const { version } = dto;
 
     return receivableOperation(() =>
       this.recordReceivablePaymentUseCase.execute(
