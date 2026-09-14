@@ -11,6 +11,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { PlansModule } from './modules/plans/plans.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.module.js';
+import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.mo
     CustomersModule,
     ServiceCatalogModule,
     QuotesModule,
+    WorkOrdersModule,
   ],
   controllers: [],
   providers: [],

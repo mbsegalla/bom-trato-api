@@ -11,6 +11,7 @@ import { CreateQuoteUseCase } from '../../../application/useCases/createQuote.us
 import { DeclineQuoteUseCase } from '../../../application/useCases/declineQuote.useCase.js';
 import { GetQuoteUseCase } from '../../../application/useCases/getQuote.useCase.js';
 import { ListQuotesUseCase } from '../../../application/useCases/listQuotes.useCase.js';
+import { ListQuoteStatusHistoryUseCase } from '../../../application/useCases/listQuoteStatusHistory.useCase.js';
 import { RemoveQuoteItemUseCase } from '../../../application/useCases/removeQuoteItem.useCase.js';
 import { ReplaceQuoteItemUseCase } from '../../../application/useCases/replaceQuoteItem.useCase.js';
 import { SendQuoteUseCase } from '../../../application/useCases/sendQuote.useCase.js';
@@ -23,6 +24,7 @@ import {
   UpdateQuoteDto,
 } from '../dtos/requests/quote.dto.js';
 import { QuoteResponseDto, QuotesResponseDto } from '../dtos/responses/quoteResponse.dto.js';
+import { QuoteStatusHistoryResponseDto } from '../dtos/responses/quoteStatusHistoryResponse.dto.js';
 import { quoteOperation } from '../quoteHttpError.js';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -43,6 +45,7 @@ export class QuotesController {
     private readonly approveQuoteUseCase: ApproveQuoteUseCase,
     private readonly declineQuoteUseCase: DeclineQuoteUseCase,
     private readonly cancelQuoteUseCase: CancelQuoteUseCase,
+    private readonly listQuoteStatusHistoryUseCase: ListQuoteStatusHistoryUseCase,
   ) {}
 
   @Post()
@@ -252,6 +255,23 @@ export class QuotesController {
         userId: auth.user.id,
         quoteId,
         version: dto.version,
+      }),
+    );
+  }
+
+  @Get(':quoteId/status-history')
+  @ApiOperation({ summary: 'List quote status history' })
+  @ApiDataResponse(QuoteStatusHistoryResponseDto, { array: true })
+  listStatusHistory(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Param('quoteId', uuid) quoteId: string,
+  ): Promise<QuoteStatusHistoryResponseDto[]> {
+    return quoteOperation(() =>
+      this.listQuoteStatusHistoryUseCase.execute({
+        organizationId,
+        userId: auth.user.id,
+        quoteId,
       }),
     );
   }

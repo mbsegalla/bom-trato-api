@@ -8,7 +8,7 @@ export interface QuoteActorParams {
 }
 
 export interface QuoteReadContext {
-  readonly quotes: Pick<QuoteRepository, 'findById' | 'list'>;
+  readonly quotes: Pick<QuoteRepository, 'findById' | 'list' | 'listStatusHistory'>;
   readonly access: QuoteAccessContext;
 }
 
