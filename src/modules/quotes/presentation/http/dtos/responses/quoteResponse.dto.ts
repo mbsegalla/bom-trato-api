@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 
 import { QuoteStatus, ServiceUnit } from '../../../../../../generated/prisma/enums.js';
 
@@ -106,9 +106,24 @@ export class QuoteResponseDto {
   items!: QuoteItemResponseDto[];
 }
 
+export class QuoteSummaryResponseDto extends PickType(QuoteResponseDto, [
+  'id',
+  'organizationId',
+  'customerId',
+  'customerName',
+  'title',
+  'status',
+  'currency',
+  'totalInCents',
+  'version',
+  'validUntil',
+  'createdAt',
+  'updatedAt',
+] as const) {}
+
 export class QuotesResponseDto {
-  @ApiProperty({ type: [QuoteResponseDto] })
-  items!: QuoteResponseDto[];
+  @ApiProperty({ type: [QuoteSummaryResponseDto] })
+  items!: QuoteSummaryResponseDto[];
 
   @ApiProperty()
   page!: number;

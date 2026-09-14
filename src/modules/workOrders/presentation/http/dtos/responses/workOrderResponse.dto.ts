@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 
 import { ServiceUnit, WorkOrderStatus } from '../../../../../../generated/prisma/enums.js';
 
@@ -120,9 +120,27 @@ export class WorkOrderResponseDto {
   items!: WorkOrderItemResponseDto[];
 }
 
+export class WorkOrderSummaryResponseDto extends PickType(WorkOrderResponseDto, [
+  'id',
+  'organizationId',
+  'quoteId',
+  'customerId',
+  'customerName',
+  'title',
+  'assignedToId',
+  'status',
+  'currency',
+  'totalInCents',
+  'scheduledStartAt',
+  'scheduledEndAt',
+  'version',
+  'createdAt',
+  'updatedAt',
+] as const) {}
+
 export class WorkOrdersResponseDto {
-  @ApiProperty({ type: [WorkOrderResponseDto] })
-  items!: WorkOrderResponseDto[];
+  @ApiProperty({ type: [WorkOrderSummaryResponseDto] })
+  items!: WorkOrderSummaryResponseDto[];
 
   @ApiProperty()
   page!: number;

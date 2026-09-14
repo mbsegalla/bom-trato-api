@@ -7,7 +7,7 @@ export class ListOrganizationInvitationsUseCase {
   constructor(private readonly processor: OrganizationTeamApplicationService) {}
 
   execute(params: OrganizationActorParams, page: InvitationPageParams) {
-    return this.processor.withTeam(params, async (tx, policy) => {
+    return this.processor.readTeam(params, async (tx, policy) => {
       policy.assertOwner();
 
       const now = new Date();

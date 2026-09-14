@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 
-import { ApiException } from '../../../../infrastructure/http/exceptions/api.exception.js';
+import { httpOperation } from '../../../../infrastructure/http/errors/httpOperation.js';
 import type { CustomerErrorCode } from '../../domain/errors/customer.error.js';
 import { CustomerError } from '../../domain/errors/customer.error.js';
 
@@ -20,14 +20,14 @@ const statuses = {
   CUSTOMERS_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
 } satisfies Record<CustomerErrorCode, HttpStatus>;
 
-export async function customerOperation<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    if (!(error instanceof CustomerError)) {
-      throw error;
-    }
-
-    throw new ApiException(statuses[error.code], error.code, error.code.toLowerCase().replaceAll('_', ' '));
-  }
+export function customerOperation<T>(operation: () => Promise<T>): Promise<T> {
+  return httpOperation(
+    operation,
+    (error): error is CustomerError => error instanceof CustomerError,
+    (error) => ({
+      status: statuses[error.code],
+      code: error.code,
+      message: error.code.toLowerCase().replaceAll('_', ' '),
+    }),
+  );
 }

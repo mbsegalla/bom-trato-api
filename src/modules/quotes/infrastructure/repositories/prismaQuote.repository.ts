@@ -1,8 +1,10 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import type { Quote, QuoteProps } from '../../domain/entities/quote.entity.js';
+import type { QuoteItemProps } from '../../domain/entities/quoteItem.entity.js';
 import { QuoteError } from '../../domain/errors/quote.error.js';
 import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 import type { QuotePage, QuotePageParams } from '../../domain/types/quotePage.types.js';
+import type { QuoteSummary } from '../../domain/types/quoteSummary.types.js';
 
 const include = {
   quoteItems: {
@@ -23,6 +25,21 @@ const include = {
   },
 } satisfies Prisma.QuoteInclude;
 
+const summarySelect = {
+  id: true,
+  organizationId: true,
+  customerId: true,
+  customerName: true,
+  title: true,
+  status: true,
+  currency: true,
+  totalInCents: true,
+  version: true,
+  validUntil: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.QuoteSelect;
+
 type QuoteRow = Prisma.QuoteGetPayload<{ include: typeof include }>;
 
 export class PrismaQuoteRepository extends QuoteRepository {
@@ -42,7 +59,7 @@ export class PrismaQuoteRepository extends QuoteRepository {
         quoteItems: {
           create: items,
         },
-        statusHistory: {
+        quoteStatusHistories: {
           create: {
             fromStatus: null,
             toStatus: state.status,
@@ -67,7 +84,7 @@ export class PrismaQuoteRepository extends QuoteRepository {
     return row === null ? null : this.toProps(row);
   }
 
-  async list(params: QuotePageParams): Promise<QuotePage<QuoteProps>> {
+  async list(params: QuotePageParams): Promise<QuotePage<QuoteSummary>> {
     const { page, limit, status, customerId } = params;
 
     const rows = await this.db.quote.findMany({
@@ -76,14 +93,14 @@ export class PrismaQuoteRepository extends QuoteRepository {
         status,
         customerId,
       },
-      include,
+      select: summarySelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: (page - 1) * limit,
       take: limit + 1,
     });
 
     return {
-      items: rows.slice(0, limit).map((row) => this.toProps(row)),
+      items: rows.slice(0, limit),
       page,
       hasMore: rows.length > limit,
     };
@@ -100,6 +117,7 @@ export class PrismaQuoteRepository extends QuoteRepository {
       },
       select: {
         status: true,
+        quoteItems: include.quoteItems,
       },
     });
 
@@ -134,23 +152,7 @@ export class PrismaQuoteRepository extends QuoteRepository {
       throw new QuoteError('QUOTE_VERSION_CONFLICT');
     }
 
-    await this.db.quoteItem.deleteMany({
-      where: {
-        quoteId: state.id,
-        quote: {
-          organizationId: this.organizationId,
-        },
-      },
-    });
-
-    if (state.items.length > 0) {
-      await this.db.quoteItem.createMany({
-        data: state.items.map((item) => ({
-          ...item,
-          quoteId: state.id,
-        })),
-      });
-    }
+    await this.saveItems(state.id, previous.quoteItems, state.items);
 
     if (previous.status !== state.status) {
       await this.db.quoteStatusHistory.create({
@@ -209,5 +211,85 @@ export class PrismaQuoteRepository extends QuoteRepository {
     }
 
     return state;
+  }
+
+  private async saveItems(
+    quoteId: string,
+    previousItems: QuoteItemProps[],
+    nextItems: QuoteItemProps[],
+  ): Promise<void> {
+    const previousById = new Map(previousItems.map((item) => [item.id, item]));
+
+    const nextIds = new Set(nextItems.map((item) => item.id));
+
+    if (nextIds.size !== nextItems.length) {
+      throw new QuoteError('INVALID_QUOTE_ITEM');
+    }
+
+    const removedIds = previousItems.filter((item) => !nextIds.has(item.id)).map((item) => item.id);
+
+    if (removedIds.length > 0) {
+      await this.db.quoteItem.deleteMany({
+        where: {
+          quoteId,
+          id: { in: removedIds },
+          quote: { organizationId: this.organizationId },
+        },
+      });
+    }
+
+    const createdItems = nextItems.filter((item) => !previousById.has(item.id));
+
+    if (createdItems.length > 0) {
+      await this.db.quoteItem.createMany({
+        data: createdItems.map((item) => ({
+          ...item,
+          quoteId,
+        })),
+      });
+    }
+
+    for (const item of nextItems) {
+      const previous = previousById.get(item.id);
+
+      if (previous === undefined || this.sameItem(previous, item)) {
+        continue;
+      }
+
+      const result = await this.db.quoteItem.updateMany({
+        where: {
+          id: item.id,
+          quoteId,
+          quote: { organizationId: this.organizationId },
+        },
+        data: {
+          catalogServiceId: item.catalogServiceId,
+          name: item.name,
+          description: item.description,
+          unit: item.unit,
+          quantityInThousandths: item.quantityInThousandths,
+          unitAmountInCents: item.unitAmountInCents,
+          totalInCents: item.totalInCents,
+          position: item.position,
+        },
+      });
+
+      if (result.count !== 1) {
+        throw new QuoteError('QUOTE_VERSION_CONFLICT');
+      }
+    }
+  }
+
+  private sameItem(previous: QuoteItemProps, next: QuoteItemProps): boolean {
+    return (
+      previous.catalogServiceId === next.catalogServiceId &&
+      previous.name === next.name &&
+      previous.description === next.description &&
+      previous.unit === next.unit &&
+      previous.quantityInThousandths === next.quantityInThousandths &&
+      previous.unitAmountInCents === next.unitAmountInCents &&
+      previous.totalInCents === next.totalInCents &&
+      previous.position === next.position
+    );
   }
 }

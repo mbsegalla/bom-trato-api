@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
 import { Prisma } from '../../../../generated/prisma/client.js';
-import { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
+import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
+import {
+  organizationTransaction,
+  OrganizationTransactionMode,
+} from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import type {
   QuoteActorParams,
   QuoteReadContext,
@@ -20,132 +23,48 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   }
 
   read<T>(params: QuoteActorParams, operation: (context: QuoteReadContext) => Promise<T>): Promise<T> {
-    const { organizationId } = params;
+    return this.execute('read', params, operation);
+  }
 
-    return this.prisma.$transaction(
-      async (db) => {
-        await db.$executeRaw`SET TRANSACTION READ ONLY`;
+  run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
+    return this.execute('write', params, operation);
+  }
 
-        const organization = await db.organization.findUnique({
-          where: {
-            id: organizationId,
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        if (organization === null) {
-          throw new QuoteError('ORGANIZATION_NOT_FOUND');
-        }
-
-        const context = await this.createContext(db, params);
-
-        return operation(context);
-      },
+  private execute<T>(
+    mode: OrganizationTransactionMode,
+    params: QuoteActorParams,
+    operation: (tx: QuoteTransaction) => Promise<T>,
+  ): Promise<T> {
+    return organizationTransaction(
+      this.prisma,
+      params.organizationId,
+      mode,
+      async (db) => operation(await this.createContext(db, params)),
       {
-        isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-        maxWait: 5000,
-        timeout: 10000,
+        notFound: () => new QuoteError('ORGANIZATION_NOT_FOUND'),
+        busy: () => new QuoteError('QUOTES_BUSY'),
       },
     );
   }
 
-  async run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
-    const { organizationId } = params;
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        return await this.prisma.$transaction(
-          async (db) => {
-            const locked = await db.$queryRaw<Array<{ id: string }>>`
-              SELECT "id"
-              FROM "Organization"
-              WHERE "id" = ${organizationId}::uuid
-              FOR UPDATE
-            `;
-
-            if (locked.length === 0) {
-              throw new QuoteError('ORGANIZATION_NOT_FOUND');
-            }
-
-            const context = await this.createContext(db, params);
-
-            return operation(context);
-          },
-          {
-            isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-            maxWait: 5000,
-            timeout: 10000,
-          },
-        );
-      } catch (error: unknown) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-          continue;
-        }
-
-        throw error;
-      }
-    }
-
-    throw new QuoteError('QUOTES_BUSY');
-  }
-
   private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
-    const { organizationId, userId } = params;
-
-    const member = await db.organizationMember.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId,
-          userId,
-        },
-      },
-      select: {
-        user: {
-          select: {
-            disabledAt: true,
-            emailVerifiedAt: true,
-          },
-        },
-      },
-    });
-
-    const subscriptions = await db.subscription.findMany({
-      where: {
-        organizationId,
-        status: {
-          notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE_EXPIRED],
-        },
-      },
-      orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
-      take: 2,
-    });
-
-    const current = subscriptions[0];
-
     return {
-      quotes: new PrismaQuoteRepository(db, organizationId),
+      quotes: new PrismaQuoteRepository(db, params.organizationId),
       findCustomer: (id: string) =>
         db.customer.findFirst({
           where: {
             id,
-            organizationId,
+            organizationId: params.organizationId,
           },
         }),
       findCatalogService: (id: string) =>
         db.catalogService.findFirst({
           where: {
             id,
-            organizationId,
+            organizationId: params.organizationId,
           },
         }),
-      access: {
-        isMember: member !== null,
-        verified: member !== null && member.user.disabledAt === null && member.user.emailVerifiedAt !== null,
-        hasSubscriptionAccess: current !== undefined && Subscription.restore(current).hasAccessAt(new Date()),
-        billingNeedsReconciliation: subscriptions.length > 1,
-      },
+      access: await readOrganizationAccess(db, params),
     };
   }
 }

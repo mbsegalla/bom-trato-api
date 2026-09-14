@@ -6,7 +6,7 @@ export class ListOrganizationMembersUseCase {
   constructor(private readonly processor: OrganizationTeamApplicationService) {}
 
   execute(params: OrganizationActorParams, page: OrganizationPageParams) {
-    return this.processor.withTeam(params, (tx, policy) => {
+    return this.processor.readTeam(params, (tx, policy) => {
       policy.assertMember();
 
       return tx.members.list({

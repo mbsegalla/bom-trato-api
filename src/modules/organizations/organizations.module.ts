@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 
 import { appConfig } from '../../config/app.config.js';
-import { mailConfig } from '../../config/mail.config.js';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { MailModule } from '../../infrastructure/mail/mail.module.js';
+import { SmtpTransport } from '../../infrastructure/mail/smtpTransport.js';
 
 import {
   OrganizationInvitationMail,
@@ -37,7 +38,7 @@ import { OrganizationsController } from './presentation/http/controllers/organiz
 import { OrganizationTeamController } from './presentation/http/controllers/organizationTeam.controller.js';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, MailModule],
   controllers: [OrganizationsController, OrganizationTeamController, OrganizationInvitationController],
   providers: [
     {
@@ -69,9 +70,9 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
     },
     {
       provide: OrganizationInvitationMail,
-      useFactory: (mail: ConfigType<typeof mailConfig>, app: ConfigType<typeof appConfig>) =>
-        new SmtpOrganizationInvitationMail(mail, app),
-      inject: [mailConfig.KEY, appConfig.KEY],
+      useFactory: (transport: SmtpTransport, app: ConfigType<typeof appConfig>) =>
+        new SmtpOrganizationInvitationMail(transport, app),
+      inject: [SmtpTransport, appConfig.KEY],
     },
     {
       provide: CreateOrganizationUseCase,

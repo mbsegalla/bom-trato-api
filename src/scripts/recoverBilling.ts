@@ -102,21 +102,25 @@ async function main(): Promise<void> {
     }
 
     if (action === 'retry-event' && key) {
-      const result = await prisma.stripeWebhookEvent.updateMany({
-        where: {
-          id: key,
-          processedAt: null,
-        },
-        data: {
-          failedAt: null,
-          attempts: 0,
-          nextAttemptAt: new Date(),
-          lastErrorCode: null,
-        },
-      });
+      const count = await prisma.$executeRaw`
+        UPDATE "StripeWebhookEvent"
+        SET
+          "failedAt" = NULL,
+          "attempts" = 0,
+          "nextAttemptAt" = CURRENT_TIMESTAMP,
+          "lastErrorCode" = NULL,
+          "leaseToken" = NULL,
+          "leaseExpiresAt" = NULL
+        WHERE "id" = ${key}
+          AND "processedAt" IS NULL
+          AND (
+            "leaseToken" IS NULL
+            OR "leaseExpiresAt" <= CURRENT_TIMESTAMP
+          )
+      `;
 
-      if (result.count !== 1) {
-        throw new Error('Pending event not found');
+      if (count !== 1) {
+        throw new Error('Event not found, already processed, or currently leased by a worker');
       }
 
       logger.log({

@@ -7,6 +7,8 @@ import { authConfig } from '../../config/auth.config.js';
 import { mailConfig } from '../../config/mail.config.js';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { MailModule } from '../../infrastructure/mail/mail.module.js';
+import { SmtpTransport } from '../../infrastructure/mail/smtpTransport.js';
 
 import { AuthMail, AuthSecurity } from './application/ports/authSecurity.port.js';
 import { AuthEmailSender } from './application/services/authEmailSender.service.js';
@@ -33,6 +35,7 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
 @Module({
   imports: [
     DatabaseModule,
+    MailModule,
     ConfigModule.forFeature(authConfig),
     ConfigModule.forFeature(mailConfig),
     ConfigModule.forFeature(appConfig),
@@ -50,9 +53,8 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
     },
     {
       provide: AuthMail,
-      useFactory: (mail: ConfigType<typeof mailConfig>, app: ConfigType<typeof appConfig>) =>
-        new SmtpAuthMail(mail, app),
-      inject: [mailConfig.KEY, appConfig.KEY],
+      useFactory: (transport: SmtpTransport, app: ConfigType<typeof appConfig>) => new SmtpAuthMail(transport, app),
+      inject: [SmtpTransport, appConfig.KEY],
     },
     {
       provide: AuthCookies,

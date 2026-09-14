@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { Prisma } from '../../../../generated/prisma/client.js';
 import { OrganizationRole, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { SubscriptionProps } from '../../domain/entities/subscription.entity.js';
@@ -9,11 +10,12 @@ import {
   BillingCustomerProps,
   BillingRepository,
   CheckoutAttemptState,
+  ClaimedWebhookJob,
   InvoicePageParams,
   RemoteInvoiceView,
   SaveSnapshotParams,
-  WebhookJob,
   WebhookNotice,
+  WebhookOutcome,
 } from '../../domain/repositories/billing.repository.js';
 
 @Injectable()
@@ -445,38 +447,6 @@ export class PrismaBillingRepository extends BillingRepository {
     });
   }
 
-  async pendingEvents(): Promise<WebhookJob[]> {
-    return this.prisma.stripeWebhookEvent.findMany({
-      where: {
-        processedAt: null,
-        failedAt: null,
-        nextAttemptAt: { lte: new Date() },
-      },
-      orderBy: [{ nextAttemptAt: 'asc' }, { id: 'asc' }],
-      take: 20,
-      select: {
-        id: true,
-        type: true,
-        stripeCustomerId: true,
-        stripeObjectId: true,
-        attempts: true,
-      },
-    });
-  }
-
-  async deferEvent(id: string): Promise<void> {
-    await this.prisma.stripeWebhookEvent.updateMany({
-      where: {
-        id,
-        processedAt: null,
-        failedAt: null,
-      },
-      data: {
-        nextAttemptAt: new Date(Date.now() + 15000),
-      },
-    });
-  }
-
   async isProcessed(id: string): Promise<boolean> {
     const event = await this.prisma.stripeWebhookEvent.findUniqueOrThrow({
       where: { id },
@@ -484,30 +454,6 @@ export class PrismaBillingRepository extends BillingRepository {
     });
 
     return event.processedAt !== null;
-  }
-
-  async completeEvent(id: string): Promise<void> {
-    await this.prisma.stripeWebhookEvent.update({
-      where: { id },
-      data: { processedAt: new Date(), lastErrorCode: null },
-    });
-  }
-
-  async retryEvent(id: string, attempts: number, code: string): Promise<void> {
-    const seconds = Math.min(3600, 2 ** Math.min(attempts + 1, 12));
-
-    await this.prisma.stripeWebhookEvent.updateMany({
-      where: {
-        id,
-        processedAt: null,
-      },
-      data: {
-        failedAt: attempts + 1 >= 25 ? new Date() : null,
-        attempts: { increment: 1 },
-        lastErrorCode: code.slice(0, 100),
-        nextAttemptAt: new Date(Date.now() + seconds * 1000),
-      },
-    });
   }
 
   async customerPage(cursor?: string): Promise<Array<{ organizationId: string; id: string }>> {
@@ -590,5 +536,105 @@ export class PrismaBillingRepository extends BillingRepository {
       memberCount: organization._count.organizationMembers,
       isOwner: organization.ownerId === userId,
     };
+  }
+
+  async claimEvent(leaseToken: string): Promise<ClaimedWebhookJob | null> {
+    const rows = await this.prisma.$queryRaw<ClaimedWebhookJob[]>`
+      WITH candidate AS (
+        SELECT "id"
+        FROM "StripeWebhookEvent"
+        WHERE "processedAt" IS NULL
+          AND "failedAt" IS NULL
+          AND "nextAttemptAt" <= CURRENT_TIMESTAMP
+          AND (
+            "leaseToken" IS NULL
+            OR "leaseExpiresAt" <= CURRENT_TIMESTAMP
+          )
+        ORDER BY "nextAttemptAt", "id"
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      )
+      UPDATE "StripeWebhookEvent" AS event
+      SET
+        "leaseToken" = ${leaseToken}::uuid,
+        "leaseExpiresAt" = CURRENT_TIMESTAMP + INTERVAL '2 minutes'
+      FROM candidate
+      WHERE event."id" = candidate."id"
+      RETURNING
+        event."id",
+        event."type",
+        event."stripeCustomerId",
+        event."stripeObjectId",
+        event."attempts",
+        event."leaseToken"
+    `;
+
+    return rows[0] ?? null;
+  }
+
+  async renewEventLease(event: ClaimedWebhookJob): Promise<boolean> {
+    const count = await this.prisma.$executeRaw`
+      UPDATE "StripeWebhookEvent"
+      SET "leaseExpiresAt" = CURRENT_TIMESTAMP + INTERVAL '2 minutes'
+      WHERE "id" = ${event.id}
+        AND "leaseToken" = ${event.leaseToken}::uuid
+        AND "leaseExpiresAt" > CURRENT_TIMESTAMP
+        AND "processedAt" IS NULL
+        AND "failedAt" IS NULL
+    `;
+
+    return count === 1;
+  }
+
+  async settleEvent(
+    event: ClaimedWebhookJob,
+    outcome: WebhookOutcome,
+    code = 'WEBHOOK_PROCESSING_FAILED',
+  ): Promise<boolean> {
+    let changes: Prisma.Sql;
+
+    switch (outcome) {
+      case 'COMPLETE':
+        changes = Prisma.sql`
+          "processedAt" = CURRENT_TIMESTAMP,
+          "lastErrorCode" = NULL
+        `;
+        break;
+      case 'DEFER':
+        changes = Prisma.sql`
+          "nextAttemptAt" = CURRENT_TIMESTAMP + INTERVAL '15 seconds'
+        `;
+        break;
+      case 'RETRY': {
+        const seconds = Math.min(3600, 2 ** Math.min(event.attempts + 1, 12));
+
+        changes = Prisma.sql`
+          "attempts" = "attempts" + 1,
+          "failedAt" = CASE
+            WHEN "attempts" + 1 >= 25 THEN CURRENT_TIMESTAMP
+            ELSE NULL
+          END,
+          "lastErrorCode" = ${code.slice(0, 100)},
+          "nextAttemptAt" =
+            CURRENT_TIMESTAMP + ${seconds} * INTERVAL '1 second'
+        `;
+        break;
+      }
+    }
+
+    const count = await this.prisma.$executeRaw`
+      UPDATE "StripeWebhookEvent"
+      SET
+        ${changes},
+        "leaseToken" = NULL,
+        "leaseExpiresAt" = NULL
+      WHERE "id" = ${event.id}
+        AND "leaseToken" = ${event.leaseToken}::uuid
+        AND "leaseExpiresAt" > CURRENT_TIMESTAMP
+        AND "processedAt" IS NULL
+        AND "failedAt" IS NULL
+    `;
+
+    return count === 1;
   }
 }

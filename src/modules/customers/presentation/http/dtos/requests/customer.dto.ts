@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, IsIn, IsOptional, IsString, Length, MaxLength, ValidateIf } from 'class-validator';
 
+import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 import { customerStatuses } from '../../../../domain/types/customerPage.types.js';
 
 function nullableText({ value }: { value: unknown }): unknown {
@@ -67,32 +68,8 @@ export class UpdateCustomerDto extends CustomerContactDto {
   name?: string;
 }
 
-export class CustomerPageDto {
-  @ApiPropertyOptional({
-    default: 1,
-    minimum: 1,
-    maximum: 10000,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(10000)
-  page = 1;
-
-  @ApiPropertyOptional({
-    default: 20,
-    minimum: 1,
-    maximum: 100,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-
-  @ApiPropertyOptional({
-    maxLength: 100,
-  })
+export class CustomerPageDto extends PageDto {
+  @ApiPropertyOptional({ maxLength: 100 })
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsString()
