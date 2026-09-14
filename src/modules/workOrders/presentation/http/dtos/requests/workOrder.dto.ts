@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsDefined,
   IsEnum,
@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 
 import { WorkOrderStatus } from '../../../../../../generated/prisma/enums.js';
+import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 
 export class CreateWorkOrderDto {
   @ApiProperty({ format: 'uuid' })
@@ -89,21 +90,7 @@ export class CancelWorkOrderDto extends WorkOrderVersionDto {
   reason!: string;
 }
 
-export class WorkOrderPageDto {
-  @ApiPropertyOptional({ default: 1, minimum: 1, maximum: 10000 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(10000)
-  page = 1;
-
-  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-
+export class WorkOrderPageDto extends PageDto {
   @ApiPropertyOptional({ enum: WorkOrderStatus })
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsEnum(WorkOrderStatus)

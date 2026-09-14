@@ -29,6 +29,18 @@ export interface OrganizationTransaction {
   readonly invitationRateLimit: OrganizationInvitationRateLimit;
 }
 
+export interface OrganizationReadContext {
+  readonly organization: OrganizationTransaction['organization'];
+  readonly actor: OrganizationTransaction['actor'];
+  readonly actorRole: OrganizationTransaction['actorRole'];
+  readonly members: Pick<OrganizationMemberRepository, 'list'>;
+  readonly invitations: Pick<OrganizationInvitationRepository, 'list'>;
+}
+
 export abstract class OrganizationUnitOfWork {
+  abstract read<T>(
+    params: OrganizationActorParams,
+    operation: (context: OrganizationReadContext) => Promise<T>,
+  ): Promise<T>;
   abstract run<T>(params: OrganizationActorParams, operation: (tx: OrganizationTransaction) => Promise<T>): Promise<T>;
 }

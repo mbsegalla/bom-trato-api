@@ -10,7 +10,7 @@ import { GetCustomerUseCase } from './application/useCases/getCustomer.useCase.j
 import { ListCustomersUseCase } from './application/useCases/listCustomers.useCase.js';
 import { RestoreCustomerUseCase } from './application/useCases/restoreCustomer.useCase.js';
 import { UpdateCustomerUseCase } from './application/useCases/updateCustomer.useCase.js';
-import { PrismaCustomerUnitOfWork } from './infrastrucuture/transactions/prismaCustomerUnitOfWork.js';
+import { PrismaCustomerUnitOfWork } from './infrastructure/transactions/prismaCustomerUnitOfWork.js';
 import { CustomersController } from './presentation/http/controllers/customers.controller.js';
 
 @Module({

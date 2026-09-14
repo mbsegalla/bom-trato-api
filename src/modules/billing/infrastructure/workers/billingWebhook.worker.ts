@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
@@ -7,7 +9,7 @@ import { ReconcilePlanChangeUseCase } from '../../application/useCases/reconcile
 import { SyncBillingUseCase } from '../../application/useCases/syncBilling.useCase.js';
 import { SyncPaymentMethodUpdateUseCase } from '../../application/useCases/syncPaymentMethodUpdate.useCase.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
-import { BillingRepository } from '../../domain/repositories/billing.repository.js';
+import { BillingRepository, ClaimedWebhookJob, WebhookOutcome } from '../../domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 
@@ -42,8 +44,14 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
       }
 
       this.running = this.process()
-        .catch(() => {
-          this.logger.error('Billing polling failed');
+        .catch((error: unknown) => {
+          if (error instanceof Error) {
+            this.logger.error(`Billing polling failed: ${error.message}`, error.stack);
+
+            return;
+          }
+
+          this.logger.error('Billing polling failed with an unknown error');
         })
         .finally(() => {
           this.running = undefined;
@@ -56,56 +64,18 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async process(): Promise<void> {
-    for (const event of await this.billingRepository.pendingEvents()) {
+    for (let processed = 0; processed < 20; processed++) {
       if (this.stopping) {
         return;
       }
 
-      try {
-        if (await this.billingRepository.isProcessed(event.id)) {
-          continue;
-        }
+      const event = await this.billingRepository.claimEvent(randomUUID());
 
-        const customer = await this.billingRepository.customerByStripeId(event.stripeCustomerId);
-
-        if (customer === null) {
-          throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
-        }
-
-        // Persist billing before processing related operations.
-        // The event remains pending until all required steps succeed.
-        await this.syncBillingUseCase.execute({
-          organizationId: customer.organizationId,
-          invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
-        });
-
-        await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
-
-        if (event.type.startsWith('setup_intent.')) {
-          await this.syncPaymentMethodUpdateUseCase.execute({
-            organizationId: customer.organizationId,
-            setupIntentId: event.stripeObjectId,
-          });
-        }
-
-        await this.billingRepository.completeEvent(event.id);
-      } catch (error: unknown) {
-        if (error instanceof BillingError && error.code === 'BILLING_BUSY') {
-          await this.billingRepository.deferEvent(event.id);
-          continue;
-        }
-
-        const code = error instanceof BillingError ? error.code : 'WEBHOOK_PROCESSING_FAILED';
-
-        await this.billingRepository.retryEvent(event.id, event.attempts, code);
-
-        this.logger.warn({
-          message:
-            event.attempts + 1 >= 25 ? 'Billing webhook requires manual recovery' : 'Billing webhook will be retried',
-          eventId: event.id,
-          code,
-        });
+      if (event === null) {
+        break;
       }
+
+      await this.processEvent(event);
     }
 
     await this.processPlanChanges();
@@ -186,6 +156,113 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
           code: error instanceof BillingError ? error.code : 'PAYMENT_METHOD_UPDATE_FAILED',
         });
       }
+    }
+  }
+
+  private async processEvent(event: ClaimedWebhookJob): Promise<void> {
+    let leaseLost = false;
+    let renewal: Promise<void> | undefined;
+    let outcome: WebhookOutcome = 'COMPLETE';
+    let code: string | undefined;
+
+    const assertLease = (): void => {
+      if (leaseLost) {
+        throw new Error('Webhook lease lost');
+      }
+    };
+
+    const heartbeat = setInterval(() => {
+      if (renewal !== undefined || leaseLost) {
+        return;
+      }
+
+      renewal = this.billingRepository
+        .renewEventLease(event)
+        .then((owned) => {
+          if (!owned) {
+            leaseLost = true;
+          }
+        })
+        .catch(() => {
+          leaseLost = true;
+        })
+        .finally(() => {
+          renewal = undefined;
+        });
+    }, 20000);
+
+    heartbeat.unref();
+
+    try {
+      const customer = await this.billingRepository.customerByStripeId(event.stripeCustomerId);
+
+      assertLease();
+
+      if (customer === null) {
+        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+      }
+
+      await this.syncBillingUseCase.execute({
+        organizationId: customer.organizationId,
+        invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
+      });
+
+      assertLease();
+
+      await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
+
+      assertLease();
+
+      if (event.type.startsWith('setup_intent.')) {
+        await this.syncPaymentMethodUpdateUseCase.execute({
+          organizationId: customer.organizationId,
+          setupIntentId: event.stripeObjectId,
+        });
+
+        assertLease();
+      }
+    } catch (error: unknown) {
+      if (!leaseLost) {
+        if (error instanceof BillingError && error.code === 'BILLING_BUSY') {
+          outcome = 'DEFER';
+        } else {
+          outcome = 'RETRY';
+          code = error instanceof BillingError ? error.code : 'WEBHOOK_PROCESSING_FAILED';
+        }
+      }
+    } finally {
+      clearInterval(heartbeat);
+
+      await renewal;
+    }
+
+    if (leaseLost) {
+      this.logger.warn({
+        message: 'Webhook lease lost; completion was not acknowledged',
+        eventId: event.id,
+      });
+
+      return;
+    }
+
+    const settled = await this.billingRepository.settleEvent(event, outcome, code);
+
+    if (!settled) {
+      this.logger.warn({
+        message: 'Webhook lease expired or changed before completion',
+        eventId: event.id,
+      });
+
+      return;
+    }
+
+    if (outcome === 'RETRY') {
+      this.logger.warn({
+        message:
+          event.attempts + 1 >= 25 ? 'Billing webhook requires manual recovery' : 'Billing webhook will be retried',
+        eventId: event.id,
+        code,
+      });
     }
   }
 

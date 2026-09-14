@@ -426,8 +426,10 @@ model StripeWebhookEvent {
   lastErrorCode    String?   @db.VarChar(100)
   receivedAt       DateTime  @default(now()) @db.Timestamptz(3)
   failedAt         DateTime? @db.Timestamptz(3)
+  leaseToken       String?   @db.Uuid
+  leaseExpiresAt   DateTime? @db.Timestamptz(3)
 
-  @@index([processedAt, nextAttemptAt])
+  @@index([processedAt, failedAt, nextAttemptAt, id])
 }
 
 model OrganizationInvitation {

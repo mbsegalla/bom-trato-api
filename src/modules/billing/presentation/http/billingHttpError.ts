@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 
-import { ApiException } from '../../../../infrastructure/http/exceptions/api.exception.js';
+import { httpOperation } from '../../../../infrastructure/http/errors/httpOperation.js';
 import type { BillingErrorCode } from '../../domain/errors/billing.error.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 
@@ -112,16 +112,13 @@ const billingHttpErrors = {
   },
 } satisfies Record<BillingErrorCode, BillingHttpErrorDefinition>;
 
-export async function billingOperation<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    if (!(error instanceof BillingError)) {
-      throw error;
-    }
-
-    const { status, message } = billingHttpErrors[error.code];
-
-    throw new ApiException(status, error.code, message);
-  }
+export function billingOperation<T>(operation: () => Promise<T>): Promise<T> {
+  return httpOperation(
+    operation,
+    (error): error is BillingError => error instanceof BillingError,
+    (error) => ({
+      ...billingHttpErrors[error.code],
+      code: error.code,
+    }),
+  );
 }

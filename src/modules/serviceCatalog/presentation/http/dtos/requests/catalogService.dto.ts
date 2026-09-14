@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 import { ServiceUnit } from '../../../../../../generated/prisma/enums.js';
+import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 import { catalogServiceStatuses } from '../../../../domain/types/catalogServicePage.types.js';
 
 class CatalogServiceDescriptionDto {
@@ -76,29 +77,7 @@ export class UpdateCatalogServiceDto extends CatalogServiceDescriptionDto {
   amountInCents?: number;
 }
 
-export class CatalogServicePageDto {
-  @ApiPropertyOptional({
-    default: 1,
-    minimum: 1,
-    maximum: 10000,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(10000)
-  page = 1;
-
-  @ApiPropertyOptional({
-    default: 20,
-    minimum: 1,
-    maximum: 100,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-
+export class CatalogServicePageDto extends PageDto {
   @ApiPropertyOptional({ maxLength: 100 })
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)

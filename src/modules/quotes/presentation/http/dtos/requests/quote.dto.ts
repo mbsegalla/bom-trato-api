@@ -17,6 +17,7 @@ import {
 } from 'class-validator';
 
 import { QuoteStatus, ServiceUnit } from '../../../../../../generated/prisma/enums.js';
+import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 
 class QuoteDetailsDto {
   @ApiProperty({ minLength: 2, maxLength: 150 })
@@ -144,29 +145,7 @@ export class QuoteItemDto extends QuoteVersionDto {
   custom?: CustomQuoteItemDto;
 }
 
-export class QuotePageDto {
-  @ApiPropertyOptional({
-    default: 1,
-    minimum: 1,
-    maximum: 10000,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(10000)
-  page = 1;
-
-  @ApiPropertyOptional({
-    default: 20,
-    minimum: 1,
-    maximum: 100,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-
+export class QuotePageDto extends PageDto {
   @ApiPropertyOptional({ enum: QuoteStatus })
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsEnum(QuoteStatus)

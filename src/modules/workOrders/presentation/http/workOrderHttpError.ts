@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 
-import { ApiException } from '../../../../infrastructure/http/exceptions/api.exception.js';
+import { httpOperation } from '../../../../infrastructure/http/errors/httpOperation.js';
 import type { WorkOrderErrorCode } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 
@@ -25,14 +25,14 @@ const statuses = {
   WORK_ORDERS_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
 } satisfies Record<WorkOrderErrorCode, HttpStatus>;
 
-export async function workOrderOperation<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    if (!(error instanceof WorkOrderError)) {
-      throw error;
-    }
-
-    throw new ApiException(statuses[error.code], error.code, error.code.toLowerCase().replaceAll('_', ' '));
-  }
+export function workOrderOperation<T>(operation: () => Promise<T>): Promise<T> {
+  return httpOperation(
+    operation,
+    (error): error is WorkOrderError => error instanceof WorkOrderError,
+    (error) => ({
+      status: statuses[error.code],
+      code: error.code,
+      message: error.code.toLowerCase().replaceAll('_', ' '),
+    }),
+  );
 }

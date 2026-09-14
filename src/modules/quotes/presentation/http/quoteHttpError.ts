@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 
-import { ApiException } from '../../../../infrastructure/http/exceptions/api.exception.js';
+import { httpOperation } from '../../../../infrastructure/http/errors/httpOperation.js';
 import type { QuoteErrorCode } from '../../domain/errors/quote.error.js';
 import { QuoteError } from '../../domain/errors/quote.error.js';
 
@@ -30,14 +30,14 @@ const statuses = {
   QUOTES_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
 } satisfies Record<QuoteErrorCode, HttpStatus>;
 
-export async function quoteOperation<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    if (!(error instanceof QuoteError)) {
-      throw error;
-    }
-
-    throw new ApiException(statuses[error.code], error.code, error.code.toLowerCase().replaceAll('_', ' '));
-  }
+export function quoteOperation<T>(operation: () => Promise<T>): Promise<T> {
+  return httpOperation(
+    operation,
+    (error): error is QuoteError => error instanceof QuoteError,
+    (error) => ({
+      status: statuses[error.code],
+      code: error.code,
+      message: error.code.toLowerCase().replaceAll('_', ' '),
+    }),
+  );
 }

@@ -2,7 +2,8 @@ import type { Prisma } from '../../../../generated/prisma/client.js';
 import type { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderRepository } from '../../domain/repositories/workOrder.repository.js';
-import type { WorkOrderPageParams, WorkOrderProps } from '../../domain/types/workOrder.types.js';
+import type { WorkOrderPage, WorkOrderPageParams, WorkOrderProps } from '../../domain/types/workOrder.types.js';
+import type { WorkOrderSummary } from '../../domain/types/workOrderSummary.types.js';
 
 const include = {
   workOrderItems: {
@@ -23,6 +24,24 @@ const include = {
   },
 } satisfies Prisma.WorkOrderInclude;
 
+const summarySelect = {
+  id: true,
+  organizationId: true,
+  quoteId: true,
+  customerId: true,
+  customerName: true,
+  title: true,
+  assignedToId: true,
+  status: true,
+  currency: true,
+  totalInCents: true,
+  scheduledStartAt: true,
+  scheduledEndAt: true,
+  version: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.WorkOrderSelect;
+
 type WorkOrderRow = Prisma.WorkOrderGetPayload<{ include: typeof include }>;
 
 export class PrismaWorkOrderRepository extends WorkOrderRepository {
@@ -42,7 +61,7 @@ export class PrismaWorkOrderRepository extends WorkOrderRepository {
         workOrderItems: {
           create: items,
         },
-        statusHistory: {
+        workOrderStatusHistory: {
           create: {
             fromStatus: null,
             toStatus: state.status,
@@ -80,28 +99,30 @@ export class PrismaWorkOrderRepository extends WorkOrderRepository {
     return row === null ? null : this.toProps(row);
   }
 
-  async list(params: WorkOrderPageParams) {
+  async list(params: WorkOrderPageParams): Promise<WorkOrderPage<WorkOrderSummary>> {
+    const { page, limit, status, customerId, assignedToId, scheduledFrom, scheduledTo } = params;
+
     const rows = await this.db.workOrder.findMany({
       where: {
         organizationId: this.organizationId,
-        status: params.status,
-        customerId: params.customerId,
-        assignedToId: params.assignedToId,
+        status,
+        customerId,
+        assignedToId,
         scheduledStartAt: {
-          gte: params.scheduledFrom,
-          lte: params.scheduledTo,
+          gte: scheduledFrom,
+          lte: scheduledTo,
         },
       },
-      include,
+      select: summarySelect,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      skip: (params.page - 1) * params.limit,
-      take: params.limit + 1,
+      skip: (page - 1) * limit,
+      take: limit + 1,
     });
 
     return {
-      items: rows.slice(0, params.limit).map((row) => this.toProps(row)),
-      page: params.page,
-      hasMore: rows.length > params.limit,
+      items: rows.slice(0, limit),
+      page,
+      hasMore: rows.length > limit,
     };
   }
 

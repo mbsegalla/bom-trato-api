@@ -5,6 +5,7 @@ import { OrganizationTeamPolicy } from '../../domain/policies/organizationTeam.p
 import type { OrganizationInvitationRepository } from '../../domain/repositories/organizationInvitation.repository.js';
 import type {
   OrganizationActorParams,
+  OrganizationReadContext,
   OrganizationTransaction,
   OrganizationUnitOfWork,
 } from '../ports/organizationUnitOfWork.port.js';
@@ -15,23 +16,18 @@ export class OrganizationTeamApplicationService {
     private readonly unitOfWork: OrganizationUnitOfWork,
   ) {}
 
+  readTeam<T>(
+    params: OrganizationActorParams,
+    operation: (context: OrganizationReadContext, policy: OrganizationTeamPolicy) => Promise<T>,
+  ): Promise<T> {
+    return this.unitOfWork.read(params, (context) => operation(context, this.createPolicy(context)));
+  }
+
   withTeam<T>(
     params: OrganizationActorParams,
     operation: (tx: OrganizationTransaction, policy: OrganizationTeamPolicy) => Promise<T>,
   ): Promise<T> {
-    return this.unitOfWork.run(params, (tx) => {
-      const policy = new OrganizationTeamPolicy({
-        ownerId: tx.organization.ownerId,
-        actorId: tx.actor.id,
-        actorRole: tx.actorRole,
-        actorDisabled: tx.actor.disabled,
-        actorEmailVerified: tx.actor.emailVerified,
-      });
-
-      policy.assertVerifiedActor();
-
-      return operation(tx, policy);
-    });
+    return this.unitOfWork.run(params, (tx) => operation(tx, this.createPolicy(tx)));
   }
 
   async assertCanInvite(
@@ -46,13 +42,7 @@ export class OrganizationTeamApplicationService {
       throw new OrganizationTeamError('ALREADY_MEMBER');
     }
 
-    policy.assertCanAdd(
-      await tx.access.read({
-        organizationId,
-        now,
-      }),
-      await tx.members.count(organizationId),
-    );
+    policy.assertCanAdd(await tx.access.read({ organizationId, now }), await tx.members.count(organizationId));
   }
 
   async clearExpiredInvitation(
@@ -102,5 +92,21 @@ export class OrganizationTeamApplicationService {
     }
 
     return locator;
+  }
+
+  private createPolicy(
+    context: Pick<OrganizationReadContext, 'organization' | 'actor' | 'actorRole'>,
+  ): OrganizationTeamPolicy {
+    const policy = new OrganizationTeamPolicy({
+      ownerId: context.organization.ownerId,
+      actorId: context.actor.id,
+      actorRole: context.actorRole,
+      actorDisabled: context.actor.disabled,
+      actorEmailVerified: context.actor.emailVerified,
+    });
+
+    policy.assertVerifiedActor();
+
+    return policy;
   }
 }

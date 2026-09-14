@@ -104,6 +104,12 @@ export interface RemoteInvoiceView {
   stripeCreatedAt: Date;
 }
 
+export interface ClaimedWebhookJob extends WebhookJob {
+  leaseToken: string;
+}
+
+export type WebhookOutcome = 'COMPLETE' | 'DEFER' | 'RETRY';
+
 export abstract class BillingRepository {
   abstract assertOwner(organizationId: string, userId: string): Promise<void>;
   abstract assertMember(organizationId: string, userId: string): Promise<void>;
@@ -120,14 +126,13 @@ export abstract class BillingRepository {
   abstract saveSnapshot(params: SaveSnapshotParams): Promise<void>;
   abstract invoices(params: InvoicePageParams): Promise<{ items: RemoteInvoiceView[]; nextCursor: string | null }>;
   abstract enqueue(notice: WebhookNotice): Promise<void>;
-  abstract pendingEvents(): Promise<WebhookJob[]>;
-  abstract deferEvent(id: string): Promise<void>;
   abstract isProcessed(id: string): Promise<boolean>;
-  abstract completeEvent(id: string): Promise<void>;
-  abstract retryEvent(id: string, attempts: number, code: string): Promise<void>;
   abstract customerPage(cursor?: string): Promise<Array<{ organizationId: string; id: string }>>;
   abstract dueCustomers(): Promise<Array<{ organizationId: string }>>;
   abstract postponeReconciliation(organizationId: string): Promise<void>;
+  abstract claimEvent(leaseToken: string): Promise<ClaimedWebhookJob | null>;
+  abstract renewEventLease(event: ClaimedWebhookJob): Promise<boolean>;
+  abstract settleEvent(event: ClaimedWebhookJob, outcome: WebhookOutcome, code?: string): Promise<boolean>;
   abstract entitlements(
     organizationId: string,
     userId: string,

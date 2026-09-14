@@ -141,6 +141,9 @@ importers:
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
+      class-validator:
+        specifier: ^0.15.1
+        version: 0.15.1
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -211,9 +214,6 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.1.2
         version: 4.1.11(vitest@4.1.11)
-      class-validator:
-        specifier: ^0.15.1
-        version: 0.15.1
       commitizen:
         specifier: ^4.3.2
         version: 4.3.2(@types/node@24.13.3)(typescript@6.0.3)

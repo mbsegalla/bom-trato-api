@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 
-import { ApiException } from '../../../../infrastructure/http/exceptions/api.exception.js';
+import { httpOperation } from '../../../../infrastructure/http/errors/httpOperation.js';
 import type { CatalogServiceErrorCode } from '../../domain/errors/catalogService.error.js';
 import { CatalogServiceError } from '../../domain/errors/catalogService.error.js';
 
@@ -20,14 +20,14 @@ const statuses = {
   CATALOG_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
 } satisfies Record<CatalogServiceErrorCode, HttpStatus>;
 
-export async function catalogServiceOperation<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: unknown) {
-    if (!(error instanceof CatalogServiceError)) {
-      throw error;
-    }
-
-    throw new ApiException(statuses[error.code], error.code, error.code.toLowerCase().replaceAll('_', ' '));
-  }
+export function catalogServiceOperation<T>(operation: () => Promise<T>): Promise<T> {
+  return httpOperation(
+    operation,
+    (error): error is CatalogServiceError => error instanceof CatalogServiceError,
+    (error) => ({
+      status: statuses[error.code],
+      code: error.code,
+      message: error.code.toLowerCase().replaceAll('_', ' '),
+    }),
+  );
 }

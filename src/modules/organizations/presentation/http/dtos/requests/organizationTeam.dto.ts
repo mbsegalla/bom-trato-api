@@ -1,32 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import { IsEmail, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, IsEnum, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 import { OrganizationInvitationStatus } from '../../../../../../generated/prisma/enums.js';
+import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 
-export class TeamPageDto {
-  @ApiPropertyOptional({
-    default: 1,
-    minimum: 1,
-    maximum: 10000,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(10000)
-  page = 1;
-
-  @ApiPropertyOptional({
-    default: 20,
-    minimum: 1,
-    maximum: 100,
-  })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-}
+export class TeamPageDto extends PageDto {}
 
 export class InvitationPageDto extends TeamPageDto {
   @ApiPropertyOptional({
