@@ -9,6 +9,7 @@ import { BillingWorkerModule } from './modules/billing/billingWorker.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
+import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.module.js';
 
 @Module({
@@ -23,6 +24,7 @@ import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.mo
     BillingWorkerModule,
     CustomersModule,
     ServiceCatalogModule,
+    QuotesModule,
   ],
   controllers: [],
   providers: [],
