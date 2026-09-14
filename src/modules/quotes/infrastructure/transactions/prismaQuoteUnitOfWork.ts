@@ -5,30 +5,28 @@ import { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
 import type {
-  CustomerActorParams,
-  CustomerReadContext,
-  CustomerTransaction,
-} from '../../application/ports/customerUnitOfWork.port.js';
-import { CustomerUnitOfWork } from '../../application/ports/customerUnitOfWork.port.js';
-import { CustomerError } from '../../domain/errors/customer.error.js';
-import { PrismaCustomerRepository } from '../repositories/prismaCustomer.repository.js';
+  QuoteActorParams,
+  QuoteReadContext,
+  QuoteTransaction,
+} from '../../application/ports/quoteUnitOfWork.port.js';
+import { QuoteUnitOfWork } from '../../application/ports/quoteUnitOfWork.port.js';
+import { QuoteError } from '../../domain/errors/quote.error.js';
+import { PrismaQuoteRepository } from '../repositories/prismaQuote.repository.js';
 
 @Injectable()
-export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
+export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   constructor(private readonly prisma: PrismaService) {
     super();
   }
 
-  read<T>(params: CustomerActorParams, operation: (context: CustomerReadContext) => Promise<T>): Promise<T> {
-    const { organizationId } = params;
-
+  read<T>(params: QuoteActorParams, operation: (context: QuoteReadContext) => Promise<T>): Promise<T> {
     return this.prisma.$transaction(
       async (db) => {
         await db.$executeRaw`SET TRANSACTION READ ONLY`;
 
         const organization = await db.organization.findUnique({
           where: {
-            id: organizationId,
+            id: params.organizationId,
           },
           select: {
             id: true,
@@ -36,7 +34,7 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
         });
 
         if (organization === null) {
-          throw new CustomerError('ORGANIZATION_NOT_FOUND');
+          throw new QuoteError('ORGANIZATION_NOT_FOUND');
         }
 
         const context = await this.createContext(db, params);
@@ -51,9 +49,7 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
     );
   }
 
-  async run<T>(params: CustomerActorParams, operation: (tx: CustomerTransaction) => Promise<T>): Promise<T> {
-    const { organizationId } = params;
-
+  async run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         return await this.prisma.$transaction(
@@ -61,12 +57,12 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
             const locked = await db.$queryRaw<Array<{ id: string }>>`
               SELECT "id"
               FROM "Organization"
-              WHERE "id" = ${organizationId}::uuid
+              WHERE "id" = ${params.organizationId}::uuid
               FOR UPDATE
             `;
 
             if (locked.length === 0) {
-              throw new CustomerError('ORGANIZATION_NOT_FOUND');
+              throw new QuoteError('ORGANIZATION_NOT_FOUND');
             }
 
             const context = await this.createContext(db, params);
@@ -88,17 +84,15 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
       }
     }
 
-    throw new CustomerError('CUSTOMERS_BUSY');
+    throw new QuoteError('QUOTES_BUSY');
   }
 
-  private async createContext(db: Prisma.TransactionClient, params: CustomerActorParams): Promise<CustomerTransaction> {
-    const { organizationId, userId } = params;
-
+  private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
     const member = await db.organizationMember.findUnique({
       where: {
         organizationId_userId: {
-          organizationId,
-          userId,
+          organizationId: params.organizationId,
+          userId: params.userId,
         },
       },
       select: {
@@ -113,7 +107,7 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
 
     const subscriptions = await db.subscription.findMany({
       where: {
-        organizationId,
+        organizationId: params.organizationId,
         status: {
           notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE_EXPIRED],
         },
@@ -125,7 +119,21 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
     const current = subscriptions[0];
 
     return {
-      customers: new PrismaCustomerRepository(db, organizationId),
+      quotes: new PrismaQuoteRepository(db, params.organizationId),
+      findCustomer: (id: string) =>
+        db.customer.findFirst({
+          where: {
+            id,
+            organizationId: params.organizationId,
+          },
+        }),
+      findCatalogService: (id: string) =>
+        db.catalogService.findFirst({
+          where: {
+            id,
+            organizationId: params.organizationId,
+          },
+        }),
       access: {
         isMember: member !== null,
         verified: member !== null && member.user.disabledAt === null && member.user.emailVerifiedAt !== null,

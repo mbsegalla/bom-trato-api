@@ -6,6 +6,6 @@ export class ListCustomersUseCase {
   constructor(private readonly processor: CustomerApplicationService) {}
 
   execute(params: CustomerActorParams, page: CustomerPageParams) {
-    return this.processor.run(params, (tx) => tx.customers.list(page));
+    return this.processor.read(params, (context) => context.customers.list(page));
   }
 }

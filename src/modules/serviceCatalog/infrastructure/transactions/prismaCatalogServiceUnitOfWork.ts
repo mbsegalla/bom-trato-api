@@ -5,30 +5,31 @@ import { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
 import type {
-  CustomerActorParams,
-  CustomerReadContext,
-  CustomerTransaction,
-} from '../../application/ports/customerUnitOfWork.port.js';
-import { CustomerUnitOfWork } from '../../application/ports/customerUnitOfWork.port.js';
-import { CustomerError } from '../../domain/errors/customer.error.js';
-import { PrismaCustomerRepository } from '../repositories/prismaCustomer.repository.js';
+  CatalogServiceActorParams,
+  CatalogServiceReadContext,
+  CatalogServiceTransaction,
+} from '../../application/ports/catalogServiceUnitOfWork.port.js';
+import { CatalogServiceUnitOfWork } from '../../application/ports/catalogServiceUnitOfWork.port.js';
+import { CatalogServiceError } from '../../domain/errors/catalogService.error.js';
+import { PrismaCatalogServiceRepository } from '../repositories/prismaCatalogService.repository.js';
 
 @Injectable()
-export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
+export class PrismaCatalogServiceUnitOfWork extends CatalogServiceUnitOfWork {
   constructor(private readonly prisma: PrismaService) {
     super();
   }
 
-  read<T>(params: CustomerActorParams, operation: (context: CustomerReadContext) => Promise<T>): Promise<T> {
-    const { organizationId } = params;
-
+  read<T>(
+    params: CatalogServiceActorParams,
+    operation: (context: CatalogServiceReadContext) => Promise<T>,
+  ): Promise<T> {
     return this.prisma.$transaction(
       async (db) => {
         await db.$executeRaw`SET TRANSACTION READ ONLY`;
 
         const organization = await db.organization.findUnique({
           where: {
-            id: organizationId,
+            id: params.organizationId,
           },
           select: {
             id: true,
@@ -36,7 +37,7 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
         });
 
         if (organization === null) {
-          throw new CustomerError('ORGANIZATION_NOT_FOUND');
+          throw new CatalogServiceError('ORGANIZATION_NOT_FOUND');
         }
 
         const context = await this.createContext(db, params);
@@ -51,9 +52,10 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
     );
   }
 
-  async run<T>(params: CustomerActorParams, operation: (tx: CustomerTransaction) => Promise<T>): Promise<T> {
-    const { organizationId } = params;
-
+  async run<T>(
+    params: CatalogServiceActorParams,
+    operation: (tx: CatalogServiceTransaction) => Promise<T>,
+  ): Promise<T> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         return await this.prisma.$transaction(
@@ -61,12 +63,12 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
             const locked = await db.$queryRaw<Array<{ id: string }>>`
               SELECT "id"
               FROM "Organization"
-              WHERE "id" = ${organizationId}::uuid
+              WHERE "id" = ${params.organizationId}::uuid
               FOR UPDATE
             `;
 
             if (locked.length === 0) {
-              throw new CustomerError('ORGANIZATION_NOT_FOUND');
+              throw new CatalogServiceError('ORGANIZATION_NOT_FOUND');
             }
 
             const context = await this.createContext(db, params);
@@ -88,10 +90,13 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
       }
     }
 
-    throw new CustomerError('CUSTOMERS_BUSY');
+    throw new CatalogServiceError('CATALOG_BUSY');
   }
 
-  private async createContext(db: Prisma.TransactionClient, params: CustomerActorParams): Promise<CustomerTransaction> {
+  private async createContext(
+    db: Prisma.TransactionClient,
+    params: CatalogServiceActorParams,
+  ): Promise<CatalogServiceTransaction> {
     const { organizationId, userId } = params;
 
     const member = await db.organizationMember.findUnique({
@@ -125,7 +130,7 @@ export class PrismaCustomerUnitOfWork extends CustomerUnitOfWork {
     const current = subscriptions[0];
 
     return {
-      customers: new PrismaCustomerRepository(db, organizationId),
+      catalogServices: new PrismaCatalogServiceRepository(db, organizationId),
       access: {
         isMember: member !== null,
         verified: member !== null && member.user.disabledAt === null && member.user.emailVerifiedAt !== null,

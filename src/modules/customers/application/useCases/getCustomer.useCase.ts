@@ -7,8 +7,8 @@ export class GetCustomerUseCase {
   execute(params: CustomerByIdParams) {
     const { customerId } = params;
 
-    return this.processor.run(params, async (tx) => {
-      const customer = await this.processor.load(tx, customerId);
+    return this.processor.read(params, async (context) => {
+      const customer = await this.processor.load(context, customerId);
 
       return customer.snapshot();
     });

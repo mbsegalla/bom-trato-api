@@ -82,6 +82,22 @@ enum OrganizationInvitationStatus {
   EXPIRED
 }
 
+enum ServiceUnit {
+  SERVICE
+  HOUR
+  DAY
+  UNIT
+  SQUARE_METER
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  APPROVED
+  DECLINED
+  CANCELED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -217,6 +233,8 @@ model Organization {
   organizationInvitations          OrganizationInvitation[]
   organizationInvitationRateLimits OrganizationInvitationRateLimit[]
   customers                        Customer[]
+  catalogServices                  CatalogService[]
+  quotes                           Quote[]
 
   @@unique([ownerId, creationKey])
 }
@@ -445,6 +463,77 @@ model Customer {
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quotes       Quote[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model CatalogService {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  name           String      @db.VarChar(100)
+  description    String?     @db.VarChar(2000)
+  unit           ServiceUnit @default(SERVICE)
+  amountInCents  Int
+  currency       String      @default("brl") @db.VarChar(3)
+  archivedAt     DateTime?   @db.Timestamptz(3)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quoteItems   QuoteItem[]
 
   @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model Quote {
+  id              String      @id @default(uuid()) @db.Uuid
+  organizationId  String      @db.Uuid
+  customerId      String      @db.Uuid
+  customerName    String      @db.VarChar(100)
+  customerEmail   String?     @db.VarChar(254)
+  customerPhone   String?     @db.VarChar(30)
+  title           String      @db.VarChar(150)
+  notes           String?     @db.VarChar(5000)
+  status          QuoteStatus @default(DRAFT)
+  currency        String      @default("brl") @db.VarChar(3)
+  discountInCents Int         @default(0)
+  subtotalInCents Int         @default(0)
+  totalInCents    Int         @default(0)
+  version         Int         @default(1)
+  validUntil      DateTime?   @db.Timestamptz(3)
+  sentAt          DateTime?   @db.Timestamptz(3)
+  decidedAt       DateTime?   @db.Timestamptz(3)
+  canceledAt      DateTime?   @db.Timestamptz(3)
+  createdById     String      @db.Uuid
+  updatedById     String      @db.Uuid
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer     Customer     @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  quoteItems   QuoteItem[]
+
+  @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([organizationId, customerId])
+}
+
+model QuoteItem {
+  id                    String      @id @default(uuid()) @db.Uuid
+  quoteId               String      @db.Uuid
+  catalogServiceId      String?     @db.Uuid
+  name                  String      @db.VarChar(100)
+  description           String?     @db.VarChar(2000)
+  unit                  ServiceUnit
+  quantityInThousandths Int
+  unitAmountInCents     Int
+  totalInCents          Int
+  position              Int
+
+  quote          Quote           @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  catalogService CatalogService? @relation(fields: [catalogServiceId], references: [id], onDelete: Restrict)
+
+  @@index([quoteId, position])
+  @@index([catalogServiceId])
 }
