@@ -11,6 +11,7 @@ export class AuthEmailSender {
     private readonly mail: AuthMail,
     private readonly policy: AuthPolicy,
   ) {}
+
   async send(emailInput: string, purpose: AuthActionPurpose): Promise<void> {
     const email = User.normalizeEmail(emailInput);
     const token = this.security.newToken();

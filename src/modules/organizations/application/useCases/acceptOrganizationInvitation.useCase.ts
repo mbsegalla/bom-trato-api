@@ -2,11 +2,13 @@ import { OrganizationTeamError } from '../../domain/errors/organizationTeam.erro
 import type { OrganizationInvitationTokens } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 import type { InvitationTokenParams } from '../types/manageOrganizationTeam.types.js';
+
 export class AcceptOrganizationInvitationUseCase {
   constructor(
     private readonly tokens: OrganizationInvitationTokens,
     private readonly processor: OrganizationTeamApplicationService,
   ) {}
+
   async execute(params: InvitationTokenParams) {
     const hash = this.tokens.hash(params.token);
     const locator = await this.processor.locate(hash);

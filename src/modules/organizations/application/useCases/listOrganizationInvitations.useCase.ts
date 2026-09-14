@@ -2,8 +2,10 @@ import { OrganizationInvitation } from '../../domain/entities/organizationInvita
 import type { InvitationPageParams } from '../../domain/repositories/organizationInvitation.repository.js';
 import type { OrganizationActorParams } from '../ports/organizationUnitOfWork.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
+
 export class ListOrganizationInvitationsUseCase {
   constructor(private readonly processor: OrganizationTeamApplicationService) {}
+
   execute(params: OrganizationActorParams, page: InvitationPageParams) {
     return this.processor.withTeam(params, async (tx, policy) => {
       policy.assertOwner();

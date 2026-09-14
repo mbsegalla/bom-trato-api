@@ -13,6 +13,7 @@ export class CancelPlanChangeUseCase {
     private readonly billingLock: BillingLock,
     private readonly processor: PlanChangeProcessor,
   ) {}
+
   async execute(params: PlanChangeActionParams) {
     const { organizationId, userId } = params;
 

@@ -13,6 +13,7 @@ export class SubscriptionCancellationService {
     private readonly billingLock: BillingLock,
     private readonly planChangeRepository: PlanChangeRepository,
   ) {}
+
   async apply(params: SetCancellationParams): Promise<void> {
     const { organizationId, userId, cancelAtPeriodEnd } = params;
 

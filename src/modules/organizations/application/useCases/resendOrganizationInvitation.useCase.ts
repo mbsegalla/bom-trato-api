@@ -4,12 +4,14 @@ import type {
 } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 import type { InvitationActionParams } from '../types/manageOrganizationTeam.types.js';
+
 export class ResendOrganizationInvitationUseCase {
   constructor(
     private readonly tokens: OrganizationInvitationTokens,
     private readonly mail: OrganizationInvitationMail,
     private readonly processor: OrganizationTeamApplicationService,
   ) {}
+
   async execute(params: InvitationActionParams) {
     const token = this.tokens.create();
 
