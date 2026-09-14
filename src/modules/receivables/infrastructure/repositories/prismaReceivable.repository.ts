@@ -39,27 +39,29 @@ export class PrismaReceivableRepository extends ReceivableRepository {
   }
 
   async list(params: ReceivablePageParams) {
+    const { page, limit, status, customerId, workOrderId, dueFrom, dueTo, overdue, now } = params;
+
     const where: Prisma.ReceivableWhereInput = {
       organizationId: this.organizationId,
-      status: params.status,
-      customerId: params.customerId,
-      workOrderId: params.workOrderId,
+      status,
+      customerId,
+      workOrderId,
       dueAt: {
-        gte: params.dueFrom,
-        lte: params.dueTo,
+        gte: dueFrom,
+        lte: dueTo,
       },
     };
 
-    if (params.overdue === true) {
+    if (overdue === true) {
       where.AND = [
         {
           status: {
             in: [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID],
           },
         },
-        { dueAt: { lt: params.now } },
+        { dueAt: { lt: now } },
       ];
-    } else if (params.overdue === false) {
+    } else if (overdue === false) {
       where.AND = [
         {
           OR: [
@@ -68,7 +70,7 @@ export class PrismaReceivableRepository extends ReceivableRepository {
                 in: [ReceivableStatus.PAID, ReceivableStatus.CANCELED],
               },
             },
-            { dueAt: { gte: params.now } },
+            { dueAt: { gte: now } },
           ],
         },
       ];
@@ -77,14 +79,14 @@ export class PrismaReceivableRepository extends ReceivableRepository {
     const rows = await this.db.receivable.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      skip: (params.page - 1) * params.limit,
-      take: params.limit + 1,
+      skip: (page - 1) * limit,
+      take: limit + 1,
     });
 
     return {
-      items: rows.slice(0, params.limit),
-      page: params.page,
-      hasMore: rows.length > params.limit,
+      items: rows.slice(0, limit),
+      page,
+      hasMore: rows.length > limit,
     };
   }
 
@@ -189,6 +191,8 @@ export class PrismaReceivableRepository extends ReceivableRepository {
   }
 
   async listPayments(receivableId: string, params: ReceivablePagination) {
+    const { page, limit } = params;
+
     const rows = await this.db.receivablePayment.findMany({
       where: {
         receivableId,
@@ -197,14 +201,14 @@ export class PrismaReceivableRepository extends ReceivableRepository {
         },
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      skip: (params.page - 1) * params.limit,
-      take: params.limit + 1,
+      skip: (page - 1) * limit,
+      take: limit + 1,
     });
 
     return {
-      items: rows.slice(0, params.limit),
-      page: params.page,
-      hasMore: rows.length > params.limit,
+      items: rows.slice(0, limit),
+      page,
+      hasMore: rows.length > limit,
     };
   }
 
