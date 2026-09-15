@@ -1,7 +1,7 @@
 import type { WorkOrderStatus } from '../../../../generated/prisma/enums.js';
 import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
 
-export interface WorkOrderScheduleInput extends PageParams {
+export interface WorkOrderScheduleListInput extends PageParams {
   from: string;
   to: string;
   assignedToId?: string;
