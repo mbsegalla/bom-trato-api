@@ -87,6 +87,25 @@ export class WorkOrdersController {
     return workOrderOperation(() => this.listWorkOrdersUseCase.execute({ organizationId, userId: auth.user.id }, dto));
   }
 
+  @Get('schedule')
+  @ApiOperation({ summary: 'List scheduled work orders within a period of up to 31 days' })
+  @ApiDataResponse(WorkOrderScheduleResponseDto)
+  schedule(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Query() dto: WorkOrderScheduleDto,
+  ): Promise<WorkOrderScheduleResponseDto> {
+    return workOrderOperation(() =>
+      this.listWorkOrderScheduleUseCase.execute(
+        {
+          organizationId,
+          userId: auth.user.id,
+        },
+        dto,
+      ),
+    );
+  }
+
   @Get(':workOrderId')
   @ApiOperation({ summary: 'Get a work order' })
   @ApiDataResponse(WorkOrderResponseDto)
@@ -246,25 +265,6 @@ export class WorkOrdersController {
         userId: auth.user.id,
         workOrderId,
       }),
-    );
-  }
-
-  @Get('schedule')
-  @ApiOperation({ summary: 'List scheduled work orders within a period of up to 31 days' })
-  @ApiDataResponse(WorkOrderScheduleResponseDto)
-  schedule(
-    @CurrentAuth() auth: AuthContext,
-    @Param('organizationId', uuid) organizationId: string,
-    @Query() dto: WorkOrderScheduleDto,
-  ): Promise<WorkOrderScheduleResponseDto> {
-    return workOrderOperation(() =>
-      this.listWorkOrderScheduleUseCase.execute(
-        {
-          organizationId,
-          userId: auth.user.id,
-        },
-        dto,
-      ),
     );
   }
 
