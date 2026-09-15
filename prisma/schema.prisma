@@ -629,6 +629,7 @@ model WorkOrder {
   @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([organizationId, customerId])
   @@index([organizationId, assignedToId, scheduledStartAt])
+  @@index([organizationId, status, scheduledStartAt, id])
 }
 
 model WorkOrderItem {
@@ -714,4 +715,5 @@ model ReceivablePayment {
 
   @@unique([receivableId, requestId])
   @@index([receivableId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([receivableId, reversedAt, receivedAt])
 }

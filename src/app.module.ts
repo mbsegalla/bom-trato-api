@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { BillingWorkerModule } from './modules/billing/billingWorker.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
@@ -29,6 +30,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
     QuotesModule,
     WorkOrdersModule,
     ReceivablesModule,
+    DashboardModule,
   ],
   controllers: [],
   providers: [],
