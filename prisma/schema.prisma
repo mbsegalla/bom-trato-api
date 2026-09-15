@@ -538,7 +538,7 @@ model Quote {
   decidedAt       DateTime?   @db.Timestamptz(3)
   canceledAt      DateTime?   @db.Timestamptz(3)
   createdById     String      @db.Uuid
-  updatedById     String      @db.Uuid
+  updatedById     String?     @db.Uuid
   createdAt       DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
@@ -547,6 +547,7 @@ model Quote {
   quoteItems           QuoteItem[]
   quoteStatusHistories QuoteStatusHistory[]
   workOrders           WorkOrder[]
+  quoteShares          QuoteShare[]
 
   @@unique([id, organizationId])
   @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -577,7 +578,7 @@ model QuoteStatusHistory {
   quoteId    String       @db.Uuid
   fromStatus QuoteStatus?
   toStatus   QuoteStatus
-  actorId    String       @db.Uuid
+  actorId    String?      @db.Uuid
   version    Int
   createdAt  DateTime     @default(now()) @db.Timestamptz(3)
 
@@ -585,6 +586,34 @@ model QuoteStatusHistory {
 
   @@unique([quoteId, version])
   @@index([quoteId, createdAt, id])
+}
+
+model QuoteShare {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  quoteId        String       @db.Uuid
+  quoteVersion   Int
+  tokenHash      String       @unique @db.VarChar(64)
+  createdById    String       @db.Uuid
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+  expiresAt      DateTime     @db.Timestamptz(3)
+  revokedAt      DateTime?    @db.Timestamptz(3)
+  decision       QuoteStatus?
+  decidedAt      DateTime?    @db.Timestamptz(3)
+  decidedVersion Int?
+
+  quote Quote @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([quoteId, decidedVersion])
+  @@index([organizationId, quoteId, revokedAt])
+}
+
+model QuoteShareRateLimit {
+  key       String   @id @db.VarChar(64)
+  count     Int
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
 }
 
 model WorkOrder {

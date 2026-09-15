@@ -66,6 +66,10 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .email({ tlds: { allow: false } })
     .required(),
   MAIL_FROM_NAME: Joi.string().trim().max(100).required(),
+
+  QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()
+    .pattern(/^[a-fA-F0-9]{64}$/)
+    .required(),
 }).and('MAIL_SMTP_USER', 'MAIL_SMTP_PASSWORD');
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {

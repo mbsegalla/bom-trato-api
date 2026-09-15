@@ -30,7 +30,7 @@ export interface QuoteProps {
   decidedAt: Date | null;
   canceledAt: Date | null;
   createdById: string;
-  updatedById: string;
+  updatedById: string | null;
   createdAt: Date;
   updatedAt: Date;
   items: QuoteItemProps[];
@@ -99,7 +99,7 @@ export class Quote {
     }
   }
 
-  recordChange(userId: string, now: Date): void {
+  recordChange(userId: string | null, now: Date): void {
     if (this.props.version >= 2147483647) {
       throw new QuoteError('QUOTE_VERSION_CONFLICT');
     }

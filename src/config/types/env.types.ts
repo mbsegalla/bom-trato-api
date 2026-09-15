@@ -27,4 +27,5 @@ export interface EnvironmentVariables {
   MAIL_SMTP_PASSWORD?: string;
   MAIL_FROM_EMAIL: string;
   MAIL_FROM_NAME: string;
+  QUOTE_SHARE_RATE_LIMIT_SECRET: string;
 }

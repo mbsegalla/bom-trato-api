@@ -93,8 +93,8 @@ export class QuoteResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })
   createdById!: string;
 
-  @ApiProperty({ type: String, format: 'uuid' })
-  updatedById!: string;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  updatedById!: string | null;
 
   @ApiProperty({ type: Date })
   createdAt!: Date;
