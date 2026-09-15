@@ -1,8 +1,8 @@
 import { AuthActionPurpose } from '../../../../generated/prisma/enums.js';
 import { User } from '../../../users/domain/entities/user.entity.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
-import type { AuthPolicy } from '../ports/authPolicy.js';
 import type { AuthMail, AuthSecurity } from '../ports/authSecurity.port.js';
+import type { AuthPolicy } from '../types/authPolicy.types.js';
 
 export class AuthEmailSender {
   constructor(

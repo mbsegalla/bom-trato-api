@@ -4,14 +4,9 @@ import type { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import type { CheckoutResult, CreateCheckoutParams } from '../../application/ports/billingGateway.port.js';
 import { BillingGateway } from '../../application/ports/billingGateway.port.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
-import type {
-  AvailablePrice,
-  BillingCustomerProps,
-  BillingSnapshot,
-  RemoteInvoice,
-  RemoteSubscription,
-  WebhookNotice,
-} from '../../domain/repositories/billing.repository.js';
+import type { AvailablePrice, BillingCustomerProps } from '../../domain/repositories/billing.repository.js';
+import type { BillingSnapshot, RemoteInvoice, RemoteSubscription } from '../../domain/types/billingSnapshot.types.js';
+import type { WebhookNotice } from '../../domain/types/billingWebhook.types.js';
 
 const supportedEvents = new Set([
   'checkout.session.completed',
@@ -224,8 +219,8 @@ export class StripeBillingGateway extends BillingGateway {
     return null;
   }
 
-  private async invoice(id: string, customerId: string): Promise<RemoteInvoice | null> {
-    const invoice = await this.stripe.invoices.retrieve(id);
+  private async invoice(id: string, customerId: string, prefetched?: Stripe.Invoice): Promise<RemoteInvoice | null> {
+    const invoice = prefetched ?? (await this.stripe.invoices.retrieve(id));
 
     if (objectId(invoice.customer) !== customerId) {
       throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
@@ -243,7 +238,9 @@ export class StripeBillingGateway extends BillingGateway {
       invoice.status === 'paid' &&
       (invoice.billing_reason === 'subscription_create' || invoice.billing_reason === 'subscription_cycle')
     ) {
-      for await (const line of this.stripe.invoices.listLineItems(id, { limit: 100 })) {
+      for await (const line of this.stripe.invoices.listLineItems(id, {
+        limit: 100,
+      })) {
         const details = line.parent?.subscription_item_details;
 
         if (details?.subscription === subscriptionId && !details.proration) {
@@ -275,6 +272,7 @@ export class StripeBillingGateway extends BillingGateway {
   async snapshot(customerId: string, invoiceId?: string, includeInvoiceHistory = false): Promise<BillingSnapshot> {
     const subscriptions: RemoteSubscription[] = [];
     const invoiceIds = new Set<string>();
+    const history = new Map<string, Stripe.Invoice>();
 
     if (invoiceId !== undefined) {
       invoiceIds.add(invoiceId);
@@ -317,6 +315,7 @@ export class StripeBillingGateway extends BillingGateway {
       })) {
         if (objectId(invoice.parent?.subscription_details?.subscription) !== null) {
           invoiceIds.add(invoice.id);
+          history.set(invoice.id, invoice);
         }
       }
     }
@@ -324,7 +323,7 @@ export class StripeBillingGateway extends BillingGateway {
     const invoices: RemoteInvoice[] = [];
 
     for (const id of invoiceIds) {
-      const invoice = await this.invoice(id, customerId);
+      const invoice = await this.invoice(id, customerId, history.get(id));
 
       if (invoice !== null) {
         invoices.push(invoice);

@@ -1,6 +1,6 @@
 import type { OrganizationInvitationStatus } from '../../../../generated/prisma/enums.js';
 import type { OrganizationInvitation, OrganizationInvitationProps } from '../entities/organizationInvitation.entity.js';
-import type { OrganizationPage, OrganizationPageParams } from '../types/organizationPagination.types.js';
+import type { OrganizationPage, OrganizationPageParams } from '../types/organizationPage.types.js';
 
 export interface InvitationByIdParams {
   organizationId: string;

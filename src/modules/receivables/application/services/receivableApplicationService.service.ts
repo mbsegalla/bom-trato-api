@@ -1,7 +1,7 @@
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { ReceivableView } from '../../domain/entities/receivable.entity.js';
 import { Receivable } from '../../domain/entities/receivable.entity.js';
 import { ReceivableError } from '../../domain/errors/receivable.error.js';
-import { ReceivableAccessPolicy } from '../../domain/policies/receivableAccess.policy.js';
 import type {
   ReceivableActorParams,
   ReceivableReadContext,
@@ -15,7 +15,7 @@ export class ReceivableApplicationService {
 
   read<T>(params: ReceivableActorParams, operation: (context: ReceivableReadContext) => Promise<T>): Promise<T> {
     return this.unitOfWork.read(params, (context) => {
-      new ReceivableAccessPolicy(context.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(context.access, (code) => new ReceivableError(code));
 
       return operation(context);
     });
@@ -23,7 +23,7 @@ export class ReceivableApplicationService {
 
   run<T>(params: ReceivableActorParams, operation: (tx: ReceivableTransaction) => Promise<T>): Promise<T> {
     return this.unitOfWork.run(params, (tx) => {
-      new ReceivableAccessPolicy(tx.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(tx.access, (code) => new ReceivableError(code));
 
       return operation(tx);
     });

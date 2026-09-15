@@ -1,4 +1,5 @@
 import type { ServiceUnit, WorkOrderStatus } from '../../../../generated/prisma/enums.js';
+import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
 
 export interface WorkOrderItemProps {
   id: string;
@@ -55,9 +56,7 @@ export interface WorkOrderStatusHistoryProps {
   createdAt: Date;
 }
 
-export interface WorkOrderPageParams {
-  page: number;
-  limit: number;
+export interface WorkOrderPageParams extends PageParams {
   status?: WorkOrderStatus;
   customerId?: string;
   assignedToId?: string;
@@ -65,8 +64,4 @@ export interface WorkOrderPageParams {
   scheduledTo?: Date;
 }
 
-export interface WorkOrderPage<T> {
-  items: T[];
-  page: number;
-  hasMore: boolean;
-}
+export type WorkOrderPage<T> = Page<T>;

@@ -8,6 +8,7 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 
 import { BillingGateway } from './application/ports/billingGateway.port.js';
 import { BillingLock } from './application/ports/billingLock.port.js';
+import { BillingWebhookRepository } from './application/ports/billingWebhookRepository.port.js';
 import { PaymentMethodGateway } from './application/ports/paymentMethodGateway.port.js';
 import { PlanChangeGateway } from './application/ports/planChangeGateway.port.js';
 import { PaymentMethodUpdateProcessor } from './application/services/paymentMethodUpdateProcessor.service.js';
@@ -36,6 +37,7 @@ import { PaymentMethodUpdateRepository } from './domain/repositories/paymentMeth
 import { PlanChangeRepository } from './domain/repositories/planChange.repository.js';
 import { PostgresBillingLock } from './infrastructure/database/postgresBillingLock.js';
 import { PrismaBillingRepository } from './infrastructure/repositories/prismaBilling.repository.js';
+import { PrismaBillingWebhookRepository } from './infrastructure/repositories/prismaBillingWebhook.repository.js';
 import { PrismaPaymentMethodUpdateRepository } from './infrastructure/repositories/prismaPaymentMethodUpdate.repository.js';
 import { PrismaPlanChangeRepository } from './infrastructure/repositories/prismaPlanChange.repository.js';
 import { StripeBillingGateway } from './infrastructure/stripe/stripeBilling.gateway.js';
@@ -204,6 +206,10 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
       useClass: PrismaPaymentMethodUpdateRepository,
     },
     {
+      provide: BillingWebhookRepository,
+      useClass: PrismaBillingWebhookRepository,
+    },
+    {
       provide: PaymentMethodGateway,
       useFactory: (stripe: Stripe) => new StripePaymentMethodGateway(stripe),
       inject: [STRIPE_CLIENT],
@@ -266,6 +272,7 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
     CancelPlanChangeUseCase,
     ReconcilePlanChangeUseCase,
     BillingRepository,
+    BillingWebhookRepository,
     BillingGateway,
     BillingLock,
     StartCheckoutUseCase,

@@ -5,13 +5,15 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
+import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
 import { ReconcilePlanChangeUseCase } from '../../application/useCases/reconcilePlanChange.useCase.js';
 import { SyncBillingUseCase } from '../../application/useCases/syncBilling.useCase.js';
 import { SyncPaymentMethodUpdateUseCase } from '../../application/useCases/syncPaymentMethodUpdate.useCase.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
-import { BillingRepository, ClaimedWebhookJob, WebhookOutcome } from '../../domain/repositories/billing.repository.js';
+import { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
+import { ClaimedWebhookJob, WebhookOutcome } from '../../domain/types/billingWebhook.types.js';
 
 @Injectable()
 export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
@@ -26,6 +28,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
     private readonly configuration: ConfigType<typeof stripeConfig>,
 
     private readonly billingRepository: BillingRepository,
+    private readonly webhookRepository: BillingWebhookRepository,
     private readonly planChangeRepository: PlanChangeRepository,
     private readonly reconcilePlanChangeUseCase: ReconcilePlanChangeUseCase,
     private readonly syncBillingUseCase: SyncBillingUseCase,
@@ -69,7 +72,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      const event = await this.billingRepository.claimEvent(randomUUID());
+      const event = await this.webhookRepository.claimEvent(randomUUID());
 
       if (event === null) {
         break;
@@ -176,7 +179,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      renewal = this.billingRepository
+      renewal = this.webhookRepository
         .renewEventLease(event)
         .then((owned) => {
           if (!owned) {
@@ -245,7 +248,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const settled = await this.billingRepository.settleEvent(event, outcome, code);
+    const settled = await this.webhookRepository.settleEvent(event, outcome, code);
 
     if (!settled) {
       this.logger.warn({

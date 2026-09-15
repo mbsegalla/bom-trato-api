@@ -1,14 +1,9 @@
 import type { QuoteStatus } from '../../../../generated/prisma/enums.js';
+import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
 
-export interface QuotePageParams {
-  page: number;
-  limit: number;
+export interface QuotePageParams extends PageParams {
   status?: QuoteStatus;
   customerId?: string;
 }
 
-export interface QuotePage<T> {
-  items: T[];
-  page: number;
-  hasMore: boolean;
-}
+export type QuotePage<T> = Page<T>;

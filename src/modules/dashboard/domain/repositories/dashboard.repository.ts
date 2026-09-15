@@ -1,5 +1,9 @@
+import type {
+  DashboardFinancialData,
+  DashboardSummaryData,
+  DashboardUpcomingData,
+} from '../../application/types/dashboard.types.js';
 import type { DashboardPeriodProps } from '../../domain/valueObjects/dashboardPeriod.valueObject.js';
-import type { DashboardFinancialData, DashboardSummaryData, DashboardUpcomingData } from '../types/dashboard.types.js';
 
 export abstract class DashboardRepository {
   abstract summary(period: DashboardPeriodProps, now: Date): Promise<DashboardSummaryData>;

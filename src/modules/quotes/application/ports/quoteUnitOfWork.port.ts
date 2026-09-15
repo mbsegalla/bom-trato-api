@@ -1,5 +1,5 @@
 import type { ServiceUnit } from '../../../../generated/prisma/enums.js';
-import type { QuoteAccessContext } from '../../domain/policies/quoteAccess.policy.js';
+import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 
 export interface QuoteActorParams {
@@ -9,7 +9,7 @@ export interface QuoteActorParams {
 
 export interface QuoteReadContext {
   readonly quotes: Pick<QuoteRepository, 'findById' | 'list' | 'listStatusHistory'>;
-  readonly access: QuoteAccessContext;
+  readonly access: OrganizationAccessContext;
 }
 
 export interface QuoteCustomerSource {
@@ -32,7 +32,7 @@ export interface QuoteCatalogSource {
 
 export interface QuoteTransaction {
   readonly quotes: QuoteRepository;
-  readonly access: QuoteAccessContext;
+  readonly access: OrganizationAccessContext;
 
   findCustomer(id: string): Promise<QuoteCustomerSource | null>;
   findCatalogService(id: string): Promise<QuoteCatalogSource | null>;

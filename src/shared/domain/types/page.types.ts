@@ -1,9 +1,9 @@
-export interface OrganizationPageParams {
+export interface PageParams {
   page: number;
   limit: number;
 }
 
-export interface OrganizationPage<T> {
+export interface Page<T> {
   items: T[];
   page: number;
   hasMore: boolean;

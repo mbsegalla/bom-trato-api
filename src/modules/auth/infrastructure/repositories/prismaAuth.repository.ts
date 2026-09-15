@@ -7,6 +7,7 @@ import { AuthActionToken } from '../../domain/entities/authActionToken.entity.js
 import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { RefreshToken } from '../../domain/entities/refreshToken.entity.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
+import { AuthSessionPolicy } from '../../domain/policies/authSession.policy.js';
 import {
   AuthRepository,
   ConsumeActionParams,
@@ -111,9 +112,9 @@ export class PrismaAuthRepository extends AuthRepository {
       });
 
       // Keep at most 10 active sessions per user.
-      if (active.length >= 10) {
-        const sessionsToRevoke = active.slice(0, active.length - 10).map((session) => session.id);
+      const sessionsToRevoke = AuthSessionPolicy.sessionsToRevoke(active);
 
+      if (sessionsToRevoke.length > 0) {
         await tx.authSession.updateMany({
           where: {
             id: { in: sessionsToRevoke },

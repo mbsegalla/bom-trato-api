@@ -6,7 +6,6 @@ import type { BillingLock } from '../ports/billingLock.port.js';
 export interface SyncBillingParams {
   organizationId: string;
   invoiceId?: string;
-  eventId?: string;
   includeInvoiceHistory?: boolean;
 }
 
@@ -17,17 +16,8 @@ export class SyncBillingUseCase {
     private readonly billingLock: BillingLock,
   ) {}
 
-  async execute({
-    organizationId,
-    invoiceId,
-    eventId,
-    includeInvoiceHistory = false,
-  }: SyncBillingParams): Promise<void> {
+  async execute({ organizationId, invoiceId, includeInvoiceHistory = false }: SyncBillingParams): Promise<void> {
     await this.billingLock.run(`organization:${organizationId}`, async () => {
-      if (eventId !== undefined && (await this.billingRepository.isProcessed(eventId))) {
-        return;
-      }
-
       const customer = await this.billingRepository.customer(organizationId);
 
       if (customer.stripeCustomerId === null) {
@@ -58,7 +48,6 @@ export class SyncBillingUseCase {
       await this.billingRepository.saveSnapshot({
         organizationId,
         snapshot,
-        eventId,
         checkout,
         nextReconcileAt: includeInvoiceHistory ? new Date(Date.now() + 60 * 60 * 1000) : undefined,
       });

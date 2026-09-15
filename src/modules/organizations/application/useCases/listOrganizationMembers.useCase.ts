@@ -1,4 +1,4 @@
-import type { OrganizationPageParams } from '../../domain/types/organizationPagination.types.js';
+import type { OrganizationPageParams } from '../../domain/types/organizationPage.types.js';
 import type { OrganizationActorParams } from '../ports/organizationUnitOfWork.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 

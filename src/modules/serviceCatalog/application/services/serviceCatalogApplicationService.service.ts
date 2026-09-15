@@ -1,6 +1,6 @@
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { CatalogService } from '../../domain/entities/catalogService.entity.js';
 import { CatalogServiceError } from '../../domain/errors/catalogService.error.js';
-import { CatalogServiceAccessPolicy } from '../../domain/policies/catalogServiceAccess.policy.js';
 import type {
   CatalogServiceActorParams,
   CatalogServiceReadContext,
@@ -16,7 +16,7 @@ export class ServiceCatalogApplicationService {
     operation: (context: CatalogServiceReadContext) => Promise<T>,
   ): Promise<T> {
     return this.unitOfWork.read(params, (context) => {
-      new CatalogServiceAccessPolicy(context.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(context.access, (code) => new CatalogServiceError(code));
 
       return operation(context);
     });
@@ -24,7 +24,7 @@ export class ServiceCatalogApplicationService {
 
   run<T>(params: CatalogServiceActorParams, operation: (tx: CatalogServiceTransaction) => Promise<T>): Promise<T> {
     return this.unitOfWork.run(params, (tx) => {
-      new CatalogServiceAccessPolicy(tx.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(tx.access, (code) => new CatalogServiceError(code));
 
       return operation(tx);
     });

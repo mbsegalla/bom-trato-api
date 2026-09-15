@@ -1,10 +1,10 @@
 import type {
   AvailablePrice,
   BillingCustomerProps,
-  BillingSnapshot,
   CheckoutAttemptState,
-  WebhookNotice,
 } from '../../domain/repositories/billing.repository.js';
+import type { BillingSnapshot } from '../../domain/types/billingSnapshot.types.js';
+import type { WebhookNotice } from '../../domain/types/billingWebhook.types.js';
 
 export interface CheckoutResult {
   stripeSessionId: string;

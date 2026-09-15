@@ -1,5 +1,5 @@
 import type { OrganizationRole } from '../../../../generated/prisma/enums.js';
-import type { OrganizationPage, OrganizationPageParams } from '../types/organizationPagination.types.js';
+import type { OrganizationPage, OrganizationPageParams } from '../types/organizationPage.types.js';
 
 export interface OrganizationMemberView {
   id: string;

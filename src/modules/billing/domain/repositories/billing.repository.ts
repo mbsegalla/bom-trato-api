@@ -1,5 +1,5 @@
-import type { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import type { SubscriptionProps } from '../entities/subscription.entity.js';
+import type { BillingSnapshot } from '../types/billingSnapshot.types.js';
 
 export interface BillingCustomerProps {
   id: string;
@@ -30,53 +30,9 @@ export interface CheckoutAttemptState {
   expiresAt: Date;
 }
 
-export interface RemoteSubscription {
-  stripeSubscriptionId: string;
-  stripePriceId: string;
-  status: SubscriptionStatus;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd: boolean;
-  canceledAt: Date | null;
-  endedAt: Date | null;
-  stripeCreatedAt: Date;
-}
-
-export interface RemoteInvoice {
-  stripeInvoiceId: string;
-  stripeSubscriptionId: string;
-  number: string | null;
-  status: string;
-  currency: string;
-  amountDue: number;
-  amountPaid: number;
-  hostedInvoiceUrl: string | null;
-  invoicePdf: string | null;
-  paidAt: Date | null;
-  paidThrough: Date | null;
-  stripeCreatedAt: Date;
-}
-
-export interface BillingSnapshot {
-  subscriptions: RemoteSubscription[];
-  invoices: RemoteInvoice[];
-}
-
-export interface WebhookNotice {
-  id: string;
-  type: string;
-  stripeCustomerId: string;
-  stripeObjectId: string;
-}
-
-export interface WebhookJob extends WebhookNotice {
-  attempts: number;
-}
-
 export interface SaveSnapshotParams {
   organizationId: string;
   snapshot: BillingSnapshot;
-  eventId?: string;
   checkout?: {
     id: string;
     stripeSessionId: string;
@@ -104,12 +60,6 @@ export interface RemoteInvoiceView {
   stripeCreatedAt: Date;
 }
 
-export interface ClaimedWebhookJob extends WebhookJob {
-  leaseToken: string;
-}
-
-export type WebhookOutcome = 'COMPLETE' | 'DEFER' | 'RETRY';
-
 export abstract class BillingRepository {
   abstract assertOwner(organizationId: string, userId: string): Promise<void>;
   abstract assertMember(organizationId: string, userId: string): Promise<void>;
@@ -125,16 +75,16 @@ export abstract class BillingRepository {
   abstract closeCheckout(id: string, status: 'COMPLETE' | 'EXPIRED'): Promise<void>;
   abstract saveSnapshot(params: SaveSnapshotParams): Promise<void>;
   abstract invoices(params: InvoicePageParams): Promise<{ items: RemoteInvoiceView[]; nextCursor: string | null }>;
-  abstract enqueue(notice: WebhookNotice): Promise<void>;
-  abstract isProcessed(id: string): Promise<boolean>;
   abstract customerPage(cursor?: string): Promise<Array<{ organizationId: string; id: string }>>;
   abstract dueCustomers(): Promise<Array<{ organizationId: string }>>;
   abstract postponeReconciliation(organizationId: string): Promise<void>;
-  abstract claimEvent(leaseToken: string): Promise<ClaimedWebhookJob | null>;
-  abstract renewEventLease(event: ClaimedWebhookJob): Promise<boolean>;
-  abstract settleEvent(event: ClaimedWebhookJob, outcome: WebhookOutcome, code?: string): Promise<boolean>;
   abstract entitlements(
     organizationId: string,
     userId: string,
-  ): Promise<{ maxUsers: number; teamManagementEnabled: boolean; memberCount: number; isOwner: boolean }>;
+  ): Promise<{
+    maxUsers: number;
+    teamManagementEnabled: boolean;
+    memberCount: number;
+    isOwner: boolean;
+  }>;
 }

@@ -1,6 +1,6 @@
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
-import { WorkOrderAccessPolicy } from '../../domain/policies/workOrderAccess.policy.js';
 import type {
   WorkOrderActorParams,
   WorkOrderReadContext,
@@ -14,14 +14,16 @@ export class WorkOrderApplicationService {
 
   read<T>(params: WorkOrderActorParams, operation: (context: WorkOrderReadContext) => Promise<T>): Promise<T> {
     return this.unitOfWork.read(params, (context) => {
-      new WorkOrderAccessPolicy(context.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(context.access, (code) => new WorkOrderError(code));
+
       return operation(context);
     });
   }
 
   run<T>(params: WorkOrderActorParams, operation: (tx: WorkOrderTransaction) => Promise<T>): Promise<T> {
     return this.unitOfWork.run(params, (tx) => {
-      new WorkOrderAccessPolicy(tx.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(tx.access, (code) => new WorkOrderError(code));
+
       return operation(tx);
     });
   }

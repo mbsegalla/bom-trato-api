@@ -1,14 +1,10 @@
+import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
+
 export const customerStatuses = ['ACTIVE', 'ARCHIVED', 'ALL'] as const;
 
-export interface CustomerPageParams {
-  page: number;
-  limit: number;
+export interface CustomerPageParams extends PageParams {
   search?: string;
   status: (typeof customerStatuses)[number];
 }
 
-export interface CustomerPage<T> {
-  items: T[];
-  page: number;
-  hasMore: boolean;
-}
+export type CustomerPage<T> = Page<T>;
