@@ -1,8 +1,13 @@
-import type { Prisma } from '../../../../generated/prisma/client.js';
+import { type Prisma, WorkOrderStatus } from '../../../../generated/prisma/client.js';
+import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
 import type { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderRepository } from '../../domain/repositories/workOrder.repository.js';
 import type { WorkOrderPage, WorkOrderPageParams, WorkOrderProps } from '../../domain/types/workOrder.types.js';
+import type {
+  WorkOrderScheduleHistoryProps,
+  WorkOrderScheduleSlot,
+} from '../../domain/types/workOrderSchedule.types.js';
 import type { WorkOrderSummary } from '../../domain/types/workOrderSummary.types.js';
 
 const include = {
@@ -137,6 +142,9 @@ export class PrismaWorkOrderRepository extends WorkOrderRepository {
       },
       select: {
         status: true,
+        assignedToId: true,
+        scheduledStartAt: true,
+        scheduledEndAt: true,
       },
     });
 
@@ -171,6 +179,31 @@ export class PrismaWorkOrderRepository extends WorkOrderRepository {
 
     if (result.count !== 1) {
       throw new WorkOrderError('WORK_ORDER_VERSION_CONFLICT');
+    }
+
+    const scheduleChanged =
+      previous.assignedToId !== state.assignedToId ||
+      previous.scheduledStartAt?.getTime() !== state.scheduledStartAt?.getTime() ||
+      previous.scheduledEndAt?.getTime() !== state.scheduledEndAt?.getTime() ||
+      previous.status !== state.status;
+
+    if (scheduleChanged && (previous.scheduledStartAt !== null || state.scheduledStartAt !== null)) {
+      await this.db.workOrderScheduleHistory.create({
+        data: {
+          workOrderId: state.id,
+          fromAssignedToId: previous.assignedToId,
+          toAssignedToId: state.assignedToId,
+          fromStartAt: previous.scheduledStartAt,
+          fromEndAt: previous.scheduledEndAt,
+          toStartAt: state.scheduledStartAt,
+          toEndAt: state.scheduledEndAt,
+          fromStatus: previous.status,
+          toStatus: state.status,
+          actorId: state.updatedById,
+          version: state.version,
+          createdAt: state.updatedAt,
+        },
+      });
     }
 
     if (previous.status !== state.status) {
@@ -212,6 +245,70 @@ export class PrismaWorkOrderRepository extends WorkOrderRepository {
       },
       orderBy: [{ version: 'asc' }, { id: 'asc' }],
     });
+  }
+
+  async hasScheduleConflict(slot: WorkOrderScheduleSlot): Promise<boolean> {
+    const conflict = await this.db.workOrder.findFirst({
+      where: {
+        organizationId: this.organizationId,
+        id: {
+          not: slot.workOrderId,
+        },
+        assignedToId: slot.assignedToId,
+        status: {
+          in: [WorkOrderStatus.SCHEDULED, WorkOrderStatus.IN_PROGRESS],
+        },
+        scheduledStartAt: {
+          lt: slot.end,
+        },
+        scheduledEndAt: {
+          gt: slot.start,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return conflict !== null;
+  }
+
+  async listScheduleHistory(workOrderId: string, params: PageParams): Promise<Page<WorkOrderScheduleHistoryProps>> {
+    const { page, limit } = params;
+
+    const order = await this.db.workOrder.findFirst({
+      where: {
+        id: workOrderId,
+        organizationId: this.organizationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (order === null) {
+      throw new WorkOrderError('WORK_ORDER_NOT_FOUND');
+    }
+
+    const rows = await this.db.workOrderScheduleHistory.findMany({
+      where: {
+        workOrderId,
+        workOrder: {
+          organizationId: this.organizationId,
+        },
+      },
+      orderBy: {
+        version: 'desc',
+      },
+      skip: (page - 1) * limit,
+      take: limit + 1,
+    });
+
+    return {
+      items: rows.slice(0, limit),
+      page,
+      hasMore: rows.length > limit,
+    };
   }
 
   private toProps(row: WorkOrderRow): WorkOrderProps {

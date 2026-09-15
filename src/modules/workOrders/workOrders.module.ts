@@ -10,6 +10,8 @@ import { CompleteWorkOrderUseCase } from './application/useCases/completeWorkOrd
 import { CreateWorkOrderUseCase } from './application/useCases/createWorkOrder.useCase.js';
 import { GetWorkOrderUseCase } from './application/useCases/getWorkOrder.useCase.js';
 import { ListWorkOrdersUseCase } from './application/useCases/listWorkOrders.useCase.js';
+import { ListWorkOrderScheduleUseCase } from './application/useCases/listWorkOrderSchedule.useCase.js';
+import { ListWorkOrderScheduleHistoryUseCase } from './application/useCases/listWorkOrderScheduleHistory.useCase.js';
 import { ListWorkOrderStatusHistoryUseCase } from './application/useCases/listWorkOrderStatusHistory.useCase.js';
 import { ScheduleWorkOrderUseCase } from './application/useCases/scheduleWorkOrder.useCase.js';
 import { StartWorkOrderUseCase } from './application/useCases/startWorkOrder.useCase.js';
@@ -84,6 +86,16 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
     {
       provide: ListWorkOrderStatusHistoryUseCase,
       useFactory: (processor: WorkOrderApplicationService) => new ListWorkOrderStatusHistoryUseCase(processor),
+      inject: [WorkOrderApplicationService],
+    },
+    {
+      provide: ListWorkOrderScheduleUseCase,
+      useFactory: (processor: WorkOrderApplicationService) => new ListWorkOrderScheduleUseCase(processor),
+      inject: [WorkOrderApplicationService],
+    },
+    {
+      provide: ListWorkOrderScheduleHistoryUseCase,
+      useFactory: (processor: WorkOrderApplicationService) => new ListWorkOrderScheduleHistoryUseCase(processor),
       inject: [WorkOrderApplicationService],
     },
   ],

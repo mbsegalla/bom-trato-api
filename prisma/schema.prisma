@@ -617,13 +617,14 @@ model WorkOrder {
   createdAt          DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime        @updatedAt @db.Timestamptz(3)
 
-  organization           Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  quote                  Quote                    @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  customer               Customer                 @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  assignedTo             User?                    @relation("AssignedWorkOrders", fields: [assignedToId], references: [id], onDelete: Restrict)
-  workOrderItems         WorkOrderItem[]
-  workOrderStatusHistory WorkOrderStatusHistory[]
-  receivables            Receivable[]
+  organization               Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quote                      Quote                      @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  customer                   Customer                   @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  assignedTo                 User?                      @relation("AssignedWorkOrders", fields: [assignedToId], references: [id], onDelete: Restrict)
+  workOrderItems             WorkOrderItem[]
+  workOrderStatusHistory     WorkOrderStatusHistory[]
+  receivables                Receivable[]
+  workOrderScheduleHistories WorkOrderScheduleHistory[]
 
   @@unique([id, organizationId])
   @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -663,6 +664,26 @@ model WorkOrderStatusHistory {
 
   @@unique([workOrderId, version])
   @@index([workOrderId, createdAt, id])
+}
+
+model WorkOrderScheduleHistory {
+  id               String          @id @default(uuid()) @db.Uuid
+  workOrderId      String          @db.Uuid
+  fromAssignedToId String?         @db.Uuid
+  toAssignedToId   String?         @db.Uuid
+  fromStartAt      DateTime?       @db.Timestamptz(3)
+  fromEndAt        DateTime?       @db.Timestamptz(3)
+  toStartAt        DateTime?       @db.Timestamptz(3)
+  toEndAt          DateTime?       @db.Timestamptz(3)
+  fromStatus       WorkOrderStatus
+  toStatus         WorkOrderStatus
+  actorId          String          @db.Uuid
+  version          Int
+  createdAt        DateTime        @default(now()) @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([workOrderId, version])
 }
 
 model Receivable {

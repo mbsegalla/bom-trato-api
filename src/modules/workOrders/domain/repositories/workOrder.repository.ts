@@ -1,3 +1,4 @@
+import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
 import type { WorkOrder } from '../entities/workOrder.entity.js';
 import type {
   WorkOrderPage,
@@ -5,6 +6,7 @@ import type {
   WorkOrderProps,
   WorkOrderStatusHistoryProps,
 } from '../types/workOrder.types.js';
+import type { WorkOrderScheduleHistoryProps, WorkOrderScheduleSlot } from '../types/workOrderSchedule.types.js';
 import type { WorkOrderSummary } from '../types/workOrderSummary.types.js';
 
 export abstract class WorkOrderRepository {
@@ -14,4 +16,6 @@ export abstract class WorkOrderRepository {
   abstract list(params: WorkOrderPageParams): Promise<WorkOrderPage<WorkOrderSummary>>;
   abstract save(order: WorkOrder, expectedVersion: number): Promise<void>;
   abstract listStatusHistory(workOrderId: string): Promise<WorkOrderStatusHistoryProps[]>;
+  abstract hasScheduleConflict(slot: WorkOrderScheduleSlot): Promise<boolean>;
+  abstract listScheduleHistory(workOrderId: string, page: PageParams): Promise<Page<WorkOrderScheduleHistoryProps>>;
 }

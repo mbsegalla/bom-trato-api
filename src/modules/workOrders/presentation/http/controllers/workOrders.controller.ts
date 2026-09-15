@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Que
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
+import { PageDto } from '../../../../../infrastructure/http/dtos/page.dto.js';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
 import { AssignWorkOrderUseCase } from '../../../application/useCases/assignWorkOrder.useCase.js';
@@ -10,6 +11,8 @@ import { CompleteWorkOrderUseCase } from '../../../application/useCases/complete
 import { CreateWorkOrderUseCase } from '../../../application/useCases/createWorkOrder.useCase.js';
 import { GetWorkOrderUseCase } from '../../../application/useCases/getWorkOrder.useCase.js';
 import { ListWorkOrdersUseCase } from '../../../application/useCases/listWorkOrders.useCase.js';
+import { ListWorkOrderScheduleUseCase } from '../../../application/useCases/listWorkOrderSchedule.useCase.js';
+import { ListWorkOrderScheduleHistoryUseCase } from '../../../application/useCases/listWorkOrderScheduleHistory.useCase.js';
 import { ListWorkOrderStatusHistoryUseCase } from '../../../application/useCases/listWorkOrderStatusHistory.useCase.js';
 import { ScheduleWorkOrderUseCase } from '../../../application/useCases/scheduleWorkOrder.useCase.js';
 import { StartWorkOrderUseCase } from '../../../application/useCases/startWorkOrder.useCase.js';
@@ -25,11 +28,16 @@ import {
   WorkOrderPageDto,
   WorkOrderVersionDto,
 } from '../dtos/requests/workOrder.dto.js';
+import { WorkOrderScheduleDto } from '../dtos/requests/workOrderSchedule.dto.js';
 import {
   WorkOrderResponseDto,
   WorkOrdersResponseDto,
   WorkOrderStatusHistoryResponseDto,
 } from '../dtos/responses/workOrderResponse.dto.js';
+import {
+  WorkOrderScheduleHistoryResponseDto,
+  WorkOrderScheduleResponseDto,
+} from '../dtos/responses/workOrderScheduleResponse.dto.js';
 import { workOrderOperation } from '../workOrderHttpError.js';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -39,17 +47,19 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 @Controller('organizations/:organizationId/work-orders')
 export class WorkOrdersController {
   constructor(
-    private readonly createUseCase: CreateWorkOrderUseCase,
-    private readonly listUseCase: ListWorkOrdersUseCase,
-    private readonly getUseCase: GetWorkOrderUseCase,
-    private readonly updateUseCase: UpdateWorkOrderUseCase,
-    private readonly assignUseCase: AssignWorkOrderUseCase,
-    private readonly scheduleUseCase: ScheduleWorkOrderUseCase,
-    private readonly startUseCase: StartWorkOrderUseCase,
-    private readonly notesUseCase: UpdateWorkOrderExecutionNotesUseCase,
-    private readonly completeUseCase: CompleteWorkOrderUseCase,
-    private readonly cancelUseCase: CancelWorkOrderUseCase,
-    private readonly historyUseCase: ListWorkOrderStatusHistoryUseCase,
+    private readonly createWorkOrderUseCase: CreateWorkOrderUseCase,
+    private readonly listWorkOrdersUseCase: ListWorkOrdersUseCase,
+    private readonly getWorkOrderUseCase: GetWorkOrderUseCase,
+    private readonly updateWorkOrderUseCase: UpdateWorkOrderUseCase,
+    private readonly assignWorkOrderUseCase: AssignWorkOrderUseCase,
+    private readonly scheduleWorkOrderUseCase: ScheduleWorkOrderUseCase,
+    private readonly startWorkOrderUseCase: StartWorkOrderUseCase,
+    private readonly updateWorkOrderExecutionNotesUseCase: UpdateWorkOrderExecutionNotesUseCase,
+    private readonly completeWorkOrderUseCase: CompleteWorkOrderUseCase,
+    private readonly cancelWorkOrderUseCase: CancelWorkOrderUseCase,
+    private readonly listWorkOrderStatusHistoryUseCase: ListWorkOrderStatusHistoryUseCase,
+    private readonly listWorkOrderScheduleUseCase: ListWorkOrderScheduleUseCase,
+    private readonly listWorkOrderScheduleHistoryUseCase: ListWorkOrderScheduleHistoryUseCase,
   ) {}
 
   @Post()
@@ -61,7 +71,9 @@ export class WorkOrdersController {
     @Param('organizationId', uuid) organizationId: string,
     @Body() dto: CreateWorkOrderDto,
   ): Promise<WorkOrderResponseDto> {
-    return workOrderOperation(() => this.createUseCase.execute({ organizationId, userId: auth.user.id }, dto.quoteId));
+    return workOrderOperation(() =>
+      this.createWorkOrderUseCase.execute({ organizationId, userId: auth.user.id }, dto.quoteId),
+    );
   }
 
   @Get()
@@ -72,7 +84,7 @@ export class WorkOrdersController {
     @Param('organizationId', uuid) organizationId: string,
     @Query() dto: WorkOrderPageDto,
   ): Promise<WorkOrdersResponseDto> {
-    return workOrderOperation(() => this.listUseCase.execute({ organizationId, userId: auth.user.id }, dto));
+    return workOrderOperation(() => this.listWorkOrdersUseCase.execute({ organizationId, userId: auth.user.id }, dto));
   }
 
   @Get(':workOrderId')
@@ -84,7 +96,7 @@ export class WorkOrdersController {
     @Param('workOrderId', uuid) workOrderId: string,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.getUseCase.execute({
+      this.getWorkOrderUseCase.execute({
         organizationId,
         userId: auth.user.id,
         workOrderId,
@@ -102,7 +114,10 @@ export class WorkOrdersController {
     @Body() dto: UpdateWorkOrderDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.updateUseCase.execute({ organizationId, userId: auth.user.id, workOrderId, version: dto.version }, dto),
+      this.updateWorkOrderUseCase.execute(
+        { organizationId, userId: auth.user.id, workOrderId, version: dto.version },
+        dto,
+      ),
     );
   }
 
@@ -117,7 +132,7 @@ export class WorkOrdersController {
     @Body() dto: AssignWorkOrderDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.assignUseCase.execute(
+      this.assignWorkOrderUseCase.execute(
         { organizationId, userId: auth.user.id, workOrderId, version: dto.version },
         dto.assignedToId,
       ),
@@ -128,14 +143,17 @@ export class WorkOrdersController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Schedule or reschedule a work order' })
   @ApiDataResponse(WorkOrderResponseDto)
-  schedule(
+  workSchedule(
     @CurrentAuth() auth: AuthContext,
     @Param('organizationId', uuid) organizationId: string,
     @Param('workOrderId', uuid) workOrderId: string,
     @Body() dto: ScheduleWorkOrderDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.scheduleUseCase.execute({ organizationId, userId: auth.user.id, workOrderId, version: dto.version }, dto),
+      this.scheduleWorkOrderUseCase.execute(
+        { organizationId, userId: auth.user.id, workOrderId, version: dto.version },
+        dto,
+      ),
     );
   }
 
@@ -150,7 +168,7 @@ export class WorkOrdersController {
     @Body() dto: WorkOrderVersionDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.startUseCase.execute({
+      this.startWorkOrderUseCase.execute({
         organizationId,
         userId: auth.user.id,
         workOrderId,
@@ -169,7 +187,7 @@ export class WorkOrdersController {
     @Body() dto: WorkOrderExecutionNotesDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.notesUseCase.execute(
+      this.updateWorkOrderExecutionNotesUseCase.execute(
         { organizationId, userId: auth.user.id, workOrderId, version: dto.version },
         dto.executionNotes,
       ),
@@ -187,7 +205,7 @@ export class WorkOrdersController {
     @Body() dto: WorkOrderVersionDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.completeUseCase.execute({
+      this.completeWorkOrderUseCase.execute({
         organizationId,
         userId: auth.user.id,
         workOrderId,
@@ -207,7 +225,7 @@ export class WorkOrdersController {
     @Body() dto: CancelWorkOrderDto,
   ): Promise<WorkOrderResponseDto> {
     return workOrderOperation(() =>
-      this.cancelUseCase.execute(
+      this.cancelWorkOrderUseCase.execute(
         { organizationId, userId: auth.user.id, workOrderId, version: dto.version },
         dto.reason,
       ),
@@ -223,11 +241,51 @@ export class WorkOrdersController {
     @Param('workOrderId', uuid) workOrderId: string,
   ): Promise<WorkOrderStatusHistoryResponseDto[]> {
     return workOrderOperation(() =>
-      this.historyUseCase.execute({
+      this.listWorkOrderStatusHistoryUseCase.execute({
         organizationId,
         userId: auth.user.id,
         workOrderId,
       }),
+    );
+  }
+
+  @Get('schedule')
+  @ApiOperation({ summary: 'List scheduled work orders within a period of up to 31 days' })
+  @ApiDataResponse(WorkOrderScheduleResponseDto)
+  schedule(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Query() dto: WorkOrderScheduleDto,
+  ): Promise<WorkOrderScheduleResponseDto> {
+    return workOrderOperation(() =>
+      this.listWorkOrderScheduleUseCase.execute(
+        {
+          organizationId,
+          userId: auth.user.id,
+        },
+        dto,
+      ),
+    );
+  }
+
+  @Get(':workOrderId/schedule-history')
+  @ApiOperation({ summary: 'List work order scheduling history' })
+  @ApiDataResponse(WorkOrderScheduleHistoryResponseDto)
+  scheduleHistory(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Param('workOrderId', uuid) workOrderId: string,
+    @Query() dto: PageDto,
+  ): Promise<WorkOrderScheduleHistoryResponseDto> {
+    return workOrderOperation(() =>
+      this.listWorkOrderScheduleHistoryUseCase.execute(
+        {
+          organizationId,
+          userId: auth.user.id,
+          workOrderId,
+        },
+        dto,
+      ),
     );
   }
 }
