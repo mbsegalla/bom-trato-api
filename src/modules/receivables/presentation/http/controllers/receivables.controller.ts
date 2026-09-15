@@ -159,7 +159,7 @@ export class ReceivablesController {
           receivableId,
           version,
         },
-        dto as Parameters<RecordReceivablePaymentUseCase['execute']>[1],
+        dto,
       ),
     );
   }

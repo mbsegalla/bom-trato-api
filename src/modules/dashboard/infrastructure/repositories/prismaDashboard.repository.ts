@@ -1,11 +1,11 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { WorkOrderStatus } from '../../../../generated/prisma/enums.js';
+import type { DashboardRepository } from '../../application/ports/dashboard.repository.js';
 import type {
   DashboardFinancialData,
   DashboardSummaryData,
   DashboardUpcomingData,
 } from '../../application/types/dashboard.types.js';
-import type { DashboardRepository } from '../../domain/repositories/dashboard.repository.js';
 import type { DashboardPeriodProps } from '../../domain/valueObjects/dashboardPeriod.valueObject.js';
 import { toDashboardNumber } from '../mappers/dashboardNumber.mapper.js';
 

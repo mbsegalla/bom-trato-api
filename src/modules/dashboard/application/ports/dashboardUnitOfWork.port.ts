@@ -1,6 +1,7 @@
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
-import type { DashboardRepository } from '../../domain/repositories/dashboard.repository.js';
 import type { DashboardActorParams } from '../types/dashboard.types.js';
+
+import type { DashboardRepository } from './dashboard.repository.js';
 
 export interface DashboardReadContext {
   dashboard: DashboardRepository;
