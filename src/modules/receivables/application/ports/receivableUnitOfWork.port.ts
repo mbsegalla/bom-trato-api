@@ -1,5 +1,5 @@
+import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { ReceivableSource } from '../../domain/entities/receivable.entity.js';
-import type { ReceivableAccessContext } from '../../domain/policies/receivableAccess.policy.js';
 import type { ReceivableRepository } from '../../domain/repositories/receivable.repository.js';
 
 export interface ReceivableActorParams {
@@ -9,12 +9,12 @@ export interface ReceivableActorParams {
 
 export interface ReceivableReadContext {
   receivables: Pick<ReceivableRepository, 'findById' | 'list' | 'listPayments'>;
-  access: ReceivableAccessContext;
+  access: OrganizationAccessContext;
 }
 
 export interface ReceivableTransaction {
   receivables: ReceivableRepository;
-  access: ReceivableAccessContext;
+  access: OrganizationAccessContext;
   findWorkOrder(id: string): Promise<ReceivableSource | null>;
 }
 

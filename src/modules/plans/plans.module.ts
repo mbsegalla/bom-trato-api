@@ -5,7 +5,7 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { ListPlansUseCase } from './application/useCases/listPlans.useCase.js';
 import { PlanRepository } from './domain/repositories/plan.repository.js';
 import { PrismaPlanRepository } from './infrastructure/repositories/prismaPlan.repository.js';
-import { PlansController } from './presentation/http/controller/plans.controller.js';
+import { PlansController } from './presentation/http/controllers/plans.controller.js';
 
 @Module({
   imports: [DatabaseModule],

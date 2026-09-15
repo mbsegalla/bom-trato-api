@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteItem } from '../../domain/entities/quoteItem.entity.js';
 import { QuoteError } from '../../domain/errors/quote.error.js';
-import { QuoteAccessPolicy } from '../../domain/policies/quoteAccess.policy.js';
 import type {
   QuoteActorParams,
   QuoteReadContext,
@@ -17,7 +17,7 @@ export class QuoteApplicationService {
 
   read<T>(params: QuoteActorParams, operation: (context: QuoteReadContext) => Promise<T>): Promise<T> {
     return this.unitOfWork.read(params, (context) => {
-      new QuoteAccessPolicy(context.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(context.access, (code) => new QuoteError(code));
 
       return operation(context);
     });
@@ -25,7 +25,7 @@ export class QuoteApplicationService {
 
   run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
     return this.unitOfWork.run(params, (tx) => {
-      new QuoteAccessPolicy(tx.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(tx.access, (code) => new QuoteError(code));
 
       return operation(tx);
     });

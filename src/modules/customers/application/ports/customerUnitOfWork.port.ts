@@ -1,4 +1,4 @@
-import type { CustomerAccessContext } from '../../domain/policies/customerAccess.policy.js';
+import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { CustomerRepository } from '../../domain/repositories/customer.repository.js';
 
 export interface CustomerActorParams {
@@ -8,12 +8,12 @@ export interface CustomerActorParams {
 
 export interface CustomerReadContext {
   readonly customers: Pick<CustomerRepository, 'findById' | 'list'>;
-  readonly access: CustomerAccessContext;
+  readonly access: OrganizationAccessContext;
 }
 
 export interface CustomerTransaction {
   readonly customers: CustomerRepository;
-  readonly access: CustomerAccessContext;
+  readonly access: OrganizationAccessContext;
 }
 
 export abstract class CustomerUnitOfWork {

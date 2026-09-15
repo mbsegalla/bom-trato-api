@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
+import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import {
-  organizationTransaction,
-  OrganizationTransactionMode,
-} from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
+import type { OrganizationTransactionMode } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { PrismaQuoteRepository } from '../../../quotes/infrastructure/repositories/prismaQuote.repository.js';
 import type {
   WorkOrderActorParams,
   WorkOrderReadContext,
@@ -12,6 +13,7 @@ import type {
 } from '../../application/ports/workOrderUnitOfWork.port.js';
 import { WorkOrderUnitOfWork } from '../../application/ports/workOrderUnitOfWork.port.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
+import { PrismaWorkOrderRepository } from '../repositories/prismaWorkOrder.repository.js';
 
 @Injectable()
 export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
@@ -36,11 +38,40 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
       this.prisma,
       params.organizationId,
       mode,
-      async (db) => operation(db as unknown as WorkOrderTransaction),
+      async (db) => operation(await this.createContext(db, params)),
       {
         notFound: () => new WorkOrderError('ORGANIZATION_NOT_FOUND'),
         busy: () => new WorkOrderError('WORK_ORDERS_BUSY'),
       },
     );
+  }
+
+  private async createContext(
+    db: Prisma.TransactionClient,
+    params: WorkOrderActorParams,
+  ): Promise<WorkOrderTransaction> {
+    const { organizationId } = params;
+    const quotes = new PrismaQuoteRepository(db, organizationId);
+
+    return {
+      workOrders: new PrismaWorkOrderRepository(db, organizationId),
+      access: await readOrganizationAccess(db, params),
+      findQuote: (id) => quotes.findById(id),
+      isAssignableMember: async (userId) => {
+        const member = await db.organizationMember.findFirst({
+          where: {
+            organizationId,
+            userId,
+            user: {
+              disabledAt: null,
+              emailVerifiedAt: { not: null },
+            },
+          },
+          select: { id: true },
+        });
+
+        return member !== null;
+      },
+    };
   }
 }

@@ -2,8 +2,9 @@ import { User } from '../../../users/domain/entities/user.entity.js';
 import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
-import type { AuthPolicy, LoginResult } from '../ports/authPolicy.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
+import type { AuthPolicy } from '../types/authPolicy.types.js';
+import type { LoginResult } from '../types/loginResult.types.js';
 
 export interface LoginInput {
   email: string;

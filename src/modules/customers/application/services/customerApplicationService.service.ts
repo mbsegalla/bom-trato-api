@@ -1,6 +1,6 @@
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { Customer } from '../../domain/entities/customer.entity.js';
 import { CustomerError } from '../../domain/errors/customer.error.js';
-import { CustomerAccessPolicy } from '../../domain/policies/customerAccess.policy.js';
 import type {
   CustomerActorParams,
   CustomerReadContext,
@@ -13,7 +13,7 @@ export class CustomerApplicationService {
 
   read<T>(params: CustomerActorParams, operation: (context: CustomerReadContext) => Promise<T>): Promise<T> {
     return this.unitOfWork.read(params, (context) => {
-      new CustomerAccessPolicy(context.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(context.access, (code) => new CustomerError(code));
 
       return operation(context);
     });
@@ -21,7 +21,7 @@ export class CustomerApplicationService {
 
   run<T>(params: CustomerActorParams, operation: (tx: CustomerTransaction) => Promise<T>): Promise<T> {
     return this.unitOfWork.run(params, (tx) => {
-      new CustomerAccessPolicy(tx.access).assertCanManage();
+      OrganizationAccessPolicy.assertCanOperate(tx.access, (code) => new CustomerError(code));
 
       return operation(tx);
     });

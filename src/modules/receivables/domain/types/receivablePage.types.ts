@@ -1,9 +1,7 @@
 import type { ReceivableStatus } from '../../../../generated/prisma/enums.js';
+import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
 
-export interface ReceivablePagination {
-  page: number;
-  limit: number;
-}
+export type ReceivablePagination = PageParams;
 
 export interface ReceivablePageParams extends ReceivablePagination {
   status?: ReceivableStatus;
@@ -15,8 +13,4 @@ export interface ReceivablePageParams extends ReceivablePagination {
   now: Date;
 }
 
-export interface ReceivablePage<T> {
-  items: T[];
-  page: number;
-  hasMore: boolean;
-}
+export type ReceivablePage<T> = Page<T>;

@@ -1,4 +1,4 @@
-import type { OrganizationPage, OrganizationPageParams } from '../../domain/types/organizationPagination.types.js';
+import type { OrganizationPage, OrganizationPageParams } from '../../domain/types/organizationPage.types.js';
 
 export function toOrganizationPage<T>(rows: T[], params: OrganizationPageParams): OrganizationPage<T> {
   return {

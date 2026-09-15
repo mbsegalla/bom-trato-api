@@ -1,4 +1,4 @@
-import type { CatalogServiceAccessContext } from '../../domain/policies/catalogServiceAccess.policy.js';
+import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { CatalogServiceRepository } from '../../domain/repositories/catalogService.repository.js';
 
 export interface CatalogServiceActorParams {
@@ -8,12 +8,12 @@ export interface CatalogServiceActorParams {
 
 export interface CatalogServiceReadContext {
   readonly catalogServices: Pick<CatalogServiceRepository, 'findById' | 'list'>;
-  readonly access: CatalogServiceAccessContext;
+  readonly access: OrganizationAccessContext;
 }
 
 export interface CatalogServiceTransaction {
   readonly catalogServices: CatalogServiceRepository;
-  readonly access: CatalogServiceAccessContext;
+  readonly access: OrganizationAccessContext;
 }
 
 export abstract class CatalogServiceUnitOfWork {

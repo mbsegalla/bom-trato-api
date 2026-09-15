@@ -5,10 +5,3 @@ export interface AuthPolicy {
   verificationTtlSeconds: number;
   resetTtlSeconds: number;
 }
-
-export interface LoginResult {
-  accessToken: string;
-  expiresIn: number;
-  refreshToken: string;
-  refreshExpiresAt: Date;
-}

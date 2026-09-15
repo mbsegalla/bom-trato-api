@@ -1,4 +1,5 @@
-import { DashboardAccessPolicy } from '../../domain/policies/dashboardAccess.policy.js';
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
+import { DashboardError } from '../../domain/errors/dashboard.error.js';
 import type { DashboardPeriodProps } from '../../domain/valueObjects/dashboardPeriod.valueObject.js';
 import { DashboardPeriod } from '../../domain/valueObjects/dashboardPeriod.valueObject.js';
 import type { DashboardReadContext, DashboardUnitOfWork } from '../ports/dashboardUnitOfWork.port.js';
@@ -9,7 +10,7 @@ export class DashboardApplicationService {
 
   read<T>(params: DashboardActorParams, operation: (context: DashboardReadContext) => Promise<T>): Promise<T> {
     return this.unitOfWork.read(params, (context) => {
-      new DashboardAccessPolicy(context.access).assertCanRead();
+      OrganizationAccessPolicy.assertCanOperate(context.access, (code) => new DashboardError(code));
 
       return operation(context);
     });
