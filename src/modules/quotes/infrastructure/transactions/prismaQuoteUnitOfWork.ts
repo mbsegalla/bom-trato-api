@@ -15,6 +15,7 @@ import type {
 import { QuoteUnitOfWork } from '../../application/ports/quoteUnitOfWork.port.js';
 import { QuoteError } from '../../domain/errors/quote.error.js';
 import { PrismaQuoteRepository } from '../repositories/prismaQuote.repository.js';
+import { PrismaQuoteShareRepository } from '../repositories/prismaQuoteShare.repository.js';
 
 @Injectable()
 export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
@@ -50,7 +51,8 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
     return {
       quotes: new PrismaQuoteRepository(db, params.organizationId),
-
+      shares: new PrismaQuoteShareRepository(db, params.organizationId),
+      access: await readOrganizationAccess(db, params),
       findOrganization: () =>
         db.organization.findUnique({
           where: {
@@ -60,7 +62,6 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
             name: true,
           },
         }),
-
       findCustomer: (id: string) =>
         db.customer.findFirst({
           where: {
@@ -68,7 +69,6 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
             organizationId: params.organizationId,
           },
         }),
-
       findCatalogService: (id: string) =>
         db.catalogService.findFirst({
           where: {
@@ -76,8 +76,6 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
             organizationId: params.organizationId,
           },
         }),
-
-      access: await readOrganizationAccess(db, params),
     };
   }
 }

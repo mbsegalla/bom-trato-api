@@ -5,7 +5,7 @@ export interface QuoteStatusHistoryProps {
   quoteId: string;
   fromStatus: QuoteStatus | null;
   toStatus: QuoteStatus;
-  actorId: string;
+  actorId: string | null;
   version: number;
   createdAt: Date;
 }

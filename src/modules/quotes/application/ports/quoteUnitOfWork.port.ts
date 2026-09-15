@@ -1,6 +1,7 @@
 import type { ServiceUnit } from '../../../../generated/prisma/enums.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { QuoteRepository } from '../../domain/repositories/quote.repository.js';
+import type { QuoteShareRepository } from '../../domain/repositories/quoteShare.repository.js';
 
 export interface QuoteActorParams {
   organizationId: string;
@@ -38,6 +39,7 @@ export interface QuoteCatalogSource {
 export interface QuoteTransaction {
   readonly quotes: QuoteRepository;
   readonly access: OrganizationAccessContext;
+  readonly shares: QuoteShareRepository;
   findOrganization(): Promise<QuoteOrganizationSource | null>;
   findCustomer(id: string): Promise<QuoteCustomerSource | null>;
   findCatalogService(id: string): Promise<QuoteCatalogSource | null>;

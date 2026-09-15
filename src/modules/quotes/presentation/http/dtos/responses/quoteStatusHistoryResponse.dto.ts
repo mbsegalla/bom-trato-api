@@ -15,8 +15,8 @@ export class QuoteStatusHistoryResponseDto {
   @ApiProperty({ enum: QuoteStatus })
   toStatus!: QuoteStatus;
 
-  @ApiProperty({ format: 'uuid' })
-  actorId!: string;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  actorId!: string | null;
 
   @ApiProperty()
   version!: number;
