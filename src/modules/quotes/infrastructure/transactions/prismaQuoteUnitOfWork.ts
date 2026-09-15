@@ -50,6 +50,17 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
   private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
     return {
       quotes: new PrismaQuoteRepository(db, params.organizationId),
+
+      findOrganization: () =>
+        db.organization.findUnique({
+          where: {
+            id: params.organizationId,
+          },
+          select: {
+            name: true,
+          },
+        }),
+
       findCustomer: (id: string) =>
         db.customer.findFirst({
           where: {
@@ -57,6 +68,7 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
             organizationId: params.organizationId,
           },
         }),
+
       findCatalogService: (id: string) =>
         db.catalogService.findFirst({
           where: {
@@ -64,6 +76,7 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
             organizationId: params.organizationId,
           },
         }),
+
       access: await readOrganizationAccess(db, params),
     };
   }

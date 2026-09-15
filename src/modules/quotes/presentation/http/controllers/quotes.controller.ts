@@ -1,5 +1,19 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Header,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
@@ -9,6 +23,7 @@ import { ApproveQuoteUseCase } from '../../../application/useCases/approveQuote.
 import { CancelQuoteUseCase } from '../../../application/useCases/cancelQuote.useCase.js';
 import { CreateQuoteUseCase } from '../../../application/useCases/createQuote.useCase.js';
 import { DeclineQuoteUseCase } from '../../../application/useCases/declineQuote.useCase.js';
+import { GenerateQuotePdfUseCase } from '../../../application/useCases/generateQuotePdf.useCase.js';
 import { GetQuoteUseCase } from '../../../application/useCases/getQuote.useCase.js';
 import { ListQuotesUseCase } from '../../../application/useCases/listQuotes.useCase.js';
 import { ListQuoteStatusHistoryUseCase } from '../../../application/useCases/listQuoteStatusHistory.useCase.js';
@@ -37,6 +52,7 @@ export class QuotesController {
     private readonly createQuoteUseCase: CreateQuoteUseCase,
     private readonly listQuotesUseCase: ListQuotesUseCase,
     private readonly getQuoteUseCase: GetQuoteUseCase,
+    private readonly generateQuotePdfUseCase: GenerateQuotePdfUseCase,
     private readonly updateQuoteUseCase: UpdateQuoteUseCase,
     private readonly addQuoteItemUseCase: AddQuoteItemUseCase,
     private readonly replaceQuoteItemUseCase: ReplaceQuoteItemUseCase,
@@ -69,6 +85,38 @@ export class QuotesController {
     @Query() dto: QuotePageDto,
   ): Promise<QuotesResponseDto> {
     return quoteOperation(() => this.listQuotesUseCase.execute({ organizationId, userId: auth.user.id }, dto));
+  }
+
+  @Get(':quoteId/pdf')
+  @Header('Cache-Control', 'private, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiOperation({ summary: 'Download a quote as PDF' })
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({
+    description: 'Quote PDF',
+    schema: {
+      type: 'string',
+      format: 'binary',
+    },
+  })
+  async downloadQuotePdf(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Param('quoteId', uuid) quoteId: string,
+  ): Promise<StreamableFile> {
+    const file = await quoteOperation(() =>
+      this.generateQuotePdfUseCase.execute({
+        organizationId,
+        userId: auth.user.id,
+        quoteId,
+      }),
+    );
+
+    return new StreamableFile(file.content, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${file.filename}"`,
+      length: file.content.byteLength,
+    });
   }
 
   @Get(':quoteId')
@@ -181,7 +229,9 @@ export class QuotesController {
 
   @Post(':quoteId/send')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Record a quote as sent (no email delivery)' })
+  @ApiOperation({
+    summary: 'Record a quote as sent (no email delivery)',
+  })
   @ApiDataResponse(QuoteResponseDto)
   sendQuote(
     @CurrentAuth() auth: AuthContext,
@@ -201,7 +251,9 @@ export class QuotesController {
 
   @Post(':quoteId/approve')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Record approval reported by the customer' })
+  @ApiOperation({
+    summary: 'Record approval reported by the customer',
+  })
   @ApiDataResponse(QuoteResponseDto)
   approveQuote(
     @CurrentAuth() auth: AuthContext,
@@ -221,7 +273,9 @@ export class QuotesController {
 
   @Post(':quoteId/decline')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Record refusal reported by the customer' })
+  @ApiOperation({
+    summary: 'Record refusal reported by the customer',
+  })
   @ApiDataResponse(QuoteResponseDto)
   declineQuote(
     @CurrentAuth() auth: AuthContext,
@@ -261,7 +315,9 @@ export class QuotesController {
 
   @Get(':quoteId/status-history')
   @ApiOperation({ summary: 'List quote status history' })
-  @ApiDataResponse(QuoteStatusHistoryResponseDto, { array: true })
+  @ApiDataResponse(QuoteStatusHistoryResponseDto, {
+    array: true,
+  })
   listStatusHistory(
     @CurrentAuth() auth: AuthContext,
     @Param('organizationId', uuid) organizationId: string,

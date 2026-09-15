@@ -1,4 +1,4 @@
-import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
+import type { Page, PageParams } from '../../../../shared/types/page.types.js';
 import type { WorkOrder } from '../entities/workOrder.entity.js';
 import type {
   WorkOrderPage,

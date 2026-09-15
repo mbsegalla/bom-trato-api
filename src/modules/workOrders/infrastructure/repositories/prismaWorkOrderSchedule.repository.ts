@@ -1,6 +1,6 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { WorkOrderStatus } from '../../../../generated/prisma/enums.js';
-import type { Page } from '../../../../shared/domain/types/page.types.js';
+import type { Page } from '../../../../shared/types/page.types.js';
 import { WorkOrderScheduleRepository } from '../../application/ports/workOrderScheduleRepository.port.js';
 import type { WorkOrderScheduleItem, WorkOrderScheduleQuery } from '../../application/types/workOrderSchedule.types.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';

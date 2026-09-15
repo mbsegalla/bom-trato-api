@@ -1,4 +1,4 @@
-import type { PageParams } from '../../../../shared/domain/types/page.types.js';
+import type { PageParams } from '../../../../shared/types/page.types.js';
 import type { WorkOrderApplicationService } from '../services/workOrderApplicationService.service.js';
 import type { WorkOrderByIdParams } from '../types/workOrder.types.js';
 

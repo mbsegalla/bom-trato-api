@@ -7,9 +7,14 @@ export interface QuoteActorParams {
   userId: string;
 }
 
+export interface QuoteOrganizationSource {
+  name: string;
+}
+
 export interface QuoteReadContext {
   readonly quotes: Pick<QuoteRepository, 'findById' | 'list' | 'listStatusHistory'>;
   readonly access: OrganizationAccessContext;
+  findOrganization(): Promise<QuoteOrganizationSource | null>;
 }
 
 export interface QuoteCustomerSource {
@@ -33,7 +38,7 @@ export interface QuoteCatalogSource {
 export interface QuoteTransaction {
   readonly quotes: QuoteRepository;
   readonly access: OrganizationAccessContext;
-
+  findOrganization(): Promise<QuoteOrganizationSource | null>;
   findCustomer(id: string): Promise<QuoteCustomerSource | null>;
   findCatalogService(id: string): Promise<QuoteCatalogSource | null>;
 }

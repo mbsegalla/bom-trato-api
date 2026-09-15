@@ -1,4 +1,4 @@
-import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
+import type { Page, PageParams } from '../../../../shared/types/page.types.js';
 
 export const customerStatuses = ['ACTIVE', 'ARCHIVED', 'ALL'] as const;
 
