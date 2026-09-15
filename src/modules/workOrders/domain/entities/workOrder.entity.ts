@@ -2,6 +2,7 @@ import { QuoteStatus, WorkOrderStatus } from '../../../../generated/prisma/enums
 import type { QuoteProps } from '../../../quotes/domain/entities/quote.entity.js';
 import { WorkOrderError } from '../errors/workOrder.error.js';
 import type { WorkOrderItemProps, WorkOrderProps } from '../types/workOrder.types.js';
+import type { WorkOrderScheduleSlot } from '../types/workOrderSchedule.types.js';
 
 export interface WorkOrderDetails {
   title?: string;
@@ -198,6 +199,38 @@ export class WorkOrder {
     this.state.status = WorkOrderStatus.CANCELED;
     this.state.canceledAt = new Date(now);
     this.state.cancellationReason = reason.trim();
+  }
+
+  scheduleToCheck(previous: WorkOrderProps): WorkOrderScheduleSlot | null {
+    const current = this.state;
+
+    if (current.status !== WorkOrderStatus.SCHEDULED) {
+      return null;
+    }
+
+    if (
+      previous.status === current.status &&
+      previous.assignedToId === current.assignedToId &&
+      previous.scheduledStartAt?.getTime() === current.scheduledStartAt?.getTime() &&
+      previous.scheduledEndAt?.getTime() === current.scheduledEndAt?.getTime()
+    ) {
+      return null;
+    }
+
+    if (current.assignedToId === null) {
+      throw new WorkOrderError('ASSIGNEE_REQUIRED');
+    }
+
+    if (current.scheduledStartAt === null || current.scheduledEndAt === null) {
+      throw new WorkOrderError('INVALID_WORK_ORDER_SCHEDULE');
+    }
+
+    return {
+      workOrderId: current.id,
+      assignedToId: current.assignedToId,
+      start: new Date(current.scheduledStartAt),
+      end: new Date(current.scheduledEndAt),
+    };
   }
 
   private assertPlanning(): void {

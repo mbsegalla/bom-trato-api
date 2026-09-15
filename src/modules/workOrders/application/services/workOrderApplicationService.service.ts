@@ -47,9 +47,16 @@ export class WorkOrderApplicationService {
 
       order.assertVersion(params.version);
 
+      const previous = order.snapshot();
       const now = new Date();
 
       await operation(order, tx, now);
+
+      const slot = order.scheduleToCheck(previous);
+
+      if (slot !== null && (await tx.workOrders.hasScheduleConflict(slot))) {
+        throw new WorkOrderError('WORK_ORDER_SCHEDULE_CONFLICT');
+      }
 
       order.recordChange(params.userId, now);
 

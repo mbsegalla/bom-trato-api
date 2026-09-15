@@ -14,6 +14,7 @@ import type {
 import { WorkOrderUnitOfWork } from '../../application/ports/workOrderUnitOfWork.port.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { PrismaWorkOrderRepository } from '../repositories/prismaWorkOrder.repository.js';
+import { PrismaWorkOrderScheduleRepository } from '../repositories/prismaWorkOrderSchedule.repository.js';
 
 @Injectable()
 export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
@@ -56,6 +57,7 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
     return {
       workOrders: new PrismaWorkOrderRepository(db, organizationId),
       access: await readOrganizationAccess(db, params),
+      schedule: new PrismaWorkOrderScheduleRepository(db, organizationId),
       findQuote: (id) => quotes.findById(id),
       isAssignableMember: async (userId) => {
         const member = await db.organizationMember.findFirst({

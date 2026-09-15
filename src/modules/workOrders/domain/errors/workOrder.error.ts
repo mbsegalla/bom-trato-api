@@ -16,7 +16,9 @@ export type WorkOrderErrorCode =
   | 'ASSIGNEE_NOT_AVAILABLE'
   | 'SERVICE_ADDRESS_REQUIRED'
   | 'CANCELLATION_REASON_REQUIRED'
-  | 'WORK_ORDERS_BUSY';
+  | 'WORK_ORDERS_BUSY'
+  | 'INVALID_SCHEDULE_PERIOD'
+  | 'WORK_ORDER_SCHEDULE_CONFLICT';
 
 export class WorkOrderError extends Error {
   constructor(readonly code: WorkOrderErrorCode) {
