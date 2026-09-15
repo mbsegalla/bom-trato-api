@@ -1,5 +1,5 @@
 import { type Prisma, WorkOrderStatus } from '../../../../generated/prisma/client.js';
-import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
+import type { Page, PageParams } from '../../../../shared/types/page.types.js';
 import type { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderRepository } from '../../domain/repositories/workOrder.repository.js';

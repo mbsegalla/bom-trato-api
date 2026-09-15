@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 
+import { QuotePdfGenerator } from './application/ports/quotePdfGenerator.port.js';
 import { QuoteUnitOfWork } from './application/ports/quoteUnitOfWork.port.js';
 import { QuoteApplicationService } from './application/services/quoteApplicationService.service.js';
 import { AddQuoteItemUseCase } from './application/useCases/addQuoteItem.useCase.js';
@@ -9,6 +10,7 @@ import { ApproveQuoteUseCase } from './application/useCases/approveQuote.useCase
 import { CancelQuoteUseCase } from './application/useCases/cancelQuote.useCase.js';
 import { CreateQuoteUseCase } from './application/useCases/createQuote.useCase.js';
 import { DeclineQuoteUseCase } from './application/useCases/declineQuote.useCase.js';
+import { GenerateQuotePdfUseCase } from './application/useCases/generateQuotePdf.useCase.js';
 import { GetQuoteUseCase } from './application/useCases/getQuote.useCase.js';
 import { ListQuotesUseCase } from './application/useCases/listQuotes.useCase.js';
 import { ListQuoteStatusHistoryUseCase } from './application/useCases/listQuoteStatusHistory.useCase.js';
@@ -16,6 +18,7 @@ import { RemoveQuoteItemUseCase } from './application/useCases/removeQuoteItem.u
 import { ReplaceQuoteItemUseCase } from './application/useCases/replaceQuoteItem.useCase.js';
 import { SendQuoteUseCase } from './application/useCases/sendQuote.useCase.js';
 import { UpdateQuoteUseCase } from './application/useCases/updateQuote.useCase.js';
+import { PdfKitQuotePdfGenerator } from './infrastructure/pdf/pdfKitQuotePdfGenerator.js';
 import { PrismaQuoteUnitOfWork } from './infrastructure/transactions/prismaQuoteUnitOfWork.js';
 import { QuotesController } from './presentation/http/controllers/quotes.controller.js';
 
@@ -26,6 +29,10 @@ import { QuotesController } from './presentation/http/controllers/quotes.control
     {
       provide: QuoteUnitOfWork,
       useClass: PrismaQuoteUnitOfWork,
+    },
+    {
+      provide: QuotePdfGenerator,
+      useClass: PdfKitQuotePdfGenerator,
     },
     {
       provide: QuoteApplicationService,
@@ -46,6 +53,12 @@ import { QuotesController } from './presentation/http/controllers/quotes.control
       provide: GetQuoteUseCase,
       useFactory: (processor: QuoteApplicationService) => new GetQuoteUseCase(processor),
       inject: [QuoteApplicationService],
+    },
+    {
+      provide: GenerateQuotePdfUseCase,
+      useFactory: (processor: QuoteApplicationService, generator: QuotePdfGenerator) =>
+        new GenerateQuotePdfUseCase(processor, generator),
+      inject: [QuoteApplicationService, QuotePdfGenerator],
     },
     {
       provide: UpdateQuoteUseCase,

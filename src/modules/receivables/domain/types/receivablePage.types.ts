@@ -1,5 +1,5 @@
 import type { ReceivableStatus } from '../../../../generated/prisma/enums.js';
-import type { Page, PageParams } from '../../../../shared/domain/types/page.types.js';
+import type { Page, PageParams } from '../../../../shared/types/page.types.js';
 
 export type ReceivablePagination = PageParams;
 
