@@ -7,6 +7,7 @@ export enum NodeEnvironment {
 export interface EnvironmentVariables {
   NODE_ENV: NodeEnvironment;
   PORT: number;
+  TRUST_PROXY: string;
   FRONTEND_URL: string;
   DATABASE_URL: string;
   STRIPE_SECRET_KEY: string;

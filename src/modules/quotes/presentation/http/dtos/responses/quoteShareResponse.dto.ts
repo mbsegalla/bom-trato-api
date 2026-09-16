@@ -1,6 +1,6 @@
 import { ApiProperty, PickType } from '@nestjs/swagger';
 
-import { QuoteStatus } from '../../../../../../generated/prisma/enums.js';
+import type { PublicQuoteDecisionResult } from '../../../../application/types/publicQuote.types.js';
 
 import { QuoteItemResponseDto, QuoteResponseDto } from './quoteResponse.dto.js';
 
@@ -50,20 +50,20 @@ export class PublicQuoteResponseDto extends PickType(QuoteResponseDto, [
   @ApiProperty()
   canDecide!: boolean;
 
-  @ApiProperty({ type: Date })
-  expiresAt!: Date;
-
   @ApiProperty({ type: [PublicQuoteItemResponseDto] })
   items!: PublicQuoteItemResponseDto[];
+
+  @ApiProperty({ type: Date })
+  expiresAt!: Date;
 }
 
-export class PublicQuoteDecisionResponseDto {
-  @ApiProperty({ enum: QuoteStatus, nullable: true })
-  status!: QuoteStatus | null;
+export class PublicQuoteDecisionResponseDto implements PublicQuoteDecisionResult {
+  @ApiProperty({ enum: ['APPROVED', 'DECLINED'] })
+  status!: PublicQuoteDecisionResult['status'];
 
-  @ApiProperty({ type: Date, nullable: true })
-  decidedAt!: Date | null;
+  @ApiProperty({ type: Date })
+  decidedAt!: Date;
 
-  @ApiProperty({ type: Number, nullable: true })
-  version!: number | null;
+  @ApiProperty({ type: Number })
+  version!: number;
 }
