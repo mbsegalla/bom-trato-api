@@ -1,6 +1,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 import { appConfig } from './config/app.config.js';
@@ -11,11 +12,13 @@ import { AppModule } from './app.module.js';
 const logger = new Logger('Bootstrap');
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
   });
 
   const configuration = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+
+  app.set('trust proxy', configuration.trustProxy.length > 0 ? configuration.trustProxy : false);
 
   app.enableShutdownHooks();
 

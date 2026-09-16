@@ -3,6 +3,7 @@ import { QuoteShare } from '../../domain/entities/quoteShare.entity.js';
 import { QuoteShareError } from '../../domain/errors/quoteShare.error.js';
 import type { PublicQuoteReadContext, PublicQuoteUnitOfWork } from '../ports/publicQuoteUnitOfWork.port.js';
 import type { QuoteShareSecurity } from '../ports/quoteShareSecurity.port.js';
+import type { PublicQuoteDecisionResult, PublicQuoteReadResult } from '../types/publicQuote.types.js';
 
 export class PublicQuoteApplicationService {
   constructor(
@@ -10,7 +11,7 @@ export class PublicQuoteApplicationService {
     private readonly security: QuoteShareSecurity,
   ) {}
 
-  read(token: string) {
+  read(token: string): Promise<PublicQuoteReadResult> {
     const hash = this.security.hash(token);
 
     return this.unitOfWork.read(hash, async (context) => {
@@ -30,7 +31,7 @@ export class PublicQuoteApplicationService {
     });
   }
 
-  decide(token: string, version: number, decision: 'APPROVED' | 'DECLINED') {
+  decide(token: string, version: number, decision: 'APPROVED' | 'DECLINED'): Promise<PublicQuoteDecisionResult> {
     const hash = this.security.hash(token);
 
     return this.unitOfWork.run(hash, async (context) => {
@@ -43,6 +44,14 @@ export class PublicQuoteApplicationService {
       }
 
       const state = share.snapshot();
+
+      if (
+        (state.decision !== 'APPROVED' && state.decision !== 'DECLINED') ||
+        state.decidedAt === null ||
+        state.decidedVersion === null
+      ) {
+        throw new Error('Quote share decision was not recorded');
+      }
 
       return {
         status: state.decision,

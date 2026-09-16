@@ -10,6 +10,27 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   PORT: Joi.number().integer().min(1).max(65535).default(5000),
 
+  TRUST_PROXY: Joi.string()
+    .trim()
+    .allow('')
+    .default('')
+    .custom((value: string, helpers) => {
+      const addresses = value.split(',').map((address) => address.trim());
+
+      const schema = Joi.array().items(
+        Joi.string().ip({
+          version: ['ipv4', 'ipv6'],
+          cidr: 'optional',
+        }),
+      );
+
+      if (schema.validate(addresses).error !== undefined) {
+        return helpers.error('any.invalid');
+      }
+
+      return value;
+    }),
+
   FRONTEND_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })
     .required(),

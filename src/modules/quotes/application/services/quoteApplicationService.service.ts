@@ -31,6 +31,14 @@ export class QuoteApplicationService {
     });
   }
 
+  runForVerifiedMember<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
+    return this.unitOfWork.run(params, (tx) => {
+      OrganizationAccessPolicy.assertVerifiedMember(tx.access, (code) => new QuoteError(code));
+
+      return operation(tx);
+    });
+  }
+
   async load(context: QuoteReadContext, id: string): Promise<Quote> {
     const state = await context.quotes.findById(id);
 

@@ -300,6 +300,7 @@ export class PrismaAuthRepository extends AuthRepository {
 
   async revoke(params: RevokeSessionParams): Promise<void> {
     const { identity, now, reason } = params;
+
     await this.prisma.$transaction(async (tx) => {
       await this.lockUser(tx, identity.userId);
 
