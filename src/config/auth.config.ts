@@ -14,6 +14,7 @@ export const authConfig = registerAs('auth', () => {
     idleTtlSeconds: env.AUTH_IDLE_TTL_SECONDS,
     absoluteTtlSeconds: env.AUTH_ABSOLUTE_TTL_SECONDS,
     retentionDays: env.AUTH_RETENTION_DAYS,
+    cleanupWorkerEnabled: env.AUTH_CLEANUP_WORKER_ENABLED,
     verificationTtlSeconds: 86400,
     resetTtlSeconds: 1800,
   };

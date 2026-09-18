@@ -22,6 +22,8 @@ export interface EnvironmentVariables {
   AUTH_IDLE_TTL_SECONDS: number;
   AUTH_ABSOLUTE_TTL_SECONDS: number;
   AUTH_RETENTION_DAYS: number;
+  AUTH_CLEANUP_WORKER_ENABLED: boolean;
+  AUTH_CLEANUP_INTERVAL_SECONDS: number;
   MAIL_SMTP_HOST: string;
   MAIL_SMTP_PORT: number;
   MAIL_SMTP_SECURE: boolean;

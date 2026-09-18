@@ -95,14 +95,11 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
           reconcile: true,
         });
       } catch (error: unknown) {
-        await this.billingRepository.postponeReconciliation(customer.organizationId);
-
         if (!(error instanceof BillingError && error.code === 'BILLING_BUSY')) {
-          this.logger.error({
-            message: 'Scheduled billing reconciliation failed',
-            organizationId: customer.organizationId,
-          });
+          this.logReconciliationFailure(customer.organizationId, error);
         }
+
+        await this.billingRepository.postponeReconciliation(customer.organizationId);
       }
     }
   }
@@ -267,6 +264,36 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         code,
       });
     }
+  }
+
+  private logReconciliationFailure(organizationId: string, error: unknown): void {
+    const cause = error instanceof BillingError ? (error.cause ?? error) : error;
+
+    const rawCode = typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
+
+    const causeCode =
+      typeof rawCode === 'string' &&
+      /^(P[0-9]{4}|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|api_connection_error|api_error|rate_limit|resource_missing)$/.test(
+        rawCode,
+      )
+        ? rawCode
+        : undefined;
+
+    const rawStatus =
+      typeof cause === 'object' && cause !== null && 'statusCode' in cause ? cause.statusCode : undefined;
+
+    const upstreamStatus =
+      typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599
+        ? rawStatus
+        : undefined;
+
+    this.logger.error({
+      message: 'Scheduled billing reconciliation failed',
+      organizationId,
+      code: error instanceof BillingError ? error.code : 'BILLING_RECONCILIATION_FAILED',
+      causeCode,
+      upstreamStatus,
+    });
   }
 
   async onModuleDestroy(): Promise<void> {

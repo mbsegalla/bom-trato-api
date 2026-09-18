@@ -12,60 +12,76 @@ export class SyncBillingUseCase {
   ) {}
 
   async execute(params: SyncBillingParams): Promise<void> {
+    await this.billingLock.run(`organization:${params.organizationId}`, async () => {
+      let snapshot: SaveSnapshotParams;
+
+      try {
+        snapshot = await this.prepareSnapshot(params);
+      } catch (error: unknown) {
+        if (error instanceof BillingError) {
+          throw error;
+        }
+
+        throw new BillingError('BILLING_READ_FAILED', { cause: error });
+      }
+
+      await this.billingRepository.saveSnapshot(snapshot);
+    });
+  }
+
+  private async prepareSnapshot(params: SyncBillingParams): Promise<SaveSnapshotParams> {
     const { organizationId, invoiceId, includeInvoiceHistory = false, reconcile = false } = params;
 
-    await this.billingLock.run(`organization:${organizationId}`, async () => {
-      const customer = await this.billingRepository.customer(organizationId);
+    const customer = await this.billingRepository.customer(organizationId);
 
-      if (customer.stripeCustomerId === null) {
-        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+    if (customer.stripeCustomerId === null) {
+      throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+    }
+
+    const startedAt = new Date();
+
+    const fullHistory = includeInvoiceHistory || (reconcile && customer.invoiceHistorySyncedAt === null);
+
+    const reconciliation =
+      reconcile && !fullHistory && customer.invoiceHistorySyncedAt !== null
+        ? {
+            createdSince: new Date(customer.invoiceHistorySyncedAt.getTime() - 86400000),
+            pendingInvoiceIds: await this.billingRepository.pendingInvoiceIds(organizationId),
+          }
+        : undefined;
+
+    const snapshot = await this.billingGateway.snapshot(
+      customer.stripeCustomerId,
+      invoiceId,
+      fullHistory,
+      reconciliation,
+    );
+
+    const attempt = await this.billingRepository.pendingCheckout(organizationId);
+
+    let checkout: SaveSnapshotParams['checkout'];
+
+    if (attempt !== null) {
+      const session =
+        attempt.stripeSessionId !== null
+          ? await this.billingGateway.checkout(attempt.stripeSessionId)
+          : await this.billingGateway.findCheckout(customer.stripeCustomerId, attempt.id);
+
+      if (session !== null && session.status !== 'OPEN') {
+        checkout = {
+          id: attempt.id,
+          stripeSessionId: session.stripeSessionId,
+          status: session.status,
+        };
       }
+    }
 
-      const startedAt = new Date();
-
-      const fullHistory = includeInvoiceHistory || (reconcile && customer.invoiceHistorySyncedAt === null);
-
-      const reconciliation =
-        reconcile && !fullHistory && customer.invoiceHistorySyncedAt !== null
-          ? {
-              createdSince: new Date(customer.invoiceHistorySyncedAt.getTime() - 86400000),
-              pendingInvoiceIds: await this.billingRepository.pendingInvoiceIds(organizationId),
-            }
-          : undefined;
-
-      const snapshot = await this.billingGateway.snapshot(
-        customer.stripeCustomerId,
-        invoiceId,
-        fullHistory,
-        reconciliation,
-      );
-
-      const attempt = await this.billingRepository.pendingCheckout(organizationId);
-
-      let checkout: SaveSnapshotParams['checkout'];
-
-      if (attempt !== null) {
-        const session =
-          attempt.stripeSessionId !== null
-            ? await this.billingGateway.checkout(attempt.stripeSessionId)
-            : await this.billingGateway.findCheckout(customer.stripeCustomerId, attempt.id);
-
-        if (session !== null && session.status !== 'OPEN') {
-          checkout = {
-            id: attempt.id,
-            stripeSessionId: session.stripeSessionId,
-            status: session.status,
-          };
-        }
-      }
-
-      await this.billingRepository.saveSnapshot({
-        organizationId,
-        snapshot,
-        checkout,
-        nextReconcileAt: reconcile || fullHistory ? new Date(Date.now() + 60 * 60 * 1000) : undefined,
-        invoiceHistorySyncedAt: reconcile || fullHistory ? startedAt : undefined,
-      });
-    });
+    return {
+      organizationId,
+      snapshot,
+      checkout,
+      nextReconcileAt: reconcile || fullHistory ? new Date(Date.now() + 60 * 60 * 1000) : undefined,
+      invoiceHistorySyncedAt: reconcile || fullHistory ? startedAt : undefined,
+    };
   }
 }

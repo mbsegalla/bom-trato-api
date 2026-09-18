@@ -1,4 +1,4 @@
-import { SessionRevocationReason } from '../../../../generated/prisma/browser.js';
+import { SessionRevocationReason } from '../../../../generated/prisma/enums.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 
 export class RevokeSessionUseCase {

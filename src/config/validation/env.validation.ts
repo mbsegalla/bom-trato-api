@@ -75,6 +75,8 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   AUTH_RETENTION_DAYS: Joi.number().integer().min(1).max(365).default(30),
 
+  AUTH_CLEANUP_WORKER_ENABLED: Joi.boolean().default(true),
+
   MAIL_SMTP_HOST: Joi.string().hostname().required(),
 
   MAIL_SMTP_PORT: Joi.number().integer().min(1).max(65535).default(1025),

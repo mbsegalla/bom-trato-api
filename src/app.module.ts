@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { ConfigurationModule } from './config/configuration.module.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
@@ -18,6 +19,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
 @Module({
   imports: [
     ConfigurationModule,
+    ScheduleModule.forRoot(),
     DatabaseModule,
     HttpModule,
     PlansModule,

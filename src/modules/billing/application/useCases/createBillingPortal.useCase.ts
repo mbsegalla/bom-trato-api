@@ -1,15 +1,7 @@
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
-
-export interface CreateBillingPortalParams {
-  organizationId: string;
-  userId: string;
-}
-
-export interface CreateBillingPortalResult {
-  url: string;
-}
+import type { CreateBillingPortalParams, CreateBillingPortalResult } from '../types/billing.types.js';
 
 export class CreateBillingPortalUseCase {
   constructor(

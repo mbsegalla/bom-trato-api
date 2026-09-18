@@ -3,13 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { OrganizationProps } from '../../domain/entities/organization.entity.js';
 import { Organization } from '../../domain/entities/organization.entity.js';
 import type { OrganizationRepository } from '../../domain/repositories/organization.repository.js';
-
-export interface CreateOrganizationParams {
-  userId: string;
-  email: string;
-  name: string;
-  creationKey: string;
-}
+import type { CreateOrganizationParams } from '../types/organization.types.js';
 
 export class CreateOrganizationUseCase {
   constructor(private readonly organizationRepository: OrganizationRepository) {}

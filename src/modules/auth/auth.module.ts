@@ -10,8 +10,10 @@ import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { MailModule } from '../../infrastructure/mail/mail.module.js';
 import { SmtpTransport } from '../../infrastructure/mail/smtpTransport.js';
 
+import { AuthMaintenanceRepository } from './application/ports/authMaintenanceRepository.port.js';
 import { AuthMail, AuthSecurity } from './application/ports/authSecurity.port.js';
 import { AuthEmailSender } from './application/services/authEmailSender.service.js';
+import { CleanupAuthUseCase } from './application/useCases/cleanupAuth.useCase.js';
 import { ListSessionsUseCase } from './application/useCases/listSessions.useCase.js';
 import { LoginUseCase } from './application/useCases/login.useCase.js';
 import { LogoutUseCase } from './application/useCases/logout.useCase.js';
@@ -27,7 +29,9 @@ import { AuthRepository } from './domain/repositories/auth.repository.js';
 import { SmtpAuthMail } from './infrastructure/mail/smtpAuthMail.js';
 import { PostgresAuthRateLimit } from './infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { PrismaAuthRepository } from './infrastructure/repositories/prismaAuth.repository.js';
+import { PrismaAuthMaintenanceRepository } from './infrastructure/repositories/prismaAuthMaintenance.repository.js';
 import { NodeAuthSecurity } from './infrastructure/security/nodeAuthSecurity.js';
+import { AuthCleanupWorker } from './infrastructure/workers/authCleanup.worker.js';
 import { AuthCookies } from './presentation/http/authCookies.js';
 import { AuthController } from './presentation/http/controllers/auth.controller.js';
 import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.js';
@@ -42,9 +46,14 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
   ],
   controllers: [AuthController],
   providers: [
+    AuthCleanupWorker,
     {
       provide: AuthRepository,
       useClass: PrismaAuthRepository,
+    },
+    {
+      provide: AuthMaintenanceRepository,
+      useClass: PrismaAuthMaintenanceRepository,
     },
     {
       provide: AuthSecurity,
@@ -153,6 +162,12 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       useFactory: (authRepository: AuthRepository, security: AuthSecurity) =>
         new ResetPasswordUseCase(authRepository, security),
       inject: [AuthRepository, AuthSecurity],
+    },
+    {
+      provide: CleanupAuthUseCase,
+      useFactory: (repository: AuthMaintenanceRepository, config: ConfigType<typeof authConfig>) =>
+        new CleanupAuthUseCase(repository, config.retentionDays),
+      inject: [AuthMaintenanceRepository, authConfig.KEY],
     },
   ],
 })
