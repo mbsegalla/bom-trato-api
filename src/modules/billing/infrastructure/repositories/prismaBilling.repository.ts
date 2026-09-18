@@ -379,11 +379,9 @@ export class PrismaBillingRepository extends BillingRepository {
     );
   }
 
-  async invoices({
-    organizationId,
-    cursor,
-    limit,
-  }: InvoicePageParams): Promise<{ items: RemoteInvoiceView[]; nextCursor: string | null }> {
+  async invoices(params: InvoicePageParams): Promise<{ items: RemoteInvoiceView[]; nextCursor: string | null }> {
+    const { organizationId, cursor, limit } = params;
+
     const anchor = cursor
       ? await this.prisma.billingInvoice.findFirst({
           where: { id: cursor, organizationId },

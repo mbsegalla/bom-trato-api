@@ -14,7 +14,9 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
     super();
   }
 
-  async create({ organization, billingEmail, creationKey }: CreateOrganizationParams): Promise<OrganizationProps> {
+  async create(params: CreateOrganizationParams): Promise<OrganizationProps> {
+    const { organization, billingEmail, creationKey } = params;
+
     const where = {
       ownerId_creationKey: {
         ownerId: organization.ownerId,
