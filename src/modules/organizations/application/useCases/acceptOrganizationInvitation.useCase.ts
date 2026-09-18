@@ -1,7 +1,7 @@
 import { OrganizationTeamError } from '../../domain/errors/organizationTeam.error.js';
 import type { OrganizationInvitationTokens } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
-import type { InvitationTokenParams } from '../types/manageOrganizationTeam.types.js';
+import type { InvitationTokenParams } from '../types/organization.types.js';
 
 export class AcceptOrganizationInvitationUseCase {
   constructor(

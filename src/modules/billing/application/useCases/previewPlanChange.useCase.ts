@@ -9,7 +9,7 @@ import type { PlanChangeRepository } from '../../domain/repositories/planChange.
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PlanChangeGateway } from '../ports/planChangeGateway.port.js';
-import type { PreviewPlanChangeParams } from '../types/changePlan.types.js';
+import type { PreviewPlanChangeParams } from '../types/billing.types.js';
 
 export class PreviewPlanChangeUseCase {
   constructor(

@@ -1,5 +1,12 @@
 import type { OrganizationActorParams } from '../ports/organizationUnitOfWork.port.js';
 
+export interface CreateOrganizationParams {
+  userId: string;
+  email: string;
+  name: string;
+  creationKey: string;
+}
+
 export interface InviteMemberParams extends OrganizationActorParams {
   email: string;
 }

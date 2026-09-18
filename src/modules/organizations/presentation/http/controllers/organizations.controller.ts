@@ -42,7 +42,7 @@ export class OrganizationsController {
       this.createOrganizationUseCase.execute({
         creationKey,
         userId: auth.user.id,
-        email: auth.user.toPublic().email,
+        email: auth.user.email,
         name: dto.name,
       }),
     );

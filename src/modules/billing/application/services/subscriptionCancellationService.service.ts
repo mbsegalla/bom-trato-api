@@ -4,7 +4,7 @@ import type { BillingRepository } from '../../domain/repositories/billing.reposi
 import type { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
-import type { SetCancellationParams } from '../types/setCancellation.types.js';
+import type { SetCancellationParams } from '../types/billing.types.js';
 
 export class SubscriptionCancellationService {
   constructor(

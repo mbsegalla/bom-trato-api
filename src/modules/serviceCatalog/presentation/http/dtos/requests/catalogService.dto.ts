@@ -4,7 +4,7 @@ import { IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, MaxLength, Min,
 
 import { ServiceUnit } from '../../../../../../generated/prisma/enums.js';
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
-import { catalogServiceStatuses } from '../../../../domain/types/catalogServicePage.types.js';
+import { catalogServiceStatuses } from '../../../../domain/types/catalogService.types.js';
 
 class CatalogServiceDescriptionDto {
   @ApiPropertyOptional({

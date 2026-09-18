@@ -3,10 +3,10 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import { PrismaService } from '../infrastructure/database/prisma.service.js';
-import { BillingGateway } from '../modules/billing/application/ports/billingGateway.port.js';
-import { BillingLock } from '../modules/billing/application/ports/billingLock.port.js';
-import { BillingRepository } from '../modules/billing/domain/repositories/billing.repository.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { BillingGateway } from '../../modules/billing/application/ports/billingGateway.port.js';
+import { BillingLock } from '../../modules/billing/application/ports/billingLock.port.js';
+import { BillingRepository } from '../../modules/billing/domain/repositories/billing.repository.js';
 
 import { BillingCommandModule } from './billingCommand.module.js';
 

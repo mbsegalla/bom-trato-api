@@ -1,5 +1,5 @@
 import type { SubscriptionProps } from '../entities/subscription.entity.js';
-import type { BillingSnapshot } from '../types/billingSnapshot.types.js';
+import type { BillingSnapshot } from '../types/billing.types.js';
 
 export interface BillingCustomerProps {
   id: string;
@@ -8,6 +8,7 @@ export interface BillingCustomerProps {
   billingEmail: string;
   billingName: string;
   creationRequestedAt: Date | null;
+  invoiceHistorySyncedAt: Date | null;
 }
 
 export interface AvailablePrice {
@@ -39,6 +40,7 @@ export interface SaveSnapshotParams {
     status: 'COMPLETE' | 'EXPIRED';
   };
   nextReconcileAt?: Date;
+  invoiceHistorySyncedAt?: Date;
 }
 
 export interface InvoicePageParams {
@@ -78,6 +80,7 @@ export abstract class BillingRepository {
   abstract customerPage(cursor?: string): Promise<Array<{ organizationId: string; id: string }>>;
   abstract dueCustomers(): Promise<Array<{ organizationId: string }>>;
   abstract postponeReconciliation(organizationId: string): Promise<void>;
+  abstract pendingInvoiceIds(organizationId: string): Promise<string[]>;
   abstract entitlements(
     organizationId: string,
     userId: string,

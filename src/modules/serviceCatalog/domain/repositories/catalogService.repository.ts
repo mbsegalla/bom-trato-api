@@ -1,5 +1,5 @@
 import type { CatalogService, CatalogServiceProps } from '../entities/catalogService.entity.js';
-import type { CatalogServicePage, CatalogServicePageParams } from '../types/catalogServicePage.types.js';
+import type { CatalogServicePage, CatalogServicePageParams } from '../types/catalogService.types.js';
 
 export abstract class CatalogServiceRepository {
   abstract create(catalogService: CatalogService): Promise<void>;

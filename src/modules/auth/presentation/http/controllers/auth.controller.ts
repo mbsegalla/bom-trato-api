@@ -177,7 +177,14 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiDataResponse(UserResponseDto, { status: 200 })
   me(@CurrentAuth() auth: AuthContext): UserResponseDto {
-    return auth.user.toPublic();
+    const { id, name, email, emailVerifiedAt } = auth.user;
+
+    return {
+      id,
+      name,
+      email,
+      emailVerified: emailVerifiedAt !== null,
+    };
   }
 
   @Get('sessions')

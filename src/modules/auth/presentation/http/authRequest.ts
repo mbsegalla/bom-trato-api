@@ -1,9 +1,9 @@
 import type { Request } from 'express';
 
-import type { User } from '../../../users/domain/entities/user.entity.js';
+import type { AuthenticatedUser } from '../../../users/domain/types/user.types.js';
 
 export interface AuthContext {
-  user: User;
+  user: AuthenticatedUser;
   sessionId: string;
 }
 

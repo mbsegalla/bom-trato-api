@@ -6,7 +6,7 @@ import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PlanChangeGateway } from '../ports/planChangeGateway.port.js';
 import type { PlanChangeProcessor } from '../services/planChangeProcessor.service.js';
-import type { PlanChangeActionParams } from '../types/changePlan.types.js';
+import type { PlanChangeActionParams } from '../types/billing.types.js';
 
 export class ConfirmPlanChangeUseCase {
   constructor(

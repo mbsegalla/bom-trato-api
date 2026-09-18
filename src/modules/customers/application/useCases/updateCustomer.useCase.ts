@@ -1,6 +1,6 @@
 import type { CustomerDetails } from '../../domain/entities/customer.entity.js';
 import type { CustomerApplicationService } from '../services/customerApplicationService.service.js';
-import type { CustomerByIdParams } from '../types/manageCustomers.types.js';
+import type { CustomerByIdParams } from '../types/customer.types.js';
 
 export class UpdateCustomerUseCase {
   constructor(private readonly processor: CustomerApplicationService) {}

@@ -3,14 +3,7 @@ import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
-import type { AuthPolicy } from '../types/authPolicy.types.js';
-import type { LoginResult } from '../types/loginResult.types.js';
-
-export interface LoginInput {
-  email: string;
-  password: string;
-  userAgent: string | null;
-}
+import type { AuthPolicy, LoginInput, LoginResult } from '../types/auth.types.js';
 
 export class LoginUseCase {
   constructor(

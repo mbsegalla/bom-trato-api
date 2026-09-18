@@ -1,4 +1,5 @@
 import { UserError } from '../errors/user.error.js';
+import { UserAccessPolicy } from '../policies/userAccess.policy.js';
 
 export interface UserProps {
   id: string;
@@ -34,13 +35,7 @@ export class User {
   }
 
   assertCanAuthenticate(): void {
-    if (this.props.disabledAt !== null) {
-      throw new UserError('INVALID_CREDENTIALS');
-    }
-
-    if (this.props.emailVerifiedAt === null) {
-      throw new UserError('EMAIL_NOT_VERIFIED');
-    }
+    UserAccessPolicy.assertCanAuthenticate(this.props);
   }
 
   verifyEmail(now: Date): void {

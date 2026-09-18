@@ -1,6 +1,6 @@
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { CardSummary, PaymentMethodGateway } from '../ports/paymentMethodGateway.port.js';
-import type { PaymentMethodOwnerParams } from '../types/updatePaymentMethod.types.js';
+import type { PaymentMethodOwnerParams } from '../types/billing.types.js';
 
 export class GetPaymentMethodUseCase {
   constructor(

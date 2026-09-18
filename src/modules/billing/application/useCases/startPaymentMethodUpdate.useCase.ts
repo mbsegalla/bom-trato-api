@@ -7,7 +7,7 @@ import type { PaymentMethodUpdateRepository } from '../../domain/repositories/pa
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PaymentMethodUpdateProcessor } from '../services/paymentMethodUpdateProcessor.service.js';
-import type { PaymentMethodOwnerParams, PaymentMethodUpdateResult } from '../types/updatePaymentMethod.types.js';
+import type { PaymentMethodOwnerParams, PaymentMethodUpdateResult } from '../types/billing.types.js';
 
 const consentVersion = 'subscription-card-v1';
 const lifetimeMs = 2 * 60 * 60 * 1000;

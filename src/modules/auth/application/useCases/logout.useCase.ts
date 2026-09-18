@@ -1,11 +1,6 @@
-import type { SessionRevocationReason } from '../../../../generated/prisma/enums.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
-
-export interface LogoutInput {
-  refreshToken: string;
-  reason: SessionRevocationReason;
-}
+import type { LogoutInput } from '../types/auth.types.js';
 
 export class LogoutUseCase {
   constructor(

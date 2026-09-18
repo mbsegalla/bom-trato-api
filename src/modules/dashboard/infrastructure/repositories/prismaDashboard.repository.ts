@@ -1,6 +1,6 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { WorkOrderStatus } from '../../../../generated/prisma/enums.js';
-import type { DashboardRepository } from '../../application/ports/dashboard.repository.js';
+import type { DashboardRepository } from '../../application/ports/dashboardRepository.port.js';
 import type {
   DashboardFinancialData,
   DashboardSummaryData,

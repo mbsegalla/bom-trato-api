@@ -3,8 +3,8 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import { SyncBillingUseCase } from '../modules/billing/application/useCases/syncBilling.useCase.js';
-import { BillingRepository } from '../modules/billing/domain/repositories/billing.repository.js';
+import { SyncBillingUseCase } from '../../modules/billing/application/useCases/syncBilling.useCase.js';
+import { BillingRepository } from '../../modules/billing/domain/repositories/billing.repository.js';
 
 import { BillingCommandModule } from './billingCommand.module.js';
 

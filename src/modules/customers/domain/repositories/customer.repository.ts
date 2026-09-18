@@ -1,5 +1,5 @@
 import type { Customer, CustomerProps } from '../entities/customer.entity.js';
-import type { CustomerPage, CustomerPageParams } from '../types/customerPage.types.js';
+import type { CustomerPage, CustomerPageParams } from '../types/customer.types.js';
 
 export abstract class CustomerRepository {
   abstract create(customer: Customer): Promise<void>;

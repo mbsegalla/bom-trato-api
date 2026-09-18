@@ -2,12 +2,7 @@ import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository, SaveSnapshotParams } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
-
-export interface SyncBillingParams {
-  organizationId: string;
-  invoiceId?: string;
-  includeInvoiceHistory?: boolean;
-}
+import type { SyncBillingParams } from '../types/billing.types.js';
 
 export class SyncBillingUseCase {
   constructor(
@@ -16,7 +11,9 @@ export class SyncBillingUseCase {
     private readonly billingLock: BillingLock,
   ) {}
 
-  async execute({ organizationId, invoiceId, includeInvoiceHistory = false }: SyncBillingParams): Promise<void> {
+  async execute(params: SyncBillingParams): Promise<void> {
+    const { organizationId, invoiceId, includeInvoiceHistory = false, reconcile = false } = params;
+
     await this.billingLock.run(`organization:${organizationId}`, async () => {
       const customer = await this.billingRepository.customer(organizationId);
 
@@ -24,7 +21,24 @@ export class SyncBillingUseCase {
         throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
       }
 
-      const snapshot = await this.billingGateway.snapshot(customer.stripeCustomerId, invoiceId, includeInvoiceHistory);
+      const startedAt = new Date();
+
+      const fullHistory = includeInvoiceHistory || (reconcile && customer.invoiceHistorySyncedAt === null);
+
+      const reconciliation =
+        reconcile && !fullHistory && customer.invoiceHistorySyncedAt !== null
+          ? {
+              createdSince: new Date(customer.invoiceHistorySyncedAt.getTime() - 86400000),
+              pendingInvoiceIds: await this.billingRepository.pendingInvoiceIds(organizationId),
+            }
+          : undefined;
+
+      const snapshot = await this.billingGateway.snapshot(
+        customer.stripeCustomerId,
+        invoiceId,
+        fullHistory,
+        reconciliation,
+      );
 
       const attempt = await this.billingRepository.pendingCheckout(organizationId);
 
@@ -49,7 +63,8 @@ export class SyncBillingUseCase {
         organizationId,
         snapshot,
         checkout,
-        nextReconcileAt: includeInvoiceHistory ? new Date(Date.now() + 60 * 60 * 1000) : undefined,
+        nextReconcileAt: reconcile || fullHistory ? new Date(Date.now() + 60 * 60 * 1000) : undefined,
+        invoiceHistorySyncedAt: reconcile || fullHistory ? startedAt : undefined,
       });
     });
   }

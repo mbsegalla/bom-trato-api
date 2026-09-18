@@ -1,8 +1,7 @@
 import { QuoteError } from '../../domain/errors/quote.error.js';
 import type { QuotePdfGenerator } from '../ports/quotePdfGenerator.port.js';
 import type { QuoteApplicationService } from '../services/quoteApplicationService.service.js';
-import type { QuoteByIdParams } from '../types/quote.types.js';
-import type { QuotePdfData, QuotePdfFile } from '../types/quotePdf.types.js';
+import type { QuoteByIdParams, QuotePdfData, QuotePdfFile } from '../types/quote.types.js';
 
 export class GenerateQuotePdfUseCase {
   constructor(

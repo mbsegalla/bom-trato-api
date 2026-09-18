@@ -1,4 +1,4 @@
-import type { ReceivablePagination } from '../../domain/types/receivablePage.types.js';
+import type { ReceivablePagination } from '../../domain/types/receivable.types.js';
 import type { ReceivableApplicationService } from '../services/receivableApplicationService.service.js';
 import type { FindReceivableParams } from '../types/receivable.types.js';
 

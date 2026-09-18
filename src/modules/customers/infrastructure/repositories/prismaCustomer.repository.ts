@@ -2,7 +2,7 @@ import type { Prisma } from '../../../../generated/prisma/client.js';
 import type { Customer } from '../../domain/entities/customer.entity.js';
 import { CustomerError } from '../../domain/errors/customer.error.js';
 import { CustomerRepository } from '../../domain/repositories/customer.repository.js';
-import type { CustomerPageParams } from '../../domain/types/customerPage.types.js';
+import type { CustomerPageParams } from '../../domain/types/customer.types.js';
 
 export class PrismaCustomerRepository extends CustomerRepository {
   constructor(

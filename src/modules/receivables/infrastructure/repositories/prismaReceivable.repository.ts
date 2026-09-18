@@ -4,7 +4,7 @@ import type { Receivable, ReceivableProps } from '../../domain/entities/receivab
 import type { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
 import { ReceivableError } from '../../domain/errors/receivable.error.js';
 import { ReceivableRepository } from '../../domain/repositories/receivable.repository.js';
-import type { ReceivablePageParams, ReceivablePagination } from '../../domain/types/receivablePage.types.js';
+import type { ReceivablePageParams, ReceivablePagination } from '../../domain/types/receivable.types.js';
 
 export class PrismaReceivableRepository extends ReceivableRepository {
   constructor(

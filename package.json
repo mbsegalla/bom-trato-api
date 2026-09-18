@@ -24,9 +24,10 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "stripe:sync": "pnpm run build && node dist/scripts/syncStripeCatalog.js",
-    "billing:sync": "pnpm run build && node dist/scripts/syncBilling.js",
-    "billing:recover": "pnpm run build && node dist/scripts/recoverBilling.js"
+    "stripe:sync": "pnpm run build && node dist/scripts/billing/syncStripeCatalog.js",
+    "billing:sync": "pnpm run build && node dist/scripts/billing/syncBilling.js",
+    "billing:recover": "pnpm run build && node dist/scripts/billing/recoverBilling.js",
+    "cleanup:auth": "pnpm run build && node dist/scripts/auth/cleanupAuth.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

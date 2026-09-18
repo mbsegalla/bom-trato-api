@@ -6,7 +6,7 @@ import type {
   OrganizationInvitationTokens,
 } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
-import type { InviteMemberParams } from '../types/manageOrganizationTeam.types.js';
+import type { InviteMemberParams } from '../types/organization.types.js';
 
 export class InviteOrganizationMemberUseCase {
   constructor(

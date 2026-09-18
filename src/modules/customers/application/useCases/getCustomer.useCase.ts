@@ -1,5 +1,5 @@
 import type { CustomerApplicationService } from '../services/customerApplicationService.service.js';
-import type { CustomerByIdParams } from '../types/manageCustomers.types.js';
+import type { CustomerByIdParams } from '../types/customer.types.js';
 
 export class GetCustomerUseCase {
   constructor(private readonly processor: CustomerApplicationService) {}

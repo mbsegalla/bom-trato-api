@@ -1,6 +1,6 @@
 import { OrganizationTeamError } from '../../domain/errors/organizationTeam.error.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
-import type { RemoveMemberParams } from '../types/manageOrganizationTeam.types.js';
+import type { RemoveMemberParams } from '../types/organization.types.js';
 
 export class RemoveOrganizationMemberUseCase {
   constructor(private readonly processor: OrganizationTeamApplicationService) {}

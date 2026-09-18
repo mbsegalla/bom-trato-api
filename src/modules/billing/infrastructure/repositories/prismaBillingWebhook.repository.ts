@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
-import { ClaimedWebhookJob, WebhookNotice, WebhookOutcome } from '../../domain/types/billingWebhook.types.js';
+import { ClaimedWebhookJob, WebhookNotice, WebhookOutcome } from '../../domain/types/billing.types.js';
 
 @Injectable()
 export class PrismaBillingWebhookRepository extends BillingWebhookRepository {

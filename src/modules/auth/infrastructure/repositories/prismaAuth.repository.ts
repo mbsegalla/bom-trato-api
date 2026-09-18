@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { AuthActionPurpose, type Prisma, SessionRevocationReason } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { User } from '../../../users/domain/entities/user.entity.js';
+import { UserAccessPolicy } from '../../../users/domain/policies/userAccess.policy.js';
+import { AuthenticatedUser } from '../../../users/domain/types/user.types.js';
 import { AuthActionToken } from '../../domain/entities/authActionToken.entity.js';
 import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { RefreshToken } from '../../domain/entities/refreshToken.entity.js';
@@ -257,9 +259,11 @@ export class PrismaAuthRepository extends AuthRepository {
     return result;
   }
 
-  async authenticate(identity: SessionIdentity, now: Date): Promise<User> {
+  async authenticate(identity: SessionIdentity, now: Date): Promise<AuthenticatedUser> {
     const row = await this.prisma.authSession.findUnique({
-      where: { id: identity.sessionId },
+      where: {
+        id: identity.sessionId,
+      },
       select: {
         id: true,
         userId: true,
@@ -287,15 +291,9 @@ export class PrismaAuthRepository extends AuthRepository {
     }
 
     AuthSession.restore(row).assertActive(now);
+    UserAccessPolicy.assertCanAuthenticate(row.user);
 
-    const user = User.restore({
-      ...row.user,
-      passwordHash: '',
-    });
-
-    user.assertCanAuthenticate();
-
-    return user;
+    return row.user;
   }
 
   async revoke(params: RevokeSessionParams): Promise<void> {

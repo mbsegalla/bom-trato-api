@@ -1,6 +1,6 @@
 import { ApiProperty, PickType } from '@nestjs/swagger';
 
-import type { PublicQuoteDecisionResult } from '../../../../application/types/publicQuote.types.js';
+import type { PublicQuoteDecisionResult } from '../../../../application/types/quote.types.js';
 
 import { QuoteItemResponseDto, QuoteResponseDto } from './quoteResponse.dto.js';
 
