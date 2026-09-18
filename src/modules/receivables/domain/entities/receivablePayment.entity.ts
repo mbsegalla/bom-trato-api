@@ -65,8 +65,8 @@ export class ReceivablePayment {
     });
   }
 
-  static restore(state: ReceivablePaymentProps): ReceivablePayment {
-    return new ReceivablePayment(structuredClone(state));
+  static restore(props: ReceivablePaymentProps): ReceivablePayment {
+    return new ReceivablePayment(structuredClone(props));
   }
 
   snapshot(): ReceivablePaymentProps {

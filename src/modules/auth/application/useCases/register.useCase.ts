@@ -1,3 +1,4 @@
+import { normalizeEmail } from '../../../../shared/text/email.js';
 import { User } from '../../../users/domain/entities/user.entity.js';
 import { UserError } from '../../../users/domain/errors/user.error.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
@@ -17,7 +18,7 @@ export class RegisterUseCase {
 
     User.assertPassword(password);
 
-    const email = User.normalizeEmail(rawEmail);
+    const email = normalizeEmail(rawEmail);
     const passwordHash = await this.security.hashPassword(password);
     const token = this.security.newToken();
 

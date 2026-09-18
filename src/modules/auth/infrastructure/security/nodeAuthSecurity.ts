@@ -1,10 +1,11 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import type { ConfigType } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { jwtVerify, SignJWT } from 'jose';
 
 import type { authConfig } from '../../../../config/auth.config.js';
+import { sha256Hex } from '../../../../shared/security/hmac.js';
 import type { AccessClaims } from '../../application/ports/authSecurity.port.js';
 import { AuthSecurity } from '../../application/ports/authSecurity.port.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
@@ -50,7 +51,7 @@ export class NodeAuthSecurity extends AuthSecurity {
   }
 
   hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    return sha256Hex(token);
   }
 
   signAccess(claims: AccessClaims): Promise<string> {

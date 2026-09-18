@@ -1,4 +1,4 @@
-import { User } from '../../../users/domain/entities/user.entity.js';
+import { normalizeEmail } from '../../../../shared/text/email.js';
 import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
@@ -15,7 +15,7 @@ export class LoginUseCase {
   async execute(input: LoginInput): Promise<LoginResult> {
     const { email, password, userAgent } = input;
 
-    const user = await this.authRepository.findUserByEmail(User.normalizeEmail(email));
+    const user = await this.authRepository.findUserByEmail(normalizeEmail(email));
 
     if (user === null) {
       await this.security.dummyVerify(password);

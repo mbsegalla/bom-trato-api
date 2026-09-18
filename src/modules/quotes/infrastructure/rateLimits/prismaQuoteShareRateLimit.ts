@@ -1,9 +1,8 @@
-import { createHmac } from 'node:crypto';
-
 import { HttpException, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { hmacSha256 } from '../../../../shared/security/hmac.js';
 
 export class PrismaQuoteShareRateLimit {
   constructor(
@@ -12,7 +11,7 @@ export class PrismaQuoteShareRateLimit {
   ) {}
 
   async check(ip: string, response: Response): Promise<void> {
-    const key = createHmac('sha256', Buffer.from(this.secret, 'hex')).update(`quote-share:${ip}`).digest('hex');
+    const key = hmacSha256(this.secret, `quote-share:${ip}`, 'hex');
 
     const rows = await this.prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
       WITH cleanup AS (

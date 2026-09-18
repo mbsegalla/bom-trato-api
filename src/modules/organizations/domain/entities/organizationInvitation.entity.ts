@@ -1,4 +1,5 @@
 import { OrganizationInvitationStatus } from '../../../../generated/prisma/enums.js';
+import { normalizeEmail } from '../../../../shared/text/email.js';
 import { OrganizationTeamError } from '../errors/organizationTeam.error.js';
 
 export interface OrganizationInvitationProps {
@@ -33,7 +34,7 @@ export class OrganizationInvitation {
 
     return OrganizationInvitation.restore({
       ...data,
-      email: data.email.trim().toLowerCase(),
+      email: normalizeEmail(data.email),
       status: OrganizationInvitationStatus.PENDING,
       expiresAt: new Date(now.getTime() + 48 * 60 * 60 * 1000),
       lastSentAt: now,
@@ -57,7 +58,7 @@ export class OrganizationInvitation {
   }
 
   assertRecipient(email: string): void {
-    if (this.props.email !== email.trim().toLowerCase()) {
+    if (this.props.email !== normalizeEmail(email)) {
       throw new OrganizationTeamError('INVITATION_EMAIL_MISMATCH');
     }
   }

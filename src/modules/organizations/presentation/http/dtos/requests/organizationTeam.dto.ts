@@ -4,6 +4,7 @@ import { IsEmail, IsEnum, IsOptional, IsString, Matches, MaxLength } from 'class
 
 import { OrganizationInvitationStatus } from '../../../../../../generated/prisma/enums.js';
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
+import { normalizeEmail } from '../../../../../../shared/text/email.js';
 
 export class TeamPageDto extends PageDto {}
 
@@ -21,7 +22,7 @@ export class InviteMemberDto {
     example: 'member@example.com',
     maxLength: 254,
   })
-  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? normalizeEmail(value) : value))
   @IsEmail()
   @MaxLength(254)
   email!: string;
