@@ -5,17 +5,7 @@ import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
-
-export interface StartCheckoutParams {
-  organizationId: string;
-  userId: string;
-  planPriceId: string;
-}
-
-export interface StartCheckoutResult {
-  attemptId: string;
-  clientSecret: string;
-}
+import type { StartCheckoutParams, StartCheckoutResult } from '../types/billing.types.js';
 
 export class StartCheckoutUseCase {
   constructor(

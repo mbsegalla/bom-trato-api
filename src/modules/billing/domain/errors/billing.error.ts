@@ -12,6 +12,7 @@ export type BillingErrorCode =
   | 'CHECKOUT_EXPIRED'
   | 'BILLING_BUSY'
   | 'BILLING_RECONCILIATION_REQUIRED'
+  | 'BILLING_READ_FAILED'
   | 'INVALID_WEBHOOK'
   | 'INVALID_CURSOR'
   | 'MULTIPLE_SUBSCRIPTIONS'
@@ -26,8 +27,11 @@ export type BillingErrorCode =
   | 'PLAN_MEMBER_LIMIT';
 
 export class BillingError extends Error {
-  constructor(readonly code: BillingErrorCode) {
-    super(code);
+  constructor(
+    readonly code: BillingErrorCode,
+    options?: ErrorOptions,
+  ) {
+    super(code, options);
     this.name = 'BillingError';
   }
 }
