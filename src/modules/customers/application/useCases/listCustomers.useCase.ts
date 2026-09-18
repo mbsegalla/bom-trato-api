@@ -1,4 +1,4 @@
-import type { CustomerPageParams } from '../../domain/types/customerPage.types.js';
+import type { CustomerPageParams } from '../../domain/types/customer.types.js';
 import type { CustomerActorParams } from '../ports/customerUnitOfWork.port.js';
 import type { CustomerApplicationService } from '../services/customerApplicationService.service.js';
 

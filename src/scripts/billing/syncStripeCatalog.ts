@@ -4,10 +4,13 @@ import { Logger } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import Stripe from 'stripe';
 
-import { databaseConfig } from '../config/database.config.js';
-import { stripeConfig } from '../config/stripe.config.js';
-import { PrismaClient } from '../generated/prisma/client.js';
-import { parseStripePrice, parseStripeProduct } from '../modules/plans/infrastructure/stripe/stripeCatalog.parser.js';
+import { databaseConfig } from '../../config/database.config.js';
+import { stripeConfig } from '../../config/stripe.config.js';
+import { PrismaClient } from '../../generated/prisma/client.js';
+import {
+  parseStripePrice,
+  parseStripeProduct,
+} from '../../modules/plans/infrastructure/stripe/stripeCatalog.parser.js';
 
 const logger = new Logger('StripeCatalogSync');
 

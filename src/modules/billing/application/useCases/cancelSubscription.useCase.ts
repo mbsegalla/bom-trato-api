@@ -1,5 +1,5 @@
 import type { SubscriptionCancellationService } from '../services/subscriptionCancellationService.service.js';
-import type { SetCancellationParams } from '../types/setCancellation.types.js';
+import type { SetCancellationParams } from '../types/billing.types.js';
 
 export class CancelSubscriptionUseCase {
   constructor(private readonly processor: SubscriptionCancellationService) {}

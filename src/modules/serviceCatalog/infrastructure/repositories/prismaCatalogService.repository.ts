@@ -2,7 +2,7 @@ import type { Prisma } from '../../../../generated/prisma/client.js';
 import type { CatalogService } from '../../domain/entities/catalogService.entity.js';
 import { CatalogServiceError } from '../../domain/errors/catalogService.error.js';
 import { CatalogServiceRepository } from '../../domain/repositories/catalogService.repository.js';
-import type { CatalogServicePageParams } from '../../domain/types/catalogServicePage.types.js';
+import type { CatalogServicePageParams } from '../../domain/types/catalogService.types.js';
 
 export class PrismaCatalogServiceRepository extends CatalogServiceRepository {
   constructor(

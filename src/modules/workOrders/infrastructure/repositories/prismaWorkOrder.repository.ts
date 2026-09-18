@@ -3,12 +3,14 @@ import type { Page, PageParams } from '../../../../shared/types/page.types.js';
 import type { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderRepository } from '../../domain/repositories/workOrder.repository.js';
-import type { WorkOrderPage, WorkOrderPageParams, WorkOrderProps } from '../../domain/types/workOrder.types.js';
 import type {
+  WorkOrderPage,
+  WorkOrderPageParams,
+  WorkOrderProps,
   WorkOrderScheduleHistoryProps,
   WorkOrderScheduleSlot,
-} from '../../domain/types/workOrderSchedule.types.js';
-import type { WorkOrderSummary } from '../../domain/types/workOrderSummary.types.js';
+  WorkOrderSummary,
+} from '../../domain/types/workOrder.types.js';
 
 const include = {
   workOrderItems: {

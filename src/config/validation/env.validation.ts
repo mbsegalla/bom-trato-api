@@ -73,6 +73,8 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   AUTH_ABSOLUTE_TTL_SECONDS: Joi.number().integer().min(900).max(7776000).default(2592000),
 
+  AUTH_RETENTION_DAYS: Joi.number().integer().min(1).max(365).default(30),
+
   MAIL_SMTP_HOST: Joi.string().hostname().required(),
 
   MAIL_SMTP_PORT: Joi.number().integer().min(1).max(65535).default(1025),
@@ -86,6 +88,7 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   MAIL_FROM_EMAIL: Joi.string()
     .email({ tlds: { allow: false } })
     .required(),
+
   MAIL_FROM_NAME: Joi.string().trim().max(100).required(),
 
   QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()

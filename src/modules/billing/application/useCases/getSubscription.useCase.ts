@@ -1,6 +1,6 @@
 import { Subscription } from '../../domain/entities/subscription.entity.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
-import type { ReadSubscriptionParams } from '../types/readBilling.types.js';
+import type { ReadSubscriptionParams } from '../types/billing.types.js';
 
 export class GetSubscriptionUseCase {
   constructor(private readonly billingRepository: BillingRepository) {}

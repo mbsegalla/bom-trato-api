@@ -3,7 +3,7 @@ import { QuoteShare } from '../../domain/entities/quoteShare.entity.js';
 import { QuoteShareError } from '../../domain/errors/quoteShare.error.js';
 import type { PublicQuoteReadContext, PublicQuoteUnitOfWork } from '../ports/publicQuoteUnitOfWork.port.js';
 import type { QuoteShareSecurity } from '../ports/quoteShareSecurity.port.js';
-import type { PublicQuoteDecisionResult, PublicQuoteReadResult } from '../types/publicQuote.types.js';
+import type { PublicQuoteDecisionResult, PublicQuoteReadResult } from '../types/quote.types.js';
 
 export class PublicQuoteApplicationService {
   constructor(

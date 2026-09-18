@@ -1,6 +1,6 @@
 import type { QuotePdfGenerator } from '../ports/quotePdfGenerator.port.js';
 import type { PublicQuoteApplicationService } from '../services/publicQuoteApplicationService.service.js';
-import type { QuotePdfFile } from '../types/quotePdf.types.js';
+import type { QuotePdfFile } from '../types/quote.types.js';
 
 export class GeneratePublicQuotePdfUseCase {
   constructor(

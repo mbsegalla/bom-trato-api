@@ -13,7 +13,7 @@ import { BillingError } from '../../domain/errors/billing.error.js';
 import { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
-import { ClaimedWebhookJob, WebhookOutcome } from '../../domain/types/billingWebhook.types.js';
+import { ClaimedWebhookJob, WebhookOutcome } from '../../domain/types/billing.types.js';
 
 @Injectable()
 export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
@@ -92,7 +92,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
       try {
         await this.syncBillingUseCase.execute({
           organizationId: customer.organizationId,
-          includeInvoiceHistory: true,
+          reconcile: true,
         });
       } catch (error: unknown) {
         await this.billingRepository.postponeReconciliation(customer.organizationId);

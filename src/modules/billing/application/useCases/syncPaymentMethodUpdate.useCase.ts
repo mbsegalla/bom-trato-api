@@ -2,7 +2,7 @@ import { PaymentMethodUpdate } from '../../domain/entities/paymentMethodUpdate.e
 import type { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PaymentMethodUpdateProcessor } from '../services/paymentMethodUpdateProcessor.service.js';
-import type { SynchronizePaymentMethodUpdateParams } from '../types/updatePaymentMethod.types.js';
+import type { SynchronizePaymentMethodUpdateParams } from '../types/billing.types.js';
 
 export class SyncPaymentMethodUpdateUseCase {
   constructor(

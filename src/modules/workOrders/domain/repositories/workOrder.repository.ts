@@ -4,10 +4,11 @@ import type {
   WorkOrderPage,
   WorkOrderPageParams,
   WorkOrderProps,
+  WorkOrderScheduleHistoryProps,
+  WorkOrderScheduleSlot,
   WorkOrderStatusHistoryProps,
+  WorkOrderSummary,
 } from '../types/workOrder.types.js';
-import type { WorkOrderScheduleHistoryProps, WorkOrderScheduleSlot } from '../types/workOrderSchedule.types.js';
-import type { WorkOrderSummary } from '../types/workOrderSummary.types.js';
 
 export abstract class WorkOrderRepository {
   abstract create(order: WorkOrder): Promise<void>;

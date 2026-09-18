@@ -1,7 +1,7 @@
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PlanChangeProcessor } from '../services/planChangeProcessor.service.js';
-import type { PlanChangeActionParams } from '../types/changePlan.types.js';
+import type { PlanChangeActionParams } from '../types/billing.types.js';
 
 export class SyncPlanChangeUseCase {
   constructor(

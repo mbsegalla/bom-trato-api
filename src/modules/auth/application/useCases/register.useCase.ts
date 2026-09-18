@@ -2,13 +2,7 @@ import { User } from '../../../users/domain/entities/user.entity.js';
 import { UserError } from '../../../users/domain/errors/user.error.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthMail, AuthSecurity } from '../ports/authSecurity.port.js';
-import type { AuthPolicy } from '../types/authPolicy.types.js';
-
-export interface RegisterUserInput {
-  name: string;
-  email: string;
-  password: string;
-}
+import type { AuthPolicy, RegisterUserInput } from '../types/auth.types.js';
 
 export class RegisterUseCase {
   constructor(

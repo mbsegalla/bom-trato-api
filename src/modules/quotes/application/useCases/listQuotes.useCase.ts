@@ -1,4 +1,4 @@
-import type { QuotePageParams } from '../../domain/types/quotePage.types.js';
+import type { QuotePageParams } from '../../domain/types/quote.types.js';
 import type { QuoteActorParams } from '../ports/quoteUnitOfWork.port.js';
 import type { QuoteApplicationService } from '../services/quoteApplicationService.service.js';
 

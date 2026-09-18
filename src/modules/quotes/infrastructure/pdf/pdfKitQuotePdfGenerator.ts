@@ -3,7 +3,7 @@ import PDFDocument from 'pdfkit';
 import type { ServiceUnit } from '../../../../generated/prisma/enums.js';
 import { QuoteStatus } from '../../../../generated/prisma/enums.js';
 import { QuotePdfGenerator } from '../../application/ports/quotePdfGenerator.port.js';
-import type { QuotePdfData } from '../../application/types/quotePdf.types.js';
+import type { QuotePdfData } from '../../application/types/quote.types.js';
 
 const statusLabels = {
   DRAFT: 'Rascunho',

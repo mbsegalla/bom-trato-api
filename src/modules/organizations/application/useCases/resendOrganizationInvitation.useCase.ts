@@ -3,7 +3,7 @@ import type {
   OrganizationInvitationTokens,
 } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
-import type { InvitationActionParams } from '../types/manageOrganizationTeam.types.js';
+import type { InvitationActionParams } from '../types/organization.types.js';
 
 export class ResendOrganizationInvitationUseCase {
   constructor(

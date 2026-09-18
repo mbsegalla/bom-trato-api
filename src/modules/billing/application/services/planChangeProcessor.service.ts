@@ -4,7 +4,7 @@ import type { BillingRepository } from '../../domain/repositories/billing.reposi
 import type { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { PlanChangeGateway, RemotePlanChangeState } from '../ports/planChangeGateway.port.js';
-import type { PlanChangeActionParams } from '../types/changePlan.types.js';
+import type { PlanChangeActionParams } from '../types/billing.types.js';
 
 export class PlanChangeProcessor {
   constructor(

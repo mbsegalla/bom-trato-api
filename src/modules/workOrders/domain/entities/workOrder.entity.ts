@@ -1,8 +1,7 @@
 import { QuoteStatus, WorkOrderStatus } from '../../../../generated/prisma/enums.js';
 import type { QuoteProps } from '../../../quotes/domain/entities/quote.entity.js';
 import { WorkOrderError } from '../errors/workOrder.error.js';
-import type { WorkOrderItemProps, WorkOrderProps } from '../types/workOrder.types.js';
-import type { WorkOrderScheduleSlot } from '../types/workOrderSchedule.types.js';
+import type { WorkOrderItemProps, WorkOrderProps, WorkOrderScheduleSlot } from '../types/workOrder.types.js';
 
 export interface WorkOrderDetails {
   title?: string;

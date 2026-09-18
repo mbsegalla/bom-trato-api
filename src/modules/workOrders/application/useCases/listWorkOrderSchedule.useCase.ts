@@ -1,7 +1,7 @@
 import { WorkOrderSchedulePeriod } from '../../domain/valueObjects/workOrderSchedulePeriod.valueObject.js';
 import type { WorkOrderActorParams } from '../ports/workOrderUnitOfWork.port.js';
 import type { WorkOrderApplicationService } from '../services/workOrderApplicationService.service.js';
-import type { WorkOrderScheduleListInput, WorkOrderScheduleView } from '../types/workOrderSchedule.types.js';
+import type { WorkOrderScheduleListInput, WorkOrderScheduleView } from '../types/workOrder.types.js';
 
 export class ListWorkOrderScheduleUseCase {
   constructor(private readonly processor: WorkOrderApplicationService) {}

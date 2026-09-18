@@ -3,8 +3,7 @@ import type { Quote, QuoteProps } from '../../domain/entities/quote.entity.js';
 import type { QuoteItemProps } from '../../domain/entities/quoteItem.entity.js';
 import { QuoteError } from '../../domain/errors/quote.error.js';
 import { QuoteRepository } from '../../domain/repositories/quote.repository.js';
-import type { QuotePage, QuotePageParams } from '../../domain/types/quotePage.types.js';
-import type { QuoteSummary } from '../../domain/types/quoteSummary.types.js';
+import type { QuotePage, QuotePageParams, QuoteSummary } from '../../domain/types/quote.types.js';
 
 const include = {
   quoteItems: {

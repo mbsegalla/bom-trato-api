@@ -1,6 +1,6 @@
 import type { Receivable, ReceivableProps } from '../entities/receivable.entity.js';
 import type { ReceivablePayment, ReceivablePaymentProps } from '../entities/receivablePayment.entity.js';
-import type { ReceivablePage, ReceivablePageParams, ReceivablePagination } from '../types/receivablePage.types.js';
+import type { ReceivablePage, ReceivablePageParams, ReceivablePagination } from '../types/receivable.types.js';
 
 export abstract class ReceivableRepository {
   abstract create(receivable: Receivable): Promise<void>;

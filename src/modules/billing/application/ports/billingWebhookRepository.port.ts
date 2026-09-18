@@ -1,4 +1,4 @@
-import type { ClaimedWebhookJob, WebhookNotice, WebhookOutcome } from '../../domain/types/billingWebhook.types.js';
+import type { ClaimedWebhookJob, WebhookNotice, WebhookOutcome } from '../../domain/types/billing.types.js';
 
 export abstract class BillingWebhookRepository {
   abstract enqueue(notice: WebhookNotice): Promise<void>;

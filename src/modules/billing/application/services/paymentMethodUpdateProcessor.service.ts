@@ -4,7 +4,7 @@ import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import type { PaymentMethodGateway, PaymentSetup } from '../ports/paymentMethodGateway.port.js';
-import type { PaymentMethodUpdateResult } from '../types/updatePaymentMethod.types.js';
+import type { PaymentMethodUpdateResult } from '../types/billing.types.js';
 
 export class PaymentMethodUpdateProcessor {
   constructor(

@@ -1,4 +1,4 @@
-import type { CatalogServicePageParams } from '../../domain/types/catalogServicePage.types.js';
+import type { CatalogServicePageParams } from '../../domain/types/catalogService.types.js';
 import type { CatalogServiceActorParams } from '../ports/catalogServiceUnitOfWork.port.js';
 import type { ServiceCatalogApplicationService } from '../services/serviceCatalogApplicationService.service.js';
 

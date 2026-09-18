@@ -3,11 +3,6 @@ import type { OrganizationProps } from '../entities/organization.entity.js';
 export interface CreateOrganizationParams {
   organization: OrganizationProps;
   billingEmail: string;
-}
-
-export interface CreateOrganizationParams {
-  organization: OrganizationProps;
-  billingEmail: string;
   creationKey: string;
 }
 

@@ -1,5 +1,6 @@
 import type { AuthActionPurpose, SessionRevocationReason } from '../../../../generated/prisma/enums.js';
 import type { User } from '../../../users/domain/entities/user.entity.js';
+import type { AuthenticatedUser } from '../../../users/domain/types/user.types.js';
 import type { AuthSessionProps } from '../entities/authSession.entity.js';
 
 export interface SessionIdentity {
@@ -72,7 +73,7 @@ export abstract class AuthRepository {
   abstract register(params: RegisterUserParams): Promise<boolean>;
   abstract startSession(params: StartSessionParams): Promise<void>;
   abstract rotate(params: RotateSessionParams): Promise<RotateSessionResult>;
-  abstract authenticate(identity: SessionIdentity, now: Date): Promise<User>;
+  abstract authenticate(identity: SessionIdentity, now: Date): Promise<AuthenticatedUser>;
   abstract revoke(params: RevokeSessionParams): Promise<void>;
   abstract revokeByToken(params: RevokeByTokenParams): Promise<void>;
   abstract revokeAll(userId: string, now: Date): Promise<void>;

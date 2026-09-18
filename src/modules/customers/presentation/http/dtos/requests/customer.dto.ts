@@ -3,7 +3,7 @@ import { Transform } from 'class-transformer';
 import { IsEmail, IsIn, IsOptional, IsString, Length, MaxLength, ValidateIf } from 'class-validator';
 
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
-import { customerStatuses } from '../../../../domain/types/customerPage.types.js';
+import { customerStatuses } from '../../../../domain/types/customer.types.js';
 
 function nullableText({ value }: { value: unknown }): unknown {
   return typeof value === 'string' ? value.trim() || null : value;

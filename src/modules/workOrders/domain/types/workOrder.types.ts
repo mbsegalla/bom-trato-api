@@ -65,3 +65,45 @@ export interface WorkOrderPageParams extends PageParams {
 }
 
 export type WorkOrderPage<T> = Page<T>;
+
+export type WorkOrderSummary = Pick<
+  WorkOrderProps,
+  | 'id'
+  | 'organizationId'
+  | 'quoteId'
+  | 'customerId'
+  | 'customerName'
+  | 'title'
+  | 'assignedToId'
+  | 'status'
+  | 'currency'
+  | 'totalInCents'
+  | 'scheduledStartAt'
+  | 'scheduledEndAt'
+  | 'version'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+
+export interface WorkOrderScheduleSlot {
+  workOrderId: string;
+  assignedToId: string;
+  start: Date;
+  end: Date;
+}
+
+export interface WorkOrderScheduleHistoryProps {
+  id: string;
+  workOrderId: string;
+  fromAssignedToId: string | null;
+  toAssignedToId: string | null;
+  fromStartAt: Date | null;
+  fromEndAt: Date | null;
+  toStartAt: Date | null;
+  toEndAt: Date | null;
+  fromStatus: WorkOrderStatus;
+  toStatus: WorkOrderStatus;
+  actorId: string;
+  version: number;
+  createdAt: Date;
+}

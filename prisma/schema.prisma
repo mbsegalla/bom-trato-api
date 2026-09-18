@@ -201,6 +201,8 @@ model AuthSession {
 
   @@index([userId, createdAt])
   @@index([absoluteExpiresAt])
+  @@index([idleExpiresAt])
+  @@index([revokedAt])
 }
 
 model RefreshToken {
@@ -281,15 +283,16 @@ model OrganizationMember {
 }
 
 model BillingCustomer {
-  id                  String    @id @default(uuid()) @db.Uuid
-  organizationId      String    @unique @db.Uuid
-  stripeCustomerId    String?   @unique
-  billingEmail        String    @db.VarChar(254)
-  billingName         String    @db.VarChar(100)
-  creationRequestedAt DateTime? @db.Timestamptz(3)
-  nextReconcileAt     DateTime  @default(now()) @db.Timestamptz(3)
-  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
+  id                     String    @id @default(uuid()) @db.Uuid
+  organizationId         String    @unique @db.Uuid
+  stripeCustomerId       String?   @unique
+  billingEmail           String    @db.VarChar(254)
+  billingName            String    @db.VarChar(100)
+  creationRequestedAt    DateTime? @db.Timestamptz(3)
+  nextReconcileAt        DateTime  @default(now()) @db.Timestamptz(3)
+  invoiceHistorySyncedAt DateTime? @db.Timestamptz(3)
+  createdAt              DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
@@ -361,6 +364,7 @@ model BillingInvoice {
 
   @@index([organizationId, stripeCreatedAt(sort: Desc), id(sort: Desc)])
   @@index([subscriptionId])
+  @@index([organizationId, status, updatedAt, id])
 }
 
 model BillingMutex {
@@ -756,10 +760,10 @@ model ReceivablePayment {
   receivedAt     DateTime                @db.Timestamptz(3)
   notes          String?                 @db.VarChar(2000)
   recordedById   String                  @db.Uuid
-  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
   reversedAt     DateTime?               @db.Timestamptz(3)
   reversedById   String?                 @db.Uuid
   reversalReason String?                 @db.VarChar(1000)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
 
   receivable Receivable @relation(fields: [receivableId], references: [id], onDelete: Restrict)
 

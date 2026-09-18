@@ -198,7 +198,9 @@ export class PrismaBillingRepository extends BillingRepository {
     });
   }
 
-  async saveSnapshot({ organizationId, snapshot, checkout, nextReconcileAt }: SaveSnapshotParams): Promise<void> {
+  async saveSnapshot(params: SaveSnapshotParams): Promise<void> {
+    const { organizationId, snapshot, checkout, nextReconcileAt, invoiceHistorySyncedAt } = params;
+
     const priceIds = [...new Set(snapshot.subscriptions.map((item) => item.stripePriceId))];
 
     const prices = await this.prisma.planPrice.findMany({
@@ -326,6 +328,20 @@ export class PrismaBillingRepository extends BillingRepository {
           }
         }
 
+        if (snapshot.deletedInvoiceIds?.length) {
+          await tx.billingInvoice.updateMany({
+            where: {
+              organizationId,
+              stripeInvoiceId: {
+                in: snapshot.deletedInvoiceIds,
+              },
+            },
+            data: {
+              status: 'deleted',
+            },
+          });
+        }
+
         if (checkout !== undefined) {
           const closed = await tx.checkoutAttempt.updateMany({
             where: {
@@ -345,13 +361,14 @@ export class PrismaBillingRepository extends BillingRepository {
           }
         }
 
-        if (nextReconcileAt !== undefined) {
+        if (nextReconcileAt !== undefined || invoiceHistorySyncedAt !== undefined) {
           await tx.billingCustomer.update({
             where: {
               organizationId,
             },
             data: {
               nextReconcileAt,
+              invoiceHistorySyncedAt,
             },
           });
         }
@@ -498,5 +515,23 @@ export class PrismaBillingRepository extends BillingRepository {
       memberCount: organization._count.organizationMembers,
       isOwner: organization.ownerId === userId,
     };
+  }
+
+  async pendingInvoiceIds(organizationId: string): Promise<string[]> {
+    const rows = await this.prisma.billingInvoice.findMany({
+      where: {
+        organizationId,
+        status: {
+          in: ['draft', 'open', 'uncollectible'],
+        },
+      },
+      select: {
+        stripeInvoiceId: true,
+      },
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      take: 20,
+    });
+
+    return rows.map((row) => row.stripeInvoiceId);
   }
 }
