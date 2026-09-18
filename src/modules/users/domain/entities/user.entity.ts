@@ -24,10 +24,6 @@ export class User {
     });
   }
 
-  static normalizeEmail(email: string): string {
-    return email.trim().toLowerCase();
-  }
-
   static assertPassword(password: string): void {
     if (password.length < 15 || password.length > 128) {
       throw new UserError('INVALID_PASSWORD');

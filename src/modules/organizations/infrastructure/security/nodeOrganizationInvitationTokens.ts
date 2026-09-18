@@ -1,5 +1,6 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
+import { sha256Hex } from '../../../../shared/security/hmac.js';
 import { OrganizationInvitationTokens } from '../../application/ports/organizationInvitationSecurity.port.js';
 
 export class NodeOrganizationInvitationTokens extends OrganizationInvitationTokens {
@@ -13,6 +14,6 @@ export class NodeOrganizationInvitationTokens extends OrganizationInvitationToke
   }
 
   hash(value: string): string {
-    return createHash('sha256').update(value).digest('hex');
+    return sha256Hex(value);
   }
 }

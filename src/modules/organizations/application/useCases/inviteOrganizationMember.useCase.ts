@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { normalizeEmail } from '../../../../shared/text/email.js';
 import { OrganizationInvitation } from '../../domain/entities/organizationInvitation.entity.js';
 import type {
   OrganizationInvitationMail,
@@ -22,7 +23,7 @@ export class InviteOrganizationMemberUseCase {
       policy.assertOwner();
 
       const now = new Date();
-      const email = params.email.trim().toLowerCase();
+      const email = normalizeEmail(params.email);
 
       await this.processor.assertCanInvite(tx, policy, email, now);
       await this.processor.clearExpiredInvitation(tx, email, now);

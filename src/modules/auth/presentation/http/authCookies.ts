@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { ForbiddenException } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
@@ -6,6 +6,7 @@ import type { CookieOptions, Request, Response } from 'express';
 
 import type { appConfig } from '../../../../config/app.config.js';
 import type { authConfig } from '../../../../config/auth.config.js';
+import { hmacSha256, sha256Hex } from '../../../../shared/security/hmac.js';
 
 export class AuthCookies {
   readonly refreshName: string;
@@ -50,13 +51,9 @@ export class AuthCookies {
   }
 
   private signature(nonce: string, expires: string, refresh: string): string {
-    const binding = createHash('sha256')
-      .update(refresh || 'anonymous')
-      .digest('hex');
+    const binding = sha256Hex(refresh || 'anonymous');
 
-    return createHmac('sha256', Buffer.from(this.config.csrfSecret, 'hex'))
-      .update(`${nonce}.${expires}.${binding}`)
-      .digest('base64url');
+    return hmacSha256(this.config.csrfSecret, `${nonce}.${expires}.${binding}`, 'base64url');
   }
 
   issueCsrf(response: Response, refresh: string): string {

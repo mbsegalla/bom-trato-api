@@ -85,8 +85,8 @@ export class Quote {
     return quote;
   }
 
-  static restore(state: QuoteProps): Quote {
-    return new Quote(structuredClone(state));
+  static restore(props: QuoteProps): Quote {
+    return new Quote(structuredClone(props));
   }
 
   snapshot(): QuoteProps {

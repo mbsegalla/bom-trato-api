@@ -36,8 +36,8 @@ export class CatalogService {
     });
   }
 
-  static restore(state: CatalogServiceProps): CatalogService {
-    return new CatalogService(structuredClone(state));
+  static restore(props: CatalogServiceProps): CatalogService {
+    return new CatalogService(structuredClone(props));
   }
 
   update(details: Partial<CatalogServiceDetails>, now: Date): void {

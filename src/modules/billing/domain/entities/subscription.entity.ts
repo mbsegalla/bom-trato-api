@@ -17,10 +17,10 @@ export interface SubscriptionProps {
 }
 
 export class Subscription {
-  private constructor(private readonly state: SubscriptionProps) {}
+  private constructor(private readonly props: SubscriptionProps) {}
 
-  static restore(state: SubscriptionProps): Subscription {
-    return new Subscription(structuredClone(state));
+  static restore(props: SubscriptionProps): Subscription {
+    return new Subscription(structuredClone(props));
   }
 
   static blocksNewCheckout(status: SubscriptionStatus): boolean {
@@ -29,18 +29,18 @@ export class Subscription {
 
   hasAccessAt(now: Date): boolean {
     return (
-      (this.state.status === SubscriptionStatus.ACTIVE || this.state.status === SubscriptionStatus.PAST_DUE) &&
-      this.state.endedAt === null &&
-      this.state.paidThrough !== null &&
-      this.state.paidThrough > now
+      (this.props.status === SubscriptionStatus.ACTIVE || this.props.status === SubscriptionStatus.PAST_DUE) &&
+      this.props.endedAt === null &&
+      this.props.paidThrough !== null &&
+      this.props.paidThrough > now
     );
   }
 
   assertCanChangeCancellation(): void {
     if (
-      this.state.status !== SubscriptionStatus.ACTIVE &&
-      this.state.status !== SubscriptionStatus.PAST_DUE &&
-      this.state.status !== SubscriptionStatus.TRIALING
+      this.props.status !== SubscriptionStatus.ACTIVE &&
+      this.props.status !== SubscriptionStatus.PAST_DUE &&
+      this.props.status !== SubscriptionStatus.TRIALING
     ) {
       throw new BillingError('INVALID_SUBSCRIPTION_STATE');
     }
@@ -48,19 +48,19 @@ export class Subscription {
 
   toPublic(now: Date) {
     return {
-      id: this.state.id,
-      organizationId: this.state.organizationId,
-      planPriceId: this.state.planPriceId,
-      status: this.state.status,
-      currentPeriodStart: this.state.currentPeriodStart,
-      currentPeriodEnd: this.state.currentPeriodEnd,
-      paidThrough: this.state.paidThrough,
-      cancelAtPeriodEnd: this.state.cancelAtPeriodEnd,
+      id: this.props.id,
+      organizationId: this.props.organizationId,
+      planPriceId: this.props.planPriceId,
+      status: this.props.status,
+      currentPeriodStart: this.props.currentPeriodStart,
+      currentPeriodEnd: this.props.currentPeriodEnd,
+      paidThrough: this.props.paidThrough,
+      cancelAtPeriodEnd: this.props.cancelAtPeriodEnd,
       hasAccess: this.hasAccessAt(now),
     };
   }
 
   snapshot(): SubscriptionProps {
-    return structuredClone(this.state);
+    return structuredClone(this.props);
   }
 }

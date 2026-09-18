@@ -26,7 +26,9 @@ export class PrismaOrganizationInvitationRepository extends OrganizationInvitati
     super();
   }
 
-  findById({ organizationId, invitationId }: InvitationByIdParams) {
+  findById(params: InvitationByIdParams) {
+    const { organizationId, invitationId } = params;
+
     return this.db.organizationInvitation.findFirst({
       where: {
         id: invitationId,
@@ -35,7 +37,8 @@ export class PrismaOrganizationInvitationRepository extends OrganizationInvitati
     });
   }
 
-  findPending({ organizationId, email }: PendingInvitationParams) {
+  findPending(params: PendingInvitationParams) {
+    const { organizationId, email } = params;
     return this.db.organizationInvitation.findUnique({
       where: {
         organizationId_pendingEmail: {
@@ -74,7 +77,8 @@ export class PrismaOrganizationInvitationRepository extends OrganizationInvitati
     });
   }
 
-  async invalidateAcceptedTokens({ organizationId, userId }: InvalidateAcceptedInvitationsParams): Promise<void> {
+  async invalidateAcceptedTokens(params: InvalidateAcceptedInvitationsParams): Promise<void> {
+    const { organizationId, userId } = params;
     const rows = await this.db.organizationInvitation.findMany({
       where: {
         organizationId,

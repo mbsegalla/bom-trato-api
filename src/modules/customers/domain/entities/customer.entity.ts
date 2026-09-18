@@ -1,3 +1,4 @@
+import { normalizeEmail } from '../../../../shared/text/email.js';
 import { CustomerError } from '../errors/customer.error.js';
 
 export interface CustomerProps {
@@ -20,7 +21,7 @@ export interface CustomerDetails {
 }
 
 export class Customer {
-  private constructor(private state: CustomerProps) {}
+  private constructor(private props: CustomerProps) {}
 
   static create(params: CustomerDetails & { id: string; organizationId: string }, now: Date): Customer {
     return new Customer({
@@ -33,12 +34,12 @@ export class Customer {
     });
   }
 
-  static restore(state: CustomerProps): Customer {
-    return new Customer(structuredClone(state));
+  static restore(props: CustomerProps): Customer {
+    return new Customer(structuredClone(props));
   }
 
   update(details: Partial<CustomerDetails>, now: Date): void {
-    if (this.state.archivedAt !== null) {
+    if (this.props.archivedAt !== null) {
       throw new CustomerError('CUSTOMER_ARCHIVED');
     }
 
@@ -49,44 +50,44 @@ export class Customer {
     }
 
     const normalized = Customer.normalize({
-      name: details.name === undefined ? this.state.name : details.name,
-      email: details.email === undefined ? this.state.email : details.email,
-      phone: details.phone === undefined ? this.state.phone : details.phone,
-      notes: details.notes === undefined ? this.state.notes : details.notes,
+      name: details.name === undefined ? this.props.name : details.name,
+      email: details.email === undefined ? this.props.email : details.email,
+      phone: details.phone === undefined ? this.props.phone : details.phone,
+      notes: details.notes === undefined ? this.props.notes : details.notes,
     });
 
-    this.state = {
-      ...this.state,
+    this.props = {
+      ...this.props,
       ...normalized,
       updatedAt: new Date(now),
     };
   }
 
   archive(now: Date): void {
-    if (this.state.archivedAt !== null) {
+    if (this.props.archivedAt !== null) {
       return;
     }
 
-    this.state.archivedAt = new Date(now);
-    this.state.updatedAt = new Date(now);
+    this.props.archivedAt = new Date(now);
+    this.props.updatedAt = new Date(now);
   }
 
   unarchive(now: Date): void {
-    if (this.state.archivedAt === null) {
+    if (this.props.archivedAt === null) {
       return;
     }
 
-    this.state.archivedAt = null;
-    this.state.updatedAt = new Date(now);
+    this.props.archivedAt = null;
+    this.props.updatedAt = new Date(now);
   }
 
   snapshot(): CustomerProps {
-    return structuredClone(this.state);
+    return structuredClone(this.props);
   }
 
   private static normalize(details: CustomerDetails) {
     const name = details.name.trim();
-    const email = details.email?.trim().toLowerCase() || null;
+    const email = details.email ? normalizeEmail(details.email) : null;
     const phone = details.phone?.trim() || null;
     const notes = details.notes?.trim() || null;
 

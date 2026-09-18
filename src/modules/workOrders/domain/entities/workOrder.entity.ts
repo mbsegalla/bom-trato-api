@@ -10,7 +10,7 @@ export interface WorkOrderDetails {
 }
 
 export class WorkOrder {
-  private constructor(private state: WorkOrderProps) {}
+  private constructor(private props: WorkOrderProps) {}
 
   static create(
     params: {
@@ -81,28 +81,28 @@ export class WorkOrder {
     });
   }
 
-  static restore(state: WorkOrderProps): WorkOrder {
-    return new WorkOrder(structuredClone(state));
+  static restore(props: WorkOrderProps): WorkOrder {
+    return new WorkOrder(structuredClone(props));
   }
 
   snapshot(): WorkOrderProps {
-    return structuredClone(this.state);
+    return structuredClone(this.props);
   }
 
   assertVersion(version: number): void {
-    if (!Number.isSafeInteger(version) || version !== this.state.version) {
+    if (!Number.isSafeInteger(version) || version !== this.props.version) {
       throw new WorkOrderError('WORK_ORDER_VERSION_CONFLICT');
     }
   }
 
   recordChange(userId: string, now: Date): void {
-    if (this.state.version >= 2147483647) {
+    if (this.props.version >= 2147483647) {
       throw new WorkOrderError('WORK_ORDER_VERSION_CONFLICT');
     }
 
-    this.state.version++;
-    this.state.updatedById = userId;
-    this.state.updatedAt = new Date(now);
+    this.props.version++;
+    this.props.updatedById = userId;
+    this.props.updatedAt = new Date(now);
   }
 
   update(details: WorkOrderDetails): void {
@@ -112,26 +112,26 @@ export class WorkOrder {
       throw new WorkOrderError('INVALID_WORK_ORDER_INPUT');
     }
 
-    const title = details.title === undefined ? this.state.title : details.title;
+    const title = details.title === undefined ? this.props.title : details.title;
 
     if (typeof title !== 'string' || title.trim().length < 2 || title.trim().length > 150) {
       throw new WorkOrderError('INVALID_WORK_ORDER_INPUT');
     }
 
     const instructions =
-      details.instructions === undefined ? this.state.instructions : this.normalizeText(details.instructions, 5000);
+      details.instructions === undefined ? this.props.instructions : this.normalizeText(details.instructions, 5000);
 
     const address =
       details.serviceAddress === undefined
-        ? this.state.serviceAddress
+        ? this.props.serviceAddress
         : this.normalizeText(details.serviceAddress, 500);
 
-    if (this.state.status === WorkOrderStatus.SCHEDULED && address === null) {
+    if (this.props.status === WorkOrderStatus.SCHEDULED && address === null) {
       throw new WorkOrderError('SERVICE_ADDRESS_REQUIRED');
     }
 
-    this.state = {
-      ...this.state,
+    this.props = {
+      ...this.props,
       title: title.trim(),
       instructions,
       serviceAddress: address,
@@ -141,11 +141,11 @@ export class WorkOrder {
   assign(userId: string | null): void {
     this.assertPlanning();
 
-    if (this.state.status === WorkOrderStatus.SCHEDULED && userId === null) {
+    if (this.props.status === WorkOrderStatus.SCHEDULED && userId === null) {
       throw new WorkOrderError('ASSIGNEE_REQUIRED');
     }
 
-    this.state.assignedToId = userId;
+    this.props.assignedToId = userId;
   }
 
   schedule(start: Date, end: Date, now: Date): void {
@@ -156,38 +156,38 @@ export class WorkOrder {
       throw new WorkOrderError('INVALID_WORK_ORDER_SCHEDULE');
     }
 
-    this.state.scheduledStartAt = new Date(start);
-    this.state.scheduledEndAt = new Date(end);
-    this.state.status = WorkOrderStatus.SCHEDULED;
+    this.props.scheduledStartAt = new Date(start);
+    this.props.scheduledEndAt = new Date(end);
+    this.props.status = WorkOrderStatus.SCHEDULED;
   }
 
   start(now: Date): void {
     this.assertPlanning();
     this.assertReady();
 
-    this.state.status = WorkOrderStatus.IN_PROGRESS;
-    this.state.startedAt = new Date(now);
+    this.props.status = WorkOrderStatus.IN_PROGRESS;
+    this.props.startedAt = new Date(now);
   }
 
   updateExecutionNotes(notes: string | null): void {
-    if (this.state.status === WorkOrderStatus.COMPLETED || this.state.status === WorkOrderStatus.CANCELED) {
+    if (this.props.status === WorkOrderStatus.COMPLETED || this.props.status === WorkOrderStatus.CANCELED) {
       throw new WorkOrderError('WORK_ORDER_NOT_EDITABLE');
     }
 
-    this.state.executionNotes = this.normalizeText(notes, 10000);
+    this.props.executionNotes = this.normalizeText(notes, 10000);
   }
 
   complete(now: Date): void {
-    if (this.state.status !== WorkOrderStatus.IN_PROGRESS) {
+    if (this.props.status !== WorkOrderStatus.IN_PROGRESS) {
       throw new WorkOrderError('INVALID_WORK_ORDER_TRANSITION');
     }
 
-    this.state.status = WorkOrderStatus.COMPLETED;
-    this.state.completedAt = new Date(now);
+    this.props.status = WorkOrderStatus.COMPLETED;
+    this.props.completedAt = new Date(now);
   }
 
   cancel(reason: string, now: Date): void {
-    if (this.state.status === WorkOrderStatus.COMPLETED || this.state.status === WorkOrderStatus.CANCELED) {
+    if (this.props.status === WorkOrderStatus.COMPLETED || this.props.status === WorkOrderStatus.CANCELED) {
       throw new WorkOrderError('INVALID_WORK_ORDER_TRANSITION');
     }
 
@@ -195,13 +195,13 @@ export class WorkOrder {
       throw new WorkOrderError('CANCELLATION_REASON_REQUIRED');
     }
 
-    this.state.status = WorkOrderStatus.CANCELED;
-    this.state.canceledAt = new Date(now);
-    this.state.cancellationReason = reason.trim();
+    this.props.status = WorkOrderStatus.CANCELED;
+    this.props.canceledAt = new Date(now);
+    this.props.cancellationReason = reason.trim();
   }
 
   scheduleToCheck(previous: WorkOrderProps): WorkOrderScheduleSlot | null {
-    const current = this.state;
+    const current = this.props;
 
     if (current.status !== WorkOrderStatus.SCHEDULED) {
       return null;
@@ -233,17 +233,17 @@ export class WorkOrder {
   }
 
   private assertPlanning(): void {
-    if (this.state.status !== WorkOrderStatus.OPEN && this.state.status !== WorkOrderStatus.SCHEDULED) {
+    if (this.props.status !== WorkOrderStatus.OPEN && this.props.status !== WorkOrderStatus.SCHEDULED) {
       throw new WorkOrderError('WORK_ORDER_NOT_EDITABLE');
     }
   }
 
   private assertReady(): void {
-    if (this.state.assignedToId === null) {
+    if (this.props.assignedToId === null) {
       throw new WorkOrderError('ASSIGNEE_REQUIRED');
     }
 
-    if (this.state.serviceAddress === null) {
+    if (this.props.serviceAddress === null) {
       throw new WorkOrderError('SERVICE_ADDRESS_REQUIRED');
     }
   }

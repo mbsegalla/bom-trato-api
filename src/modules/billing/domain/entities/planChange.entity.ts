@@ -54,7 +54,7 @@ export interface PlanChangeReferences {
 }
 
 export class PlanChange {
-  private constructor(private readonly state: PlanChangeProps) {}
+  private constructor(private readonly props: PlanChangeProps) {}
 
   static create(params: CreatePlanChangeParams): PlanChange {
     if (params.sourcePlanPriceId === params.targetPlanPriceId) {
@@ -95,8 +95,8 @@ export class PlanChange {
     );
   }
 
-  static restore(state: PlanChangeProps): PlanChange {
-    return new PlanChange(structuredClone(state));
+  static restore(props: PlanChangeProps): PlanChange {
+    return new PlanChange(structuredClone(props));
   }
 
   static determineMode({ source, target }: DeterminePlanChangeModeParams): PlanChangeMode {
@@ -114,16 +114,16 @@ export class PlanChange {
   }
 
   isQuoted(): boolean {
-    return this.state.status === PlanChangeStatus.QUOTED;
+    return this.props.status === PlanChangeStatus.QUOTED;
   }
 
   isProcessing(): boolean {
-    return this.state.status === PlanChangeStatus.PROCESSING;
+    return this.props.status === PlanChangeStatus.PROCESSING;
   }
 
   isTerminal(): boolean {
     return [PlanChangeStatus.APPLIED, PlanChangeStatus.CANCELED, PlanChangeStatus.EXPIRED].some(
-      (status) => status === this.state.status,
+      (status) => status === this.props.status,
     );
   }
 
@@ -132,17 +132,17 @@ export class PlanChange {
   }
 
   isQuoteExpired(now: Date): boolean {
-    return this.isQuoted() && this.state.expiresAt <= now;
+    return this.isQuoted() && this.props.expiresAt <= now;
   }
 
   assertBelongsTo(organizationId: string): void {
-    if (this.state.organizationId !== organizationId) {
+    if (this.props.organizationId !== organizationId) {
       throw new BillingError('PLAN_CHANGE_NOT_FOUND');
     }
   }
 
   assertFitsMemberLimit(memberCount: number): void {
-    if (memberCount > this.state.targetMaxUsers) {
+    if (memberCount > this.props.targetMaxUsers) {
       throw new BillingError('PLAN_MEMBER_LIMIT');
     }
   }
@@ -156,12 +156,12 @@ export class PlanChange {
       throw new BillingError('PLAN_CHANGE_QUOTE_EXPIRED');
     }
 
-    this.state.status = PlanChangeStatus.PROCESSING;
-    this.state.startedAt = new Date(now);
+    this.props.status = PlanChangeStatus.PROCESSING;
+    this.props.startedAt = new Date(now);
   }
 
   markPaymentPending(): void {
-    if (this.state.mode !== PlanChangeMode.IMMEDIATE) {
+    if (this.props.mode !== PlanChangeMode.IMMEDIATE) {
       throw new BillingError('PLAN_CHANGE_CONFLICT');
     }
 
@@ -169,7 +169,7 @@ export class PlanChange {
   }
 
   markScheduled(): void {
-    if (this.state.mode !== PlanChangeMode.PERIOD_END) {
+    if (this.props.mode !== PlanChangeMode.PERIOD_END) {
       throw new BillingError('PLAN_CHANGE_CONFLICT');
     }
 
@@ -205,7 +205,7 @@ export class PlanChange {
     if (
       this.isTerminal() ||
       this.isProcessing() ||
-      (this.state.status === PlanChangeStatus.SCHEDULED && now.getTime() >= this.state.periodEnd * 1000)
+      (this.props.status === PlanChangeStatus.SCHEDULED && now.getTime() >= this.props.periodEnd * 1000)
     ) {
       throw new BillingError('PLAN_CHANGE_CONFLICT');
     }
@@ -213,45 +213,45 @@ export class PlanChange {
 
   recordReferences({ stripeInvoiceId, stripeScheduleId }: PlanChangeReferences): void {
     if (stripeInvoiceId !== null) {
-      this.state.stripeInvoiceId = stripeInvoiceId;
+      this.props.stripeInvoiceId = stripeInvoiceId;
     }
 
     if (stripeScheduleId !== null) {
-      this.state.stripeScheduleId = stripeScheduleId;
+      this.props.stripeScheduleId = stripeScheduleId;
     }
   }
 
   toPublic(clientSecret: string | null = null) {
     return {
-      id: this.state.id,
-      sourcePlanPriceId: this.state.sourcePlanPriceId,
-      targetPlanPriceId: this.state.targetPlanPriceId,
-      mode: this.state.mode,
-      status: this.state.status,
-      currency: this.state.currency,
-      amountDueNow: this.state.amountDueNow,
-      targetAmountInCents: this.state.targetAmountInCents,
-      targetInterval: this.state.targetInterval,
-      targetIntervalCount: this.state.targetIntervalCount,
-      effectiveAt: this.state.mode === PlanChangeMode.PERIOD_END ? new Date(this.state.periodEnd * 1000) : null,
-      quoteExpiresAt: new Date(this.state.expiresAt),
+      id: this.props.id,
+      sourcePlanPriceId: this.props.sourcePlanPriceId,
+      targetPlanPriceId: this.props.targetPlanPriceId,
+      mode: this.props.mode,
+      status: this.props.status,
+      currency: this.props.currency,
+      amountDueNow: this.props.amountDueNow,
+      targetAmountInCents: this.props.targetAmountInCents,
+      targetInterval: this.props.targetInterval,
+      targetIntervalCount: this.props.targetIntervalCount,
+      effectiveAt: this.props.mode === PlanChangeMode.PERIOD_END ? new Date(this.props.periodEnd * 1000) : null,
+      quoteExpiresAt: new Date(this.props.expiresAt),
       clientSecret,
     };
   }
 
   snapshot(): PlanChangeProps {
-    return structuredClone(this.state);
+    return structuredClone(this.props);
   }
 
   private transition(next: PlanChangeStatus, allowed: readonly PlanChangeStatus[]): void {
-    if (this.state.status === next) {
+    if (this.props.status === next) {
       return;
     }
 
-    if (!allowed.includes(this.state.status)) {
+    if (!allowed.includes(this.props.status)) {
       throw new BillingError('PLAN_CHANGE_CONFLICT');
     }
 
-    this.state.status = next;
+    this.props.status = next;
   }
 }

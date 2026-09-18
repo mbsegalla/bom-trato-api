@@ -1,5 +1,5 @@
 import { AuthActionPurpose } from '../../../../generated/prisma/enums.js';
-import { User } from '../../../users/domain/entities/user.entity.js';
+import { normalizeEmail } from '../../../../shared/text/email.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthMail, AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthPolicy } from '../types/auth.types.js';
@@ -13,7 +13,7 @@ export class AuthEmailSender {
   ) {}
 
   async send(emailInput: string, purpose: AuthActionPurpose): Promise<void> {
-    const email = User.normalizeEmail(emailInput);
+    const email = normalizeEmail(emailInput);
     const token = this.security.newToken();
 
     const ttl =

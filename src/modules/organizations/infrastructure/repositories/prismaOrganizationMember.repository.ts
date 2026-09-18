@@ -33,14 +33,17 @@ export class PrismaOrganizationMemberRepository extends OrganizationMemberReposi
     });
   }
 
-  findByUser({ organizationId, userId }: MemberByUserParams) {
+  findByUser(params: MemberByUserParams) {
+    const { organizationId, userId } = params;
+
     return this.db.organizationMember.findFirst({
       where: { organizationId, userId },
       select: memberSelect,
     });
   }
 
-  findById({ organizationId, memberId }: MemberByIdParams) {
+  findById(params: MemberByIdParams) {
+    const { organizationId, memberId } = params;
     return this.db.organizationMember.findFirst({
       where: {
         organizationId,
@@ -50,7 +53,9 @@ export class PrismaOrganizationMemberRepository extends OrganizationMemberReposi
     });
   }
 
-  async existsByEmail({ organizationId, email }: MemberByEmailParams): Promise<boolean> {
+  async existsByEmail(params: MemberByEmailParams): Promise<boolean> {
+    const { organizationId, email } = params;
+
     const count = await this.db.organizationMember.count({
       where: {
         organizationId,
@@ -61,7 +66,9 @@ export class PrismaOrganizationMemberRepository extends OrganizationMemberReposi
     return count > 0;
   }
 
-  async add({ organizationId, userId }: MemberByUserParams): Promise<void> {
+  async add(params: MemberByUserParams): Promise<void> {
+    const { organizationId, userId } = params;
+
     await this.db.organizationMember.create({
       data: {
         organizationId,
@@ -71,7 +78,9 @@ export class PrismaOrganizationMemberRepository extends OrganizationMemberReposi
     });
   }
 
-  async remove({ organizationId, memberId }: MemberByIdParams): Promise<void> {
+  async remove(params: MemberByIdParams): Promise<void> {
+    const { organizationId, memberId } = params;
+
     await this.db.organizationMember.delete({
       where: {
         id: memberId,

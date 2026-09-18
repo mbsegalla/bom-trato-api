@@ -1,9 +1,9 @@
-import { createHmac } from 'node:crypto';
-
 import { HttpException, HttpStatus } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { hmacSha256 } from '../../../../shared/security/hmac.js';
+import { normalizeEmail } from '../../../../shared/text/email.js';
 
 export class PostgresAuthRateLimit {
   constructor(
@@ -12,7 +12,7 @@ export class PostgresAuthRateLimit {
   ) {}
 
   private async consume(identity: string, limit: number, seconds: number, response: Response): Promise<void> {
-    const key = createHmac('sha256', Buffer.from(this.secret, 'hex')).update(identity).digest('hex');
+    const key = hmacSha256(this.secret, identity, 'hex');
 
     const rows = await this.prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
       INSERT INTO "AuthRateLimit" ("key", "count", "expiresAt")
@@ -68,7 +68,7 @@ export class PostgresAuthRateLimit {
       typeof body.email === 'string' &&
       body.email.length <= 254
     ) {
-      await this.consume(`email:${bucket}:${body.email.trim().toLowerCase()}`, 10, 900, response);
+      await this.consume(`email:${bucket}:${normalizeEmail(body.email)}`, 10, 900, response);
     }
   }
 }

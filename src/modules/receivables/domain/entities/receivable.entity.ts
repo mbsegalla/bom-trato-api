@@ -54,7 +54,7 @@ export type ReceivableView = ReceivableProps & {
 };
 
 export class Receivable {
-  private constructor(private state: ReceivableProps) {}
+  private constructor(private props: ReceivableProps) {}
 
   static create(
     params: {
@@ -109,44 +109,44 @@ export class Receivable {
     });
   }
 
-  static restore(state: ReceivableProps): Receivable {
-    return new Receivable(structuredClone(state));
+  static restore(props: ReceivableProps): Receivable {
+    return new Receivable(structuredClone(props));
   }
 
   snapshot(): ReceivableProps {
-    return structuredClone(this.state);
+    return structuredClone(this.props);
   }
 
   view(now: Date): ReceivableView {
-    const balanceInCents = this.state.amountInCents - this.state.receivedInCents;
+    const balanceInCents = this.props.amountInCents - this.props.receivedInCents;
 
     return {
       ...this.snapshot(),
-      balanceInCents: this.state.status === ReceivableStatus.CANCELED ? 0 : balanceInCents,
-      overdue: this.state.status !== ReceivableStatus.CANCELED && balanceInCents > 0 && this.state.dueAt < now,
+      balanceInCents: this.props.status === ReceivableStatus.CANCELED ? 0 : balanceInCents,
+      overdue: this.props.status !== ReceivableStatus.CANCELED && balanceInCents > 0 && this.props.dueAt < now,
     };
   }
 
   assertVersion(version: number): void {
-    if (!Number.isSafeInteger(version) || version !== this.state.version) {
+    if (!Number.isSafeInteger(version) || version !== this.props.version) {
       throw new ReceivableError('RECEIVABLE_VERSION_CONFLICT');
     }
   }
 
   recordChange(userId: string, now: Date): void {
-    if (this.state.version >= 2147483647) {
+    if (this.props.version >= 2147483647) {
       throw new ReceivableError('RECEIVABLE_VERSION_CONFLICT');
     }
 
-    this.state.version++;
-    this.state.updatedById = userId;
-    this.state.updatedAt = new Date(now);
+    this.props.version++;
+    this.props.updatedById = userId;
+    this.props.updatedAt = new Date(now);
   }
 
   update(details: ReceivableDetails): void {
     this.assertNotCanceled();
 
-    if (this.state.status === ReceivableStatus.PAID) {
+    if (this.props.status === ReceivableStatus.PAID) {
       throw new ReceivableError('RECEIVABLE_NOT_EDITABLE');
     }
 
@@ -154,14 +154,14 @@ export class Receivable {
       throw new ReceivableError('INVALID_RECEIVABLE_INPUT');
     }
 
-    const dueAt = details.dueAt ?? this.state.dueAt;
+    const dueAt = details.dueAt ?? this.props.dueAt;
 
     assertReceivableDate(dueAt);
 
-    const notes = details.notes === undefined ? this.state.notes : normalizeReceivableText(details.notes, 2000);
+    const notes = details.notes === undefined ? this.props.notes : normalizeReceivableText(details.notes, 2000);
 
-    this.state.dueAt = new Date(dueAt);
-    this.state.notes = notes;
+    this.props.dueAt = new Date(dueAt);
+    this.props.notes = notes;
   }
 
   receive(payment: ReceivablePayment): void {
@@ -169,7 +169,7 @@ export class Receivable {
 
     const state = payment.snapshot();
 
-    if (state.receivableId !== this.state.id) {
+    if (state.receivableId !== this.props.id) {
       throw new ReceivableError('PAYMENT_NOT_FOUND');
     }
 
@@ -179,13 +179,13 @@ export class Receivable {
 
     assertReceivableAmount(state.amountInCents);
 
-    const remaining = this.state.amountInCents - this.state.receivedInCents;
+    const remaining = this.props.amountInCents - this.props.receivedInCents;
 
     if (state.amountInCents > remaining) {
       throw new ReceivableError('PAYMENT_EXCEEDS_BALANCE');
     }
 
-    this.state.receivedInCents += state.amountInCents;
+    this.props.receivedInCents += state.amountInCents;
     this.updatePaymentStatus();
   }
 
@@ -194,7 +194,7 @@ export class Receivable {
 
     const state = payment.snapshot();
 
-    if (state.receivableId !== this.state.id) {
+    if (state.receivableId !== this.props.id) {
       throw new ReceivableError('PAYMENT_NOT_FOUND');
     }
 
@@ -202,48 +202,48 @@ export class Receivable {
       throw new ReceivableError('PAYMENT_ALREADY_REVERSED');
     }
 
-    if (state.amountInCents > this.state.receivedInCents) {
+    if (state.amountInCents > this.props.receivedInCents) {
       throw new ReceivableError('INVALID_RECEIVABLE_BALANCE');
     }
 
     payment.reverse(userId, reason, now);
 
-    this.state.receivedInCents -= state.amountInCents;
+    this.props.receivedInCents -= state.amountInCents;
     this.updatePaymentStatus();
   }
 
   cancel(userId: string, reason: string, now: Date): void {
     this.assertNotCanceled();
 
-    if (this.state.receivedInCents !== 0) {
+    if (this.props.receivedInCents !== 0) {
       throw new ReceivableError('RECEIVABLE_HAS_PAYMENTS');
     }
 
     const normalizedReason = normalizeReceivableReason(reason);
 
-    this.state.status = ReceivableStatus.CANCELED;
-    this.state.canceledAt = new Date(now);
-    this.state.canceledById = userId;
-    this.state.cancellationReason = normalizedReason;
+    this.props.status = ReceivableStatus.CANCELED;
+    this.props.canceledAt = new Date(now);
+    this.props.canceledById = userId;
+    this.props.cancellationReason = normalizedReason;
   }
 
   private assertNotCanceled(): void {
-    if (this.state.status === ReceivableStatus.CANCELED) {
+    if (this.props.status === ReceivableStatus.CANCELED) {
       throw new ReceivableError('RECEIVABLE_NOT_EDITABLE');
     }
   }
 
   private updatePaymentStatus(): void {
-    if (this.state.receivedInCents === 0) {
-      this.state.status = ReceivableStatus.OPEN;
+    if (this.props.receivedInCents === 0) {
+      this.props.status = ReceivableStatus.OPEN;
       return;
     }
 
-    if (this.state.receivedInCents === this.state.amountInCents) {
-      this.state.status = ReceivableStatus.PAID;
+    if (this.props.receivedInCents === this.props.amountInCents) {
+      this.props.status = ReceivableStatus.PAID;
       return;
     }
 
-    this.state.status = ReceivableStatus.PARTIALLY_PAID;
+    this.props.status = ReceivableStatus.PARTIALLY_PAID;
   }
 }

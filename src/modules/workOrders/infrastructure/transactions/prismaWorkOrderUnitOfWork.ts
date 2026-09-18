@@ -35,9 +35,11 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
     params: WorkOrderActorParams,
     operation: (tx: WorkOrderTransaction) => Promise<T>,
   ): Promise<T> {
+    const { organizationId } = params;
+
     return organizationTransaction(
       this.prisma,
-      params.organizationId,
+      organizationId,
       mode,
       async (db) => operation(await this.createContext(db, params)),
       {

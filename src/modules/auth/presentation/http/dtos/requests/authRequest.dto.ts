@@ -2,9 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, Length, Matches, MaxLength } from 'class-validator';
 
-function normalizeEmail(value: unknown): unknown {
-  return typeof value === 'string' ? value.trim().toLowerCase() : value;
-}
+import { normalizeEmail } from '../../../../../../shared/text/email.js';
 
 function trimName(value: unknown): unknown {
   return typeof value === 'string' ? value.trim() : value;
@@ -12,7 +10,7 @@ function trimName(value: unknown): unknown {
 
 export class EmailDto {
   @ApiProperty({ example: 'marco@example.com' })
-  @Transform(({ value }: { value: unknown }) => normalizeEmail(value))
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? normalizeEmail(value) : value))
   @IsEmail()
   @MaxLength(254)
   email: string;
