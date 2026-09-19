@@ -14,16 +14,6 @@ export class PrismaQuoteShareRateLimit {
     const key = hmacSha256(this.secret, `quote-share:${ip}`, 'hex');
 
     const rows = await this.prisma.$queryRaw<{ count: number; expiresAt: Date }[]>`
-      WITH cleanup AS (
-        DELETE FROM "QuoteShareRateLimit"
-        WHERE "key" IN (
-          SELECT "key"
-          FROM "QuoteShareRateLimit"
-          WHERE "expiresAt" < CURRENT_TIMESTAMP - INTERVAL '1 day'
-          LIMIT 100
-        )
-        AND "expiresAt" < CURRENT_TIMESTAMP - INTERVAL '1 day'
-      )
       INSERT INTO "QuoteShareRateLimit" ("key", "count", "expiresAt")
       VALUES (
         ${key},
@@ -46,7 +36,7 @@ export class PrismaQuoteShareRateLimit {
 
     const row = rows[0];
 
-    if (!row) {
+    if (row === undefined) {
       throw new Error('Quote share rate limiter returned no result');
     }
 
@@ -57,5 +47,21 @@ export class PrismaQuoteShareRateLimit {
 
       throw new HttpException('Too many requests.', HttpStatus.TOO_MANY_REQUESTS);
     }
+  }
+
+  async cleanup(): Promise<number> {
+    return this.prisma.$executeRaw`
+      WITH candidates AS (
+        SELECT "key"
+        FROM "QuoteShareRateLimit"
+        WHERE "expiresAt" < CURRENT_TIMESTAMP - INTERVAL '1 day'
+        ORDER BY "expiresAt", "key"
+        LIMIT 1000
+        FOR UPDATE SKIP LOCKED
+      )
+      DELETE FROM "QuoteShareRateLimit" rate
+      USING candidates
+      WHERE rate."key" = candidates."key"
+    `;
   }
 }

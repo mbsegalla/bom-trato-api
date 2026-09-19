@@ -7,5 +7,6 @@ export const quoteShareConfig = registerAs('quoteShare', () => {
 
   return {
     rateLimitSecret: env.QUOTE_SHARE_RATE_LIMIT_SECRET,
+    cleanupWorkerEnabled: env.QUOTE_SHARE_CLEANUP_WORKER_ENABLED,
   };
 });

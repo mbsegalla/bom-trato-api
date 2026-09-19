@@ -116,8 +116,7 @@ export class PrismaCustomerRepository extends CustomerRepository {
   async overviewSummary(customerId: string, now: Date): Promise<CustomerOverviewSummary> {
     const rows = await this.db.$queryRaw<CustomerOverviewRow[]>`
       WITH quote_totals AS (
-        SELECT
-          COUNT(*)::text AS "quoteCount"
+        SELECT COUNT(*)::text AS "quoteCount"
         FROM "Quote"
         WHERE "organizationId" = ${this.organizationId}::uuid
           AND "customerId" = ${customerId}::uuid
