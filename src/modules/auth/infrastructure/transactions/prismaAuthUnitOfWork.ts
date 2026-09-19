@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.js';
+import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 import type { AuthTransaction } from '../../application/ports/authUnitOfWork.port.js';
 import { AuthUnitOfWork } from '../../application/ports/authUnitOfWork.port.js';
 import { PrismaAuthRepository } from '../repositories/prismaAuth.repository.js';

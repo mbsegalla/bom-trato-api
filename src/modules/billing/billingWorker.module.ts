@@ -4,7 +4,7 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { NotificationOutbox } from '../notifications/application/ports/notificationOutbox.port.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
-import { BillingSuccessNotificationUnitOfWork } from './application/ports/prismaBillingSuccessNotificationUnitOfWork.port.js';
+import { BillingSuccessNotificationUnitOfWork } from './application/ports/billingSuccessNotificationUnitOfWork.port.js';
 import { QueueBillingAlertUseCase } from './application/useCases/queueBillingAlert.useCase.js';
 import { QueueNextBillingConfirmationUseCase } from './application/useCases/queueNextBillingConfirmation.useCase.js';
 import { BillingRepository } from './domain/repositories/billing.repository.js';
