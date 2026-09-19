@@ -13,10 +13,15 @@ import {
   RemoteInvoiceView,
   SaveSnapshotParams,
 } from '../../domain/repositories/billing.repository.js';
+import { BillingWork } from '../events/billing.events.js';
+import { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
 
 @Injectable()
 export class PrismaBillingRepository extends BillingRepository {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workerNotifier: BillingWorkerNotifier,
+  ) {
     super();
   }
 
@@ -93,12 +98,16 @@ export class PrismaBillingRepository extends BillingRepository {
         id,
         OR: [{ stripeCustomerId: null }, { stripeCustomerId }],
       },
-      data: { stripeCustomerId },
+      data: {
+        stripeCustomerId,
+      },
     });
 
     if (result.count !== 1) {
       throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
     }
+
+    this.workerNotifier.notify(BillingWork.RECONCILIATION);
   }
 
   async availablePrice(id: string): Promise<AvailablePrice> {
@@ -377,6 +386,14 @@ export class PrismaBillingRepository extends BillingRepository {
         timeout: 30000,
       },
     );
+
+    if (nextReconcileAt !== undefined) {
+      this.workerNotifier.notify(BillingWork.RECONCILIATION);
+    }
+
+    if (snapshot.invoices.some((invoice) => invoice.status === 'paid')) {
+      this.workerNotifier.notify(BillingWork.CONFIRMATIONS);
+    }
   }
 
   async invoices(params: InvoicePageParams): Promise<{ items: RemoteInvoiceView[]; nextCursor: string | null }> {
@@ -468,6 +485,8 @@ export class PrismaBillingRepository extends BillingRepository {
         nextReconcileAt: new Date(Date.now() + 5 * 60 * 1000),
       },
     });
+
+    this.workerNotifier.notify(BillingWork.RECONCILIATION);
   }
 
   async notificationContext(organizationId: string, stripeObjectId: string) {

@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
-import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import type { OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
+import { OnEvent } from '@nestjs/event-emitter';
+import { Interval, SchedulerRegistry } from '@nestjs/schedule';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
 import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
@@ -16,13 +18,16 @@ import { BillingRepository } from '../../domain/repositories/billing.repository.
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 import { ClaimedWebhookJob, WebhookOutcome } from '../../domain/types/billing.types.js';
+import { BILLING_WORK_AVAILABLE_EVENT, BillingWork } from '../events/billing.events.js';
+import { PrismaBillingScheduleRepository } from '../repositories/prismaBillingSchedule.repository.js';
 
 @Injectable()
-export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
+export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(BillingWebhookWorker.name);
+  private readonly pending = new Set<BillingWork>();
 
-  private timer?: ReturnType<typeof setInterval>;
   private running?: Promise<void>;
+  private started = false;
   private stopping = false;
 
   constructor(
@@ -38,81 +43,182 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
     private readonly webhookRepository: BillingWebhookRepository,
     private readonly planChangeRepository: PlanChangeRepository,
     private readonly paymentMethodUpdateRepository: PaymentMethodUpdateRepository,
+    private readonly scheduleRepository: PrismaBillingScheduleRepository,
+    private readonly scheduler: SchedulerRegistry,
   ) {}
 
-  onModuleInit(): void {
+  onApplicationBootstrap(): void {
     if (!this.configuration.workerEnabled) {
       return;
     }
 
-    this.timer = setInterval(() => {
-      if (this.running !== undefined || this.stopping) {
+    this.started = true;
+
+    this.logger.log('Billing worker started; event-driven processing with scheduled retries and 60-second recovery');
+
+    this.recover();
+  }
+
+  @OnEvent(BILLING_WORK_AVAILABLE_EVENT, { suppressErrors: true })
+  handleWorkAvailable(work: BillingWork): void {
+    this.request(work);
+  }
+
+  @Interval('billing-recovery', 60_000)
+  recover(): void {
+    for (const work of Object.values(BillingWork)) {
+      this.request(work);
+    }
+  }
+
+  private request(work: BillingWork): void {
+    if (!this.started || this.stopping || !this.configuration.workerEnabled) {
+      return;
+    }
+
+    this.clearTimer(work);
+    this.pending.add(work);
+    this.start();
+  }
+
+  private start(): void {
+    if (this.running !== undefined || this.stopping || this.pending.size === 0) {
+      return;
+    }
+
+    // Coalesce synchronous events before starting database work.
+    this.running = Promise.resolve()
+      .then(() => this.drain())
+      .catch(() => {
+        this.logger.error('Billing worker failed; persisted work remains available for recovery');
+      })
+      .finally(() => {
+        this.running = undefined;
+        this.start();
+      });
+  }
+
+  private async drain(): Promise<void> {
+    while (!this.stopping) {
+      const work = this.pending.values().next().value;
+
+      if (work === undefined) {
         return;
       }
 
-      this.running = this.process()
-        .catch((error: unknown) => {
-          if (error instanceof Error) {
-            this.logger.error(`Billing polling failed: ${error.message}`, error.stack);
+      this.pending.delete(work);
 
-            return;
-          }
+      try {
+        const more = await this.runBatch(work);
 
-          this.logger.error('Billing polling failed with an unknown error');
-        })
-        .finally(() => {
-          this.running = undefined;
+        if (this.stopping || this.pending.has(work)) {
+          continue;
+        }
+
+        if (more) {
+          this.schedule(work, 25);
+          continue;
+        }
+
+        const nextRunAt = await this.scheduleRepository.nextRunAt(work);
+
+        if (this.stopping || this.pending.has(work)) {
+          continue;
+        }
+
+        if (nextRunAt !== null) {
+          const delay = nextRunAt.getTime() - Date.now();
+
+          // Overdue but unavailable work may be locked by another instance.
+          this.schedule(work, delay > 0 ? delay : 60_000);
+        }
+      } catch {
+        this.logger.error({
+          message: 'Billing task failed; retry scheduled',
+          work,
         });
-    }, 2000);
 
-    this.timer.unref();
-
-    this.logger.log('Billing worker started. Polling every 2 seconds; reconciliation scheduled hourly per customer.');
+        this.pending.delete(work);
+        this.schedule(work, 60_000);
+      }
+    }
   }
 
-  private async process(): Promise<void> {
+  private runBatch(work: BillingWork): Promise<boolean> {
+    switch (work) {
+      case BillingWork.WEBHOOKS:
+        return this.processWebhooks();
+
+      case BillingWork.PLAN_CHANGES:
+        return this.processPlanChanges();
+
+      case BillingWork.PAYMENT_METHOD_UPDATES:
+        return this.processPaymentMethodUpdates();
+
+      case BillingWork.CONFIRMATIONS:
+        return this.processSuccessNotifications();
+
+      case BillingWork.RECONCILIATION:
+        return this.processReconciliation();
+    }
+  }
+
+  private schedule(work: BillingWork, delay: number): void {
+    if (this.stopping) {
+      return;
+    }
+
+    this.clearTimer(work);
+
+    const timeout = setTimeout(
+      () => {
+        this.clearTimer(work);
+        this.request(work);
+      },
+      Math.min(2_147_483_647, Math.max(25, Math.ceil(delay))),
+    );
+
+    timeout.unref();
+
+    this.scheduler.addTimeout(this.timerName(work), timeout);
+  }
+
+  private timerName(work: BillingWork): string {
+    return `billing-${work}-next-run`;
+  }
+
+  private clearTimer(work: BillingWork): void {
+    const name = this.timerName(work);
+
+    if (this.scheduler.doesExist('timeout', name)) {
+      this.scheduler.deleteTimeout(name);
+    }
+  }
+
+  private async processWebhooks(): Promise<boolean> {
     for (let processed = 0; processed < 20; processed++) {
       if (this.stopping) {
-        return;
+        return false;
       }
 
       const event = await this.webhookRepository.claimEvent(randomUUID());
 
       if (event === null) {
-        break;
+        return false;
       }
 
       await this.processEvent(event);
     }
 
-    await this.processPlanChanges();
-    await this.processPaymentMethodUpdates();
-    await this.processSuccessNotifications();
-
-    for (const customer of await this.billingRepository.dueCustomers()) {
-      if (this.stopping) {
-        return;
-      }
-
-      try {
-        await this.syncBillingUseCase.execute({
-          organizationId: customer.organizationId,
-          reconcile: true,
-        });
-      } catch (error: unknown) {
-        if (!(error instanceof BillingError && error.code === 'BILLING_BUSY')) {
-          this.logReconciliationFailure(customer.organizationId, error);
-        }
-
-        await this.billingRepository.postponeReconciliation(customer.organizationId);
-      }
-    }
+    return true;
   }
 
-  private async processPlanChanges(): Promise<void> {
-    for (const change of await this.planChangeRepository.due()) {
+  private async processPlanChanges(): Promise<boolean> {
+    const changes = await this.planChangeRepository.due();
+
+    for (const change of changes) {
       if (this.stopping) {
-        return;
+        return false;
       }
 
       try {
@@ -132,14 +238,16 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+
+    return changes.length === 5;
   }
 
-  private async processPaymentMethodUpdates(): Promise<void> {
+  private async processPaymentMethodUpdates(): Promise<boolean> {
     const updates = await this.paymentMethodUpdateRepository.due();
 
     for (const update of updates) {
       if (this.stopping) {
-        return;
+        return false;
       }
 
       try {
@@ -162,6 +270,48 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+
+    return updates.length === 5;
+  }
+
+  private async processSuccessNotifications(): Promise<boolean> {
+    for (let processed = 0; processed < 20; processed++) {
+      if (this.stopping) {
+        return false;
+      }
+
+      if (!(await this.queueNextBillingConfirmationUseCase.execute())) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private async processReconciliation(): Promise<boolean> {
+    const customers = await this.billingRepository.dueCustomers();
+
+    for (const customer of customers) {
+      if (this.stopping) {
+        return false;
+      }
+
+      try {
+        await this.syncBillingUseCase.execute({
+          organizationId: customer.organizationId,
+          reconcile: true,
+        });
+      } catch (error: unknown) {
+        if (!(error instanceof BillingError && error.code === 'BILLING_BUSY')) {
+          this.logReconciliationFailure(customer.organizationId, error);
+        }
+
+        await this.billingRepository.postponeReconciliation(customer.organizationId);
+      }
+    }
+
+    // dueCustomers currently returns at most one customer.
+    return customers.length > 0;
   }
 
   private async processEvent(event: ClaimedWebhookJob): Promise<void> {
@@ -275,26 +425,6 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async processSuccessNotifications(): Promise<void> {
-    for (let processed = 0; processed < 20; processed++) {
-      if (this.stopping) {
-        return;
-      }
-
-      try {
-        const found = await this.queueNextBillingConfirmationUseCase.execute();
-
-        if (!found) {
-          return;
-        }
-      } catch {
-        this.logger.error('Billing confirmation could not be queued; retrying on the next poll');
-
-        return;
-      }
-    }
-  }
-
   private logReconciliationFailure(organizationId: string, error: unknown): void {
     const cause = error instanceof BillingError ? (error.cause ?? error) : error;
 
@@ -327,9 +457,10 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     this.stopping = true;
+    this.pending.clear();
 
-    if (this.timer !== undefined) {
-      clearInterval(this.timer);
+    for (const work of Object.values(BillingWork)) {
+      this.clearTimer(work);
     }
 
     await this.running;
