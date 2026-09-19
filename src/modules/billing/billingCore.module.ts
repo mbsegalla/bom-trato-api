@@ -36,6 +36,7 @@ import { BillingRepository } from './domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from './domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from './domain/repositories/planChange.repository.js';
 import { PostgresBillingLock } from './infrastructure/database/postgresBillingLock.js';
+import { BillingWorkerNotifier } from './infrastructure/events/billingWorkerNotifier.service.js';
 import { PrismaBillingRepository } from './infrastructure/repositories/prismaBilling.repository.js';
 import { PrismaBillingWebhookRepository } from './infrastructure/repositories/prismaBillingWebhook.repository.js';
 import { PrismaPaymentMethodUpdateRepository } from './infrastructure/repositories/prismaPaymentMethodUpdate.repository.js';
@@ -49,6 +50,7 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
   imports: [DatabaseModule],
   providers: [
     stripeClientProvider,
+    BillingWorkerNotifier,
     {
       provide: PlanChangeRepository,
       useClass: PrismaPlanChangeRepository,

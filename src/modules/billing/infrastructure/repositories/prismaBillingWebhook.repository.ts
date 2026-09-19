@@ -4,18 +4,27 @@ import { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
 import { ClaimedWebhookJob, WebhookNotice, WebhookOutcome } from '../../domain/types/billing.types.js';
+import { BillingWork } from '../events/billing.events.js';
+import { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
 
 @Injectable()
 export class PrismaBillingWebhookRepository extends BillingWebhookRepository {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workerNotifier: BillingWorkerNotifier,
+  ) {
     super();
   }
 
   async enqueue(notice: WebhookNotice): Promise<void> {
-    await this.prisma.stripeWebhookEvent.createMany({
+    const result = await this.prisma.stripeWebhookEvent.createMany({
       data: [notice],
       skipDuplicates: true,
     });
+
+    if (result.count > 0) {
+      this.workerNotifier.notify(BillingWork.WEBHOOKS);
+    }
   }
 
   async claimEvent(leaseToken: string): Promise<ClaimedWebhookJob | null> {

@@ -7,22 +7,31 @@ import type {
   PaymentMethodUpdateProps,
 } from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
+import { BillingWork } from '../events/billing.events.js';
+import { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
 
 @Injectable()
 export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepository {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workerNotifier: BillingWorkerNotifier,
+  ) {
     super();
   }
 
   async create(update: PaymentMethodUpdate): Promise<PaymentMethodUpdateProps> {
     const state = update.snapshot();
 
-    return this.prisma.paymentMethodUpdate.create({
+    const result = await this.prisma.paymentMethodUpdate.create({
       data: {
         ...state,
         activeOrganizationId: state.organizationId,
       },
     });
+
+    this.workerNotifier.notify(BillingWork.PAYMENT_METHOD_UPDATES);
+
+    return result;
   }
 
   async find(id: string): Promise<PaymentMethodUpdateProps | null> {
@@ -42,7 +51,7 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
   async save(update: PaymentMethodUpdate): Promise<PaymentMethodUpdateProps> {
     const state = update.snapshot();
 
-    return this.prisma.paymentMethodUpdate.update({
+    const result = await this.prisma.paymentMethodUpdate.update({
       where: { id: state.id },
       data: {
         status: state.status,
@@ -51,10 +60,14 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
         ...(update.isPending() ? {} : { completedAt: new Date() }),
       },
     });
+
+    this.workerNotifier.notify(BillingWork.PAYMENT_METHOD_UPDATES);
+
+    return result;
   }
 
   async postpone(id: string, seconds: number): Promise<void> {
-    await this.prisma.paymentMethodUpdate.updateMany({
+    const result = await this.prisma.paymentMethodUpdate.updateMany({
       where: {
         id,
         status: PaymentMethodUpdateStatus.PENDING,
@@ -63,6 +76,10 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
         nextCheckAt: new Date(Date.now() + seconds * 1000),
       },
     });
+
+    if (result.count > 0) {
+      this.workerNotifier.notify(BillingWork.PAYMENT_METHOD_UPDATES);
+    }
   }
 
   async due(): Promise<PaymentMethodUpdateProps[]> {

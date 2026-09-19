@@ -6,10 +6,15 @@ import { PlanChange } from '../../domain/entities/planChange.entity.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { PlanPriceChangeInfo } from '../../domain/repositories/planChange.repository.js';
 import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
+import { BillingWork } from '../events/billing.events.js';
+import { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
 
 @Injectable()
 export class PrismaPlanChangeRepository extends PlanChangeRepository {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workerNotifier: BillingWorkerNotifier,
+  ) {
     super();
   }
 
@@ -56,7 +61,7 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
   }
 
   async reserve(id: string): Promise<PlanChangeProps> {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const stored = await tx.planChange.findUniqueOrThrow({
         where: { id },
       });
@@ -91,6 +96,10 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
         },
       });
     });
+
+    this.workerNotifier.notify(BillingWork.PLAN_CHANGES);
+
+    return result;
   }
 
   async save(change: PlanChange): Promise<void> {
@@ -106,6 +115,12 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
         activeOrganizationId: change.blocksAnotherChange() ? state.organizationId : null,
       },
     });
+
+    if (state.status === 'APPLIED') {
+      this.workerNotifier.notify(BillingWork.CONFIRMATIONS);
+    }
+
+    this.workerNotifier.notify(BillingWork.PLAN_CHANGES);
   }
 
   async due(): Promise<PlanChangeProps[]> {
@@ -120,7 +135,7 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
   }
 
   async postpone(id: string, seconds: number): Promise<void> {
-    await this.prisma.planChange.updateMany({
+    const result = await this.prisma.planChange.updateMany({
       where: {
         id,
         activeOrganizationId: { not: null },
@@ -129,5 +144,9 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
         nextCheckAt: new Date(Date.now() + seconds * 1000),
       },
     });
+
+    if (result.count > 0) {
+      this.workerNotifier.notify(BillingWork.PLAN_CHANGES);
+    }
   }
 }

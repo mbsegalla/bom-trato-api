@@ -8,6 +8,7 @@ import { BillingSuccessNotificationUnitOfWork } from './application/ports/billin
 import { QueueBillingAlertUseCase } from './application/useCases/queueBillingAlert.useCase.js';
 import { QueueNextBillingConfirmationUseCase } from './application/useCases/queueNextBillingConfirmation.useCase.js';
 import { BillingRepository } from './domain/repositories/billing.repository.js';
+import { PrismaBillingScheduleRepository } from './infrastructure/repositories/prismaBillingSchedule.repository.js';
 import { PrismaBillingSuccessNotificationUnitOfWork } from './infrastructure/transactions/prismaBillingSuccessNotificationUnitOfWork.js';
 import { BillingWebhookWorker } from './infrastructure/workers/billingWebhook.worker.js';
 import { BillingCoreModule } from './billingCore.module.js';
@@ -16,6 +17,7 @@ import { BillingCoreModule } from './billingCore.module.js';
   imports: [BillingCoreModule, DatabaseModule, NotificationsModule],
   providers: [
     BillingWebhookWorker,
+    PrismaBillingScheduleRepository,
     {
       provide: BillingSuccessNotificationUnitOfWork,
       useClass: PrismaBillingSuccessNotificationUnitOfWork,
