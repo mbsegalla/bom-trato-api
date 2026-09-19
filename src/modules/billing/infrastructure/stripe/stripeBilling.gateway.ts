@@ -273,6 +273,7 @@ export class StripeBillingGateway extends BillingGateway {
       invoicePdf: invoice.invoice_pdf ?? null,
       paidAt: nullableDate(invoice.status_transitions.paid_at),
       paidThrough,
+      billingReason: invoice.billing_reason ?? null,
       stripeCreatedAt: date(invoice.created),
     };
   }

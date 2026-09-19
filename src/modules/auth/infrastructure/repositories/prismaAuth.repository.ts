@@ -33,21 +33,15 @@ const userSelect = {
 
 @Injectable()
 export class PrismaAuthRepository extends AuthRepository {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly db: Prisma.TransactionClient = prisma,
+  ) {
     super();
   }
 
-  private async lockUser(tx: Prisma.TransactionClient, id: string): Promise<void> {
-    await tx.$queryRaw`
-      SELECT "id"
-      FROM "User"
-      WHERE "id" = ${id}::uuid
-      FOR UPDATE
-    `;
-  }
-
   async findUserByEmail(email: string): Promise<User | null> {
-    const row = await this.prisma.user.findUnique({
+    const row = await this.db.user.findUnique({
       where: { email },
       select: userSelect,
     });
@@ -59,7 +53,7 @@ export class PrismaAuthRepository extends AuthRepository {
     const { name, email, passwordHash, tokenHash, expiresAt } = params;
 
     try {
-      await this.prisma.user.create({
+      await this.db.user.create({
         data: {
           name,
           email,
@@ -88,7 +82,7 @@ export class PrismaAuthRepository extends AuthRepository {
   async startSession(params: StartSessionParams): Promise<void> {
     const { session, expectedPasswordHash, refreshHash } = params;
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.transaction(async (tx) => {
       await this.lockUser(tx, session.userId);
 
       const row = await tx.user.findUnique({
@@ -146,7 +140,7 @@ export class PrismaAuthRepository extends AuthRepository {
   async rotate(params: RotateSessionParams) {
     const { tokenHash, now, idleSeconds } = params;
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.transaction(async (tx) => {
       const locator = await tx.refreshToken.findUnique({
         where: { tokenHash },
         select: { sessionId: true },
@@ -260,7 +254,7 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async authenticate(identity: SessionIdentity, now: Date): Promise<AuthenticatedUser> {
-    const row = await this.prisma.authSession.findUnique({
+    const row = await this.db.authSession.findUnique({
       where: {
         id: identity.sessionId,
       },
@@ -299,7 +293,7 @@ export class PrismaAuthRepository extends AuthRepository {
   async revoke(params: RevokeSessionParams): Promise<void> {
     const { identity, now, reason } = params;
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.transaction(async (tx) => {
       await this.lockUser(tx, identity.userId);
 
       const row = await tx.authSession.findFirst({
@@ -329,7 +323,7 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async revokeByToken({ tokenHash, now, reason }: RevokeByTokenParams): Promise<void> {
-    const row = await this.prisma.refreshToken.findUnique({
+    const row = await this.db.refreshToken.findUnique({
       where: { tokenHash },
       select: { sessionId: true },
     });
@@ -338,7 +332,7 @@ export class PrismaAuthRepository extends AuthRepository {
       return;
     }
 
-    const session = await this.prisma.authSession.findUnique({
+    const session = await this.db.authSession.findUnique({
       where: { id: row.sessionId },
       select: { userId: true },
     });
@@ -358,7 +352,7 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async revokeAll(userId: string, now: Date): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.transaction(async (tx) => {
       await this.lockUser(tx, userId);
 
       await tx.authSession.updateMany({
@@ -375,7 +369,7 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async listSessions(userId: string, now: Date) {
-    return this.prisma.authSession.findMany({
+    return this.db.authSession.findMany({
       where: {
         userId,
         revokedAt: null,
@@ -397,7 +391,7 @@ export class PrismaAuthRepository extends AuthRepository {
   async issueAction(params: IssueActionParams): Promise<boolean> {
     const { email, purpose, tokenHash, expiresAt } = params;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const locator = await tx.user.findUnique({
         where: { email },
         select: { id: true },
@@ -444,10 +438,10 @@ export class PrismaAuthRepository extends AuthRepository {
     });
   }
 
-  async consumeAction(params: ConsumeActionParams): Promise<void> {
+  async consumeAction(params: ConsumeActionParams): Promise<string> {
     const { tokenHash, purpose, now, passwordHash } = params;
 
-    await this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const locator = await tx.authActionToken.findUnique({
         where: { tokenHash },
         select: { userId: true },
@@ -477,7 +471,7 @@ export class PrismaAuthRepository extends AuthRepository {
       const user = User.restore(row.user);
 
       if (purpose === AuthActionPurpose.VERIFY_EMAIL) {
-        user.verifyEmail(params.now);
+        user.verifyEmail(now);
 
         await tx.user.update({
           where: { id: user.id },
@@ -521,6 +515,21 @@ export class PrismaAuthRepository extends AuthRepository {
           usedAt: now,
         },
       });
+
+      return row.user.email;
     });
+  }
+
+  private transaction<T>(operation: (db: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.db === this.prisma ? this.prisma.$transaction(operation) : operation(this.db);
+  }
+
+  private async lockUser(tx: Prisma.TransactionClient, id: string): Promise<void> {
+    await tx.$queryRaw`
+      SELECT "id"
+      FROM "User"
+      WHERE "id" = ${id}::uuid
+      FOR UPDATE
+    `;
   }
 }

@@ -6,6 +6,8 @@ import type { ConfigType } from '@nestjs/config';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
 import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
+import { QueueBillingAlertUseCase } from '../../application/useCases/queueBillingAlert.useCase.js';
+import { QueueNextBillingConfirmationUseCase } from '../../application/useCases/queueNextBillingConfirmation.useCase.js';
 import { ReconcilePlanChangeUseCase } from '../../application/useCases/reconcilePlanChange.useCase.js';
 import { SyncBillingUseCase } from '../../application/useCases/syncBilling.useCase.js';
 import { SyncPaymentMethodUpdateUseCase } from '../../application/useCases/syncPaymentMethodUpdate.useCase.js';
@@ -27,12 +29,14 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
     @Inject(stripeConfig.KEY)
     private readonly configuration: ConfigType<typeof stripeConfig>,
 
-    private readonly billingRepository: BillingRepository,
-    private readonly webhookRepository: BillingWebhookRepository,
-    private readonly planChangeRepository: PlanChangeRepository,
     private readonly reconcilePlanChangeUseCase: ReconcilePlanChangeUseCase,
     private readonly syncBillingUseCase: SyncBillingUseCase,
     private readonly syncPaymentMethodUpdateUseCase: SyncPaymentMethodUpdateUseCase,
+    private readonly queueBillingAlertUseCase: QueueBillingAlertUseCase,
+    private readonly queueNextBillingConfirmationUseCase: QueueNextBillingConfirmationUseCase,
+    private readonly billingRepository: BillingRepository,
+    private readonly webhookRepository: BillingWebhookRepository,
+    private readonly planChangeRepository: PlanChangeRepository,
     private readonly paymentMethodUpdateRepository: PaymentMethodUpdateRepository,
   ) {}
 
@@ -83,6 +87,7 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
 
     await this.processPlanChanges();
     await this.processPaymentMethodUpdates();
+    await this.processSuccessNotifications();
 
     for (const customer of await this.billingRepository.dueCustomers()) {
       if (this.stopping) {
@@ -209,6 +214,10 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
 
       assertLease();
 
+      await this.queueBillingAlertUseCase.execute(customer.organizationId, event);
+
+      assertLease();
+
       await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
 
       assertLease();
@@ -263,6 +272,26 @@ export class BillingWebhookWorker implements OnModuleInit, OnModuleDestroy {
         eventId: event.id,
         code,
       });
+    }
+  }
+
+  private async processSuccessNotifications(): Promise<void> {
+    for (let processed = 0; processed < 20; processed++) {
+      if (this.stopping) {
+        return;
+      }
+
+      try {
+        const found = await this.queueNextBillingConfirmationUseCase.execute();
+
+        if (!found) {
+          return;
+        }
+      } catch {
+        this.logger.error('Billing confirmation could not be queued; retrying on the next poll');
+
+        return;
+      }
     }
   }
 

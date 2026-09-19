@@ -79,5 +79,5 @@ export abstract class AuthRepository {
   abstract revokeAll(userId: string, now: Date): Promise<void>;
   abstract listSessions(userId: string, now: Date): Promise<SessionSummary[]>;
   abstract issueAction(params: IssueActionParams): Promise<boolean>;
-  abstract consumeAction(params: ConsumeActionParams): Promise<void>;
+  abstract consumeAction(params: ConsumeActionParams): Promise<string>;
 }

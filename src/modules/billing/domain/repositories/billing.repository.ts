@@ -1,5 +1,5 @@
 import type { SubscriptionProps } from '../entities/subscription.entity.js';
-import type { BillingSnapshot } from '../types/billing.types.js';
+import type { BillingNotificationContext, BillingSnapshot } from '../types/billing.types.js';
 
 export interface BillingCustomerProps {
   id: string;
@@ -81,6 +81,10 @@ export abstract class BillingRepository {
   abstract dueCustomers(): Promise<Array<{ organizationId: string }>>;
   abstract postponeReconciliation(organizationId: string): Promise<void>;
   abstract pendingInvoiceIds(organizationId: string): Promise<string[]>;
+  abstract notificationContext(
+    organizationId: string,
+    stripeObjectId: string,
+  ): Promise<BillingNotificationContext | null>;
   abstract entitlements(
     organizationId: string,
     userId: string,

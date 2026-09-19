@@ -77,28 +77,28 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   AUTH_CLEANUP_WORKER_ENABLED: Joi.boolean().default(true),
 
-  MAIL_SMTP_HOST: Joi.string().hostname().required(),
+  RESEND_API_KEY: Joi.string().required(),
 
-  MAIL_SMTP_PORT: Joi.number().integer().min(1).max(65535).default(1025),
+  NOTIFICATION_ENCRYPTION_KEY: Joi.string().required(),
 
-  MAIL_SMTP_SECURE: Joi.boolean().default(false),
-
-  MAIL_SMTP_USER: Joi.string().optional(),
-
-  MAIL_SMTP_PASSWORD: Joi.string().optional(),
+  NOTIFICATION_WORKER_ENABLED: Joi.boolean().default(true),
 
   MAIL_FROM_EMAIL: Joi.string()
     .email({ tlds: { allow: false } })
     .required(),
 
-  MAIL_FROM_NAME: Joi.string().trim().max(100).required(),
+  MAIL_FROM_NAME: Joi.string()
+    .trim()
+    .max(100)
+    .pattern(/^[^<>\r\n]+$/)
+    .required(),
 
   QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()
     .pattern(/^[a-fA-F0-9]{64}$/)
     .required(),
 
   QUOTE_SHARE_CLEANUP_WORKER_ENABLED: Joi.boolean().default(true),
-}).and('MAIL_SMTP_USER', 'MAIL_SMTP_PASSWORD');
+});
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {
   const result = envValidationSchema.validate(values, {

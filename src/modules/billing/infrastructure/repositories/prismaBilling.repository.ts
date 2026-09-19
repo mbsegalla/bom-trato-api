@@ -470,6 +470,59 @@ export class PrismaBillingRepository extends BillingRepository {
     });
   }
 
+  async notificationContext(organizationId: string, stripeObjectId: string) {
+    const row = await this.prisma.organization.findUnique({
+      where: {
+        id: organizationId,
+      },
+      select: {
+        name: true,
+        owner: {
+          select: {
+            email: true,
+            disabledAt: true,
+            emailVerifiedAt: true,
+          },
+        },
+        billingInvoices: {
+          where: {
+            stripeInvoiceId: stripeObjectId,
+          },
+          select: {
+            status: true,
+            amountDue: true,
+            amountPaid: true,
+          },
+          take: 1,
+        },
+        subscriptions: {
+          where: {
+            stripeSubscriptionId: stripeObjectId,
+          },
+          select: {
+            status: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (row === null) {
+      return null;
+    }
+
+    const invoice = row.billingInvoices[0];
+
+    return {
+      organizationName: row.name,
+      recipient: row.owner.email,
+      recipientEnabled: row.owner.disabledAt === null && row.owner.emailVerifiedAt !== null,
+      invoiceStatus: invoice?.status ?? null,
+      amountRemaining: invoice === undefined ? 0 : invoice.amountDue - invoice.amountPaid,
+      subscriptionStatus: row.subscriptions[0]?.status ?? null,
+    };
+  }
+
   async entitlements(
     organizationId: string,
     userId: string,

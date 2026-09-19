@@ -122,6 +122,14 @@ enum ReceivablePaymentMethod {
   OTHER
 }
 
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  ACCEPTED
+  FAILED
+  SKIPPED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -343,21 +351,23 @@ model CheckoutAttempt {
 }
 
 model BillingInvoice {
-  id               String    @id @default(uuid()) @db.Uuid
-  organizationId   String    @db.Uuid
-  subscriptionId   String    @db.Uuid
-  stripeInvoiceId  String    @unique
-  number           String?
-  status           String    @db.VarChar(30)
-  currency         String    @db.VarChar(3)
-  amountDue        Int
-  amountPaid       Int
-  hostedInvoiceUrl String?   @db.Text
-  invoicePdf       String?   @db.Text
-  paidAt           DateTime? @db.Timestamptz(3)
-  stripeCreatedAt  DateTime  @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+  id                           String    @id @default(uuid()) @db.Uuid
+  organizationId               String    @db.Uuid
+  subscriptionId               String    @db.Uuid
+  stripeInvoiceId              String    @unique
+  number                       String?
+  status                       String    @db.VarChar(30)
+  currency                     String    @db.VarChar(3)
+  amountDue                    Int
+  amountPaid                   Int
+  hostedInvoiceUrl             String?   @db.Text
+  invoicePdf                   String?   @db.Text
+  paidAt                       DateTime? @db.Timestamptz(3)
+  stripeCreatedAt              DateTime  @db.Timestamptz(3)
+  billingReason                String?   @db.VarChar(50)
+  paymentNotificationHandledAt DateTime? @db.Timestamptz(3)
+  createdAt                    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime  @updatedAt @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
@@ -365,6 +375,7 @@ model BillingInvoice {
   @@index([organizationId, stripeCreatedAt(sort: Desc), id(sort: Desc)])
   @@index([subscriptionId])
   @@index([organizationId, status, updatedAt, id])
+  @@index([status, paymentNotificationHandledAt, paidAt])
 }
 
 model BillingMutex {
@@ -398,35 +409,36 @@ model PaymentMethodUpdate {
 }
 
 model PlanChange {
-  id                   String           @id @default(uuid()) @db.Uuid
-  organizationId       String           @db.Uuid
-  activeOrganizationId String?          @unique @db.Uuid
-  requestedById        String           @db.Uuid
-  sourcePlanPriceId    String           @db.Uuid
-  targetPlanPriceId    String           @db.Uuid
-  targetMaxUsers       Int
-  stripeCustomerId     String
-  stripeSubscriptionId String
-  stripeItemId         String
-  sourceStripePriceId  String
-  targetStripePriceId  String
-  mode                 PlanChangeMode
-  status               PlanChangeStatus @default(QUOTED)
-  currency             String           @db.VarChar(3)
-  amountDueNow         Int
-  targetAmountInCents  Int
-  targetInterval       BillingInterval
-  targetIntervalCount  Int
-  periodStart          Int
-  periodEnd            Int
-  prorationDate        Int
-  expiresAt            DateTime         @db.Timestamptz(3)
-  startedAt            DateTime?        @db.Timestamptz(3)
-  stripeInvoiceId      String?
-  stripeScheduleId     String?
-  nextCheckAt          DateTime         @default(now()) @db.Timestamptz(3)
-  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+  id                           String           @id @default(uuid()) @db.Uuid
+  organizationId               String           @db.Uuid
+  activeOrganizationId         String?          @unique @db.Uuid
+  requestedById                String           @db.Uuid
+  sourcePlanPriceId            String           @db.Uuid
+  targetPlanPriceId            String           @db.Uuid
+  targetMaxUsers               Int
+  stripeCustomerId             String
+  stripeSubscriptionId         String
+  stripeItemId                 String
+  sourceStripePriceId          String
+  targetStripePriceId          String
+  mode                         PlanChangeMode
+  status                       PlanChangeStatus @default(QUOTED)
+  currency                     String           @db.VarChar(3)
+  amountDueNow                 Int
+  targetAmountInCents          Int
+  targetInterval               BillingInterval
+  targetIntervalCount          Int
+  periodStart                  Int
+  periodEnd                    Int
+  prorationDate                Int
+  expiresAt                    DateTime         @db.Timestamptz(3)
+  startedAt                    DateTime?        @db.Timestamptz(3)
+  stripeInvoiceId              String?
+  stripeScheduleId             String?
+  nextCheckAt                  DateTime         @default(now()) @db.Timestamptz(3)
+  appliedNotificationHandledAt DateTime?        @db.Timestamptz(3)
+  createdAt                    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime         @updatedAt @db.Timestamptz(3)
 
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   sourcePlanPrice PlanPrice    @relation("PlanChangeSource", fields: [sourcePlanPriceId], references: [id], onDelete: Restrict)
@@ -434,6 +446,7 @@ model PlanChange {
 
   @@index([status, nextCheckAt])
   @@index([organizationId, createdAt])
+  @@index([status, appliedNotificationHandledAt, createdAt])
 }
 
 model StripeWebhookEvent {
@@ -770,4 +783,26 @@ model ReceivablePayment {
   @@unique([receivableId, requestId])
   @@index([receivableId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([receivableId, reversedAt, receivedAt])
+}
+
+model NotificationOutbox {
+  id               String             @id @default(uuid()) @db.Uuid
+  key              String             @unique @db.VarChar(200)
+  type             String             @db.VarChar(50)
+  encryptedPayload String?            @db.Text
+  status           NotificationStatus @default(PENDING)
+  attempts         Int                @default(0)
+  availableAt      DateTime           @default(now()) @db.Timestamptz(3)
+  expiresAt        DateTime           @db.Timestamptz(3)
+  firstAttemptAt   DateTime?          @db.Timestamptz(3)
+  leaseToken       String?            @db.Uuid
+  leaseUntil       DateTime?          @db.Timestamptz(3)
+  providerId       String?            @db.VarChar(100)
+  lastErrorCode    String?            @db.VarChar(60)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  finishedAt       DateTime?          @db.Timestamptz(3)
+
+  @@index([status, availableAt, createdAt])
+  @@index([status, leaseUntil])
+  @@index([finishedAt])
 }

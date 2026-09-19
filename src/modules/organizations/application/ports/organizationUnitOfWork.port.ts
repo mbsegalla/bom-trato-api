@@ -1,4 +1,5 @@
 import type { OrganizationRole } from '../../../../generated/prisma/enums.js';
+import type { NotificationOutbox } from '../../../notifications/application/ports/notificationOutbox.port.js';
 import type { OrganizationInvitationRepository } from '../../domain/repositories/organizationInvitation.repository.js';
 import type { OrganizationMemberRepository } from '../../domain/repositories/organizationMember.repository.js';
 
@@ -27,6 +28,7 @@ export interface OrganizationTransaction {
   readonly invitations: OrganizationInvitationRepository;
   readonly access: OrganizationTeamAccess;
   readonly invitationRateLimit: OrganizationInvitationRateLimit;
+  readonly notifications: NotificationOutbox;
 }
 
 export interface OrganizationReadContext {

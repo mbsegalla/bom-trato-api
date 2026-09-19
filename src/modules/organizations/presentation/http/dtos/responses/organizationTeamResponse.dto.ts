@@ -96,7 +96,7 @@ export class SendInvitationResponseDto {
   @ApiProperty({
     description: 'The SMTP server accepted the message; this does not confirm inbox delivery.',
   })
-  emailAccepted!: boolean;
+  emailQueued!: boolean;
 }
 
 export class PreviewInvitationResponseDto {
