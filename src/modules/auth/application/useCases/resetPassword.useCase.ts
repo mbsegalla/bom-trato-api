@@ -1,11 +1,11 @@
 import { AuthActionPurpose } from '../../../../generated/prisma/enums.js';
 import { User } from '../../../users/domain/entities/user.entity.js';
-import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
+import type { AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
 
 export class ResetPasswordUseCase {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly unitOfWork: AuthUnitOfWork,
     private readonly security: AuthSecurity,
   ) {}
 
@@ -13,12 +13,24 @@ export class ResetPasswordUseCase {
     User.assertPassword(password);
 
     const passwordHash = await this.security.hashPassword(password);
+    const tokenHash = this.security.hashToken(token);
 
-    await this.authRepository.consumeAction({
-      tokenHash: this.security.hashToken(token),
-      purpose: AuthActionPurpose.RESET_PASSWORD,
-      now: new Date(),
-      passwordHash,
+    await this.unitOfWork.run(async (tx) => {
+      const email = await tx.auth.consumeAction({
+        tokenHash,
+        purpose: AuthActionPurpose.RESET_PASSWORD,
+        now: new Date(),
+        passwordHash,
+      });
+
+      await tx.notifications.enqueue({
+        key: `password-changed/${tokenHash}`,
+        recipient: email,
+        content: {
+          type: 'PASSWORD_CHANGED',
+        },
+        expiresAt: new Date(Date.now() + 86400000),
+      });
     });
   }
 }

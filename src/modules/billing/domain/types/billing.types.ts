@@ -24,6 +24,7 @@ export interface RemoteInvoice {
   invoicePdf: string | null;
   paidAt: Date | null;
   paidThrough: Date | null;
+  billingReason: string | null;
   stripeCreatedAt: Date;
 }
 
@@ -49,3 +50,12 @@ export interface ClaimedWebhookJob extends WebhookJob {
 }
 
 export type WebhookOutcome = 'COMPLETE' | 'DEFER' | 'RETRY';
+
+export interface BillingNotificationContext {
+  organizationName: string;
+  recipient: string;
+  recipientEnabled: boolean;
+  invoiceStatus: string | null;
+  amountRemaining: number;
+  subscriptionStatus: string | null;
+}

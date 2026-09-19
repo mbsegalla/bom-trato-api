@@ -1,16 +1,10 @@
 import { Module } from '@nestjs/common';
-import type { ConfigType } from '@nestjs/config';
 
-import { appConfig } from '../../config/app.config.js';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { MailModule } from '../../infrastructure/mail/mail.module.js';
-import { SmtpTransport } from '../../infrastructure/mail/smtpTransport.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
-import {
-  OrganizationInvitationMail,
-  OrganizationInvitationTokens,
-} from './application/ports/organizationInvitationSecurity.port.js';
+import { OrganizationInvitationTokens } from './application/ports/organizationInvitationSecurity.port.js';
 import { OrganizationUnitOfWork } from './application/ports/organizationUnitOfWork.port.js';
 import { OrganizationTeamApplicationService } from './application/services/organizationTeamApplicationService.service.js';
 import { AcceptOrganizationInvitationUseCase } from './application/useCases/acceptOrganizationInvitation.useCase.js';
@@ -27,7 +21,6 @@ import { RevokeOrganizationInvitationUseCase } from './application/useCases/revo
 import { OrganizationRepository } from './domain/repositories/organization.repository.js';
 import { OrganizationInvitationRepository } from './domain/repositories/organizationInvitation.repository.js';
 import { OrganizationMemberRepository } from './domain/repositories/organizationMember.repository.js';
-import { SmtpOrganizationInvitationMail } from './infrastructure/mail/smtpOrganizationInvitationMail.js';
 import { PrismaOrganizationRepository } from './infrastructure/repositories/prismaOrganization.repository.js';
 import { PrismaOrganizationInvitationRepository } from './infrastructure/repositories/prismaOrganizationInvitation.repository.js';
 import { PrismaOrganizationMemberRepository } from './infrastructure/repositories/prismaOrganizationMember.repository.js';
@@ -38,7 +31,7 @@ import { OrganizationsController } from './presentation/http/controllers/organiz
 import { OrganizationTeamController } from './presentation/http/controllers/organizationTeam.controller.js';
 
 @Module({
-  imports: [DatabaseModule, MailModule],
+  imports: [DatabaseModule, NotificationsModule],
   controllers: [OrganizationsController, OrganizationTeamController, OrganizationInvitationController],
   providers: [
     {
@@ -69,12 +62,6 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
       useClass: NodeOrganizationInvitationTokens,
     },
     {
-      provide: OrganizationInvitationMail,
-      useFactory: (transport: SmtpTransport, app: ConfigType<typeof appConfig>) =>
-        new SmtpOrganizationInvitationMail(transport, app),
-      inject: [SmtpTransport, appConfig.KEY],
-    },
-    {
       provide: CreateOrganizationUseCase,
       useFactory: (repository: OrganizationRepository) => new CreateOrganizationUseCase(repository),
       inject: [OrganizationRepository],
@@ -102,21 +89,15 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
     },
     {
       provide: InviteOrganizationMemberUseCase,
-      useFactory: (
-        tokens: OrganizationInvitationTokens,
-        mail: OrganizationInvitationMail,
-        processor: OrganizationTeamApplicationService,
-      ) => new InviteOrganizationMemberUseCase(tokens, mail, processor),
-      inject: [OrganizationInvitationTokens, OrganizationInvitationMail, OrganizationTeamApplicationService],
+      useFactory: (tokens: OrganizationInvitationTokens, processor: OrganizationTeamApplicationService) =>
+        new InviteOrganizationMemberUseCase(tokens, processor),
+      inject: [OrganizationInvitationTokens, OrganizationTeamApplicationService],
     },
     {
       provide: ResendOrganizationInvitationUseCase,
-      useFactory: (
-        tokens: OrganizationInvitationTokens,
-        mail: OrganizationInvitationMail,
-        processor: OrganizationTeamApplicationService,
-      ) => new ResendOrganizationInvitationUseCase(tokens, mail, processor),
-      inject: [OrganizationInvitationTokens, OrganizationInvitationMail, OrganizationTeamApplicationService],
+      useFactory: (tokens: OrganizationInvitationTokens, processor: OrganizationTeamApplicationService) =>
+        new ResendOrganizationInvitationUseCase(tokens, processor),
+      inject: [OrganizationInvitationTokens, OrganizationTeamApplicationService],
     },
     {
       provide: RevokeOrganizationInvitationUseCase,

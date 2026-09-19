@@ -24,11 +24,9 @@ export interface EnvironmentVariables {
   AUTH_RETENTION_DAYS: number;
   AUTH_CLEANUP_WORKER_ENABLED: boolean;
   AUTH_CLEANUP_INTERVAL_SECONDS: number;
-  MAIL_SMTP_HOST: string;
-  MAIL_SMTP_PORT: number;
-  MAIL_SMTP_SECURE: boolean;
-  MAIL_SMTP_USER?: string;
-  MAIL_SMTP_PASSWORD?: string;
+  RESEND_API_KEY: string;
+  NOTIFICATION_ENCRYPTION_KEY: string;
+  NOTIFICATION_WORKER_ENABLED: boolean;
   MAIL_FROM_EMAIL: string;
   MAIL_FROM_NAME: string;
   QUOTE_SHARE_RATE_LIMIT_SECRET: string;

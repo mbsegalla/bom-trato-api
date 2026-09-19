@@ -4,14 +4,13 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 
 import { appConfig } from '../../config/app.config.js';
 import { authConfig } from '../../config/auth.config.js';
-import { mailConfig } from '../../config/mail.config.js';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { MailModule } from '../../infrastructure/mail/mail.module.js';
-import { SmtpTransport } from '../../infrastructure/mail/smtpTransport.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 import { AuthMaintenanceRepository } from './application/ports/authMaintenanceRepository.port.js';
-import { AuthMail, AuthSecurity } from './application/ports/authSecurity.port.js';
+import { AuthSecurity } from './application/ports/authSecurity.port.js';
+import { AuthUnitOfWork } from './application/ports/authUnitOfWork.port.js';
 import { AuthEmailSender } from './application/services/authEmailSender.service.js';
 import { CleanupAuthUseCase } from './application/useCases/cleanupAuth.useCase.js';
 import { ListSessionsUseCase } from './application/useCases/listSessions.useCase.js';
@@ -26,11 +25,11 @@ import { ResetPasswordUseCase } from './application/useCases/resetPassword.useCa
 import { RevokeSessionUseCase } from './application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from './application/useCases/verifyEmail.useCase.js';
 import { AuthRepository } from './domain/repositories/auth.repository.js';
-import { SmtpAuthMail } from './infrastructure/mail/smtpAuthMail.js';
 import { PostgresAuthRateLimit } from './infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { PrismaAuthRepository } from './infrastructure/repositories/prismaAuth.repository.js';
 import { PrismaAuthMaintenanceRepository } from './infrastructure/repositories/prismaAuthMaintenance.repository.js';
 import { NodeAuthSecurity } from './infrastructure/security/nodeAuthSecurity.js';
+import { PrismaAuthUnitOfWork } from './infrastructure/transactions/prismaAuthUnitOfWork.js';
 import { AuthCleanupWorker } from './infrastructure/workers/authCleanup.worker.js';
 import { AuthCookies } from './presentation/http/authCookies.js';
 import { AuthController } from './presentation/http/controllers/auth.controller.js';
@@ -39,9 +38,8 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
 @Module({
   imports: [
     DatabaseModule,
-    MailModule,
+    NotificationsModule,
     ConfigModule.forFeature(authConfig),
-    ConfigModule.forFeature(mailConfig),
     ConfigModule.forFeature(appConfig),
   ],
   controllers: [AuthController],
@@ -56,14 +54,13 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       useClass: PrismaAuthMaintenanceRepository,
     },
     {
+      provide: AuthUnitOfWork,
+      useClass: PrismaAuthUnitOfWork,
+    },
+    {
       provide: AuthSecurity,
       useFactory: (config: ConfigType<typeof authConfig>) => new NodeAuthSecurity(config),
       inject: [authConfig.KEY],
-    },
-    {
-      provide: AuthMail,
-      useFactory: (transport: SmtpTransport, app: ConfigType<typeof appConfig>) => new SmtpAuthMail(transport, app),
-      inject: [SmtpTransport, appConfig.KEY],
     },
     {
       provide: AuthCookies,
@@ -87,16 +84,6 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
         rateLimit: PostgresAuthRateLimit,
       ) => new AccessTokenGuard(reflector, security, authRepository, cookies, rateLimit),
       inject: [Reflector, AuthSecurity, AuthRepository, AuthCookies, PostgresAuthRateLimit],
-    },
-    {
-      provide: RegisterUseCase,
-      useFactory: (
-        authRepository: AuthRepository,
-        security: AuthSecurity,
-        mail: AuthMail,
-        config: ConfigType<typeof authConfig>,
-      ) => new RegisterUseCase(authRepository, security, mail, config),
-      inject: [AuthRepository, AuthSecurity, AuthMail, authConfig.KEY],
     },
     {
       provide: LoginUseCase,
@@ -132,16 +119,6 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       inject: [AuthRepository],
     },
     {
-      provide: AuthEmailSender,
-      useFactory: (
-        authRepository: AuthRepository,
-        security: AuthSecurity,
-        mail: AuthMail,
-        config: ConfigType<typeof authConfig>,
-      ) => new AuthEmailSender(authRepository, security, mail, config),
-      inject: [AuthRepository, AuthSecurity, AuthMail, authConfig.KEY],
-    },
-    {
       provide: RequestPasswordResetUseCase,
       useFactory: (processor: AuthEmailSender) => new RequestPasswordResetUseCase(processor),
       inject: [AuthEmailSender],
@@ -158,16 +135,33 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       inject: [AuthRepository, AuthSecurity],
     },
     {
-      provide: ResetPasswordUseCase,
-      useFactory: (authRepository: AuthRepository, security: AuthSecurity) =>
-        new ResetPasswordUseCase(authRepository, security),
-      inject: [AuthRepository, AuthSecurity],
-    },
-    {
       provide: CleanupAuthUseCase,
       useFactory: (repository: AuthMaintenanceRepository, config: ConfigType<typeof authConfig>) =>
         new CleanupAuthUseCase(repository, config.retentionDays),
       inject: [AuthMaintenanceRepository, authConfig.KEY],
+    },
+    {
+      provide: AuthRepository,
+      useFactory: (prisma: PrismaService) => new PrismaAuthRepository(prisma),
+      inject: [PrismaService],
+    },
+    {
+      provide: RegisterUseCase,
+      useFactory: (unitOfWork: AuthUnitOfWork, security: AuthSecurity, config: ConfigType<typeof authConfig>) =>
+        new RegisterUseCase(unitOfWork, security, config),
+      inject: [AuthUnitOfWork, AuthSecurity, authConfig.KEY],
+    },
+    {
+      provide: AuthEmailSender,
+      useFactory: (unitOfWork: AuthUnitOfWork, security: AuthSecurity, config: ConfigType<typeof authConfig>) =>
+        new AuthEmailSender(unitOfWork, security, config),
+      inject: [AuthUnitOfWork, AuthSecurity, authConfig.KEY],
+    },
+    {
+      provide: ResetPasswordUseCase,
+      useFactory: (unitOfWork: AuthUnitOfWork, security: AuthSecurity) =>
+        new ResetPasswordUseCase(unitOfWork, security),
+      inject: [AuthUnitOfWork, AuthSecurity],
     },
   ],
 })

@@ -7,8 +7,8 @@ export class VerifyEmailUseCase {
     private readonly security: AuthSecurity,
   ) {}
 
-  execute(token: string): Promise<void> {
-    return this.authRepository.consumeAction({
+  async execute(token: string): Promise<void> {
+    await this.authRepository.consumeAction({
       tokenHash: this.security.hashToken(token),
       purpose: 'VERIFY_EMAIL',
       now: new Date(),

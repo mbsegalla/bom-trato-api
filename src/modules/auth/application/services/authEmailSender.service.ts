@@ -1,14 +1,13 @@
 import { AuthActionPurpose } from '../../../../generated/prisma/enums.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
-import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
-import type { AuthMail, AuthSecurity } from '../ports/authSecurity.port.js';
+import type { AuthSecurity } from '../ports/authSecurity.port.js';
+import type { AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
 import type { AuthPolicy } from '../types/auth.types.js';
 
 export class AuthEmailSender {
   constructor(
-    private readonly authRepository: AuthRepository,
+    private readonly unitOfWork: AuthUnitOfWork,
     private readonly security: AuthSecurity,
-    private readonly mail: AuthMail,
     private readonly policy: AuthPolicy,
   ) {}
 
@@ -19,21 +18,30 @@ export class AuthEmailSender {
     const ttl =
       purpose === AuthActionPurpose.VERIFY_EMAIL ? this.policy.verificationTtlSeconds : this.policy.resetTtlSeconds;
 
-    const issued = await this.authRepository.issueAction({
-      email,
-      purpose,
-      tokenHash: this.security.hashToken(token),
-      expiresAt: new Date(Date.now() + ttl * 1000),
+    const tokenHash = this.security.hashToken(token);
+    const expiresAt = new Date(Date.now() + ttl * 1000);
+
+    await this.unitOfWork.run(async (tx) => {
+      const issued = await tx.auth.issueAction({
+        email,
+        purpose,
+        tokenHash,
+        expiresAt,
+      });
+
+      if (!issued) {
+        return;
+      }
+
+      await tx.notifications.enqueue({
+        key: `${purpose}/${tokenHash}`,
+        recipient: email,
+        content: {
+          type: purpose,
+          token,
+        },
+        expiresAt,
+      });
     });
-
-    if (!issued) {
-      return;
-    }
-
-    if (purpose === AuthActionPurpose.VERIFY_EMAIL) {
-      await this.mail.sendVerification(email, token);
-    } else {
-      await this.mail.sendPasswordReset(email, token);
-    }
   }
 }

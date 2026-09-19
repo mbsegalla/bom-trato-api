@@ -13,8 +13,3 @@ export abstract class AuthSecurity {
   abstract signAccess(claims: AccessClaims): Promise<string>;
   abstract verifyAccess(token: string): Promise<AccessClaims>;
 }
-
-export abstract class AuthMail {
-  abstract sendVerification(email: string, token: string): Promise<void>;
-  abstract sendPasswordReset(email: string, token: string): Promise<void>;
-}

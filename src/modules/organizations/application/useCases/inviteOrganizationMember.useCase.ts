@@ -2,24 +2,20 @@ import { randomUUID } from 'node:crypto';
 
 import { normalizeEmail } from '../../../../shared/text/email.js';
 import { OrganizationInvitation } from '../../domain/entities/organizationInvitation.entity.js';
-import type {
-  OrganizationInvitationMail,
-  OrganizationInvitationTokens,
-} from '../ports/organizationInvitationSecurity.port.js';
+import type { OrganizationInvitationTokens } from '../ports/organizationInvitationSecurity.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 import type { InviteMemberParams } from '../types/organization.types.js';
 
 export class InviteOrganizationMemberUseCase {
   constructor(
     private readonly tokens: OrganizationInvitationTokens,
-    private readonly mail: OrganizationInvitationMail,
     private readonly processor: OrganizationTeamApplicationService,
   ) {}
 
   async execute(params: InviteMemberParams) {
     const token = this.tokens.create();
 
-    const result = await this.processor.withTeam(params, async (tx, policy) => {
+    return this.processor.withTeam(params, async (tx, policy) => {
       policy.assertOwner();
 
       const now = new Date();
@@ -44,21 +40,23 @@ export class InviteOrganizationMemberUseCase {
 
       await tx.invitations.create(invitation);
 
+      const state = invitation.snapshot();
+
+      await tx.notifications.enqueue({
+        key: `invitation/${state.id}/${token.hash}`,
+        recipient: state.email,
+        content: {
+          type: 'ORGANIZATION_INVITATION',
+          organizationName: tx.organization.name,
+          token: token.value,
+        },
+        expiresAt: state.expiresAt,
+      });
+
       return {
         invitation: invitation.toPublic(now),
-        organizationName: tx.organization.name,
+        emailQueued: true,
       };
     });
-
-    const emailAccepted = await this.mail.send({
-      email: result.invitation.email,
-      organizationName: result.organizationName,
-      token: token.value,
-    });
-
-    return {
-      invitation: result.invitation,
-      emailAccepted,
-    };
   }
 }
