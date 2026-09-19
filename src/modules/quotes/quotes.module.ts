@@ -36,6 +36,7 @@ import { PrismaQuoteShareRateLimit } from './infrastructure/rateLimits/prismaQuo
 import { NodeQuoteShareSecurity } from './infrastructure/security/nodeQuoteShareSecurity.js';
 import { PrismaPublicQuoteUnitOfWork } from './infrastructure/transactions/prismaPublicQuoteUnitOfWork.js';
 import { PrismaQuoteUnitOfWork } from './infrastructure/transactions/prismaQuoteUnitOfWork.js';
+import { QuoteShareCleanupWorker } from './infrastructure/workers/quoteShareCleanup.worker.js';
 import { PublicQuotesController } from './presentation/http/controllers/publicQuotes.controller.js';
 import { QuotesController } from './presentation/http/controllers/quotes.controller.js';
 import { QuoteSharesController } from './presentation/http/controllers/quoteShares.controller.js';
@@ -46,6 +47,7 @@ import { QuoteShareRateLimitGuard } from './presentation/http/guards/quoteShareR
   controllers: [QuotesController, QuoteSharesController, PublicQuotesController],
   providers: [
     QuoteShareRateLimitGuard,
+    QuoteShareCleanupWorker,
     {
       provide: QuoteUnitOfWork,
       useClass: PrismaQuoteUnitOfWork,

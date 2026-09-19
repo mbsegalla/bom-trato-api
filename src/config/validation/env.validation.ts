@@ -96,6 +96,8 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()
     .pattern(/^[a-fA-F0-9]{64}$/)
     .required(),
+
+  QUOTE_SHARE_CLEANUP_WORKER_ENABLED: Joi.boolean().default(true),
 }).and('MAIL_SMTP_USER', 'MAIL_SMTP_PASSWORD');
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {
