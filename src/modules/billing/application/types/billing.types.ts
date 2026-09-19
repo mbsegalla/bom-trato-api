@@ -101,6 +101,6 @@ export type BillingSuccessNotification =
     };
 
 export interface BillingSuccessNotificationTransaction {
-  BillingSuccessNotification: BillingSuccessNotification;
+  billingSuccessNotification: BillingSuccessNotification;
   notificationOutbox: NotificationOutbox;
 }

@@ -1,21 +1,21 @@
-import type { BillingSuccessNotificationUnitOfWork } from '../ports/prismaBillingSuccessNotificationUnitOfWork.port.js';
+import type { BillingSuccessNotificationUnitOfWork } from '../ports/billingSuccessNotificationUnitOfWork.port.js';
 
 export class QueueNextBillingConfirmationUseCase {
   constructor(private readonly unitOfWork: BillingSuccessNotificationUnitOfWork) {}
 
   execute(): Promise<boolean> {
     return this.unitOfWork.run(async (tx) => {
-      const { BillingSuccessNotification } = tx;
-      const { recipient } = BillingSuccessNotification;
+      const { billingSuccessNotification } = tx;
+      const { recipient } = billingSuccessNotification;
 
       if (!recipient.enabled) {
         return;
       }
 
       const occurredAt =
-        BillingSuccessNotification.kind === 'INVOICE'
-          ? BillingSuccessNotification.paidAt
-          : BillingSuccessNotification.appliedAt;
+        billingSuccessNotification.kind === 'INVOICE'
+          ? billingSuccessNotification.paidAt
+          : billingSuccessNotification.appliedAt;
 
       if (occurredAt === null) {
         return;
@@ -27,15 +27,15 @@ export class QueueNextBillingConfirmationUseCase {
         return;
       }
 
-      if (BillingSuccessNotification.kind === 'PLAN_CHANGE') {
+      if (billingSuccessNotification.kind === 'PLAN_CHANGE') {
         await tx.notificationOutbox.enqueue({
-          key: `plan-change-applied/${BillingSuccessNotification.id}`,
+          key: `plan-change-applied/${billingSuccessNotification.id}`,
           recipient: recipient.email,
           expiresAt,
           content: {
             type: 'PLAN_CHANGE_CONFIRMED',
             organizationName: recipient.organizationName,
-            planName: BillingSuccessNotification.planName,
+            planName: billingSuccessNotification.planName,
           },
         });
 
@@ -43,21 +43,21 @@ export class QueueNextBillingConfirmationUseCase {
       }
 
       const subscriptionIsActive =
-        BillingSuccessNotification.subscriptionStatus === 'ACTIVE' ||
-        BillingSuccessNotification.subscriptionStatus === 'TRIALING';
+        billingSuccessNotification.subscriptionStatus === 'ACTIVE' ||
+        billingSuccessNotification.subscriptionStatus === 'TRIALING';
 
-      const activation = BillingSuccessNotification.billingReason === 'subscription_create' && subscriptionIsActive;
+      const activation = billingSuccessNotification.billingReason === 'subscription_create' && subscriptionIsActive;
 
       await tx.notificationOutbox.enqueue({
-        key: `invoice-paid/${BillingSuccessNotification.stripeInvoiceId}`,
+        key: `invoice-paid/${billingSuccessNotification.stripeInvoiceId}`,
         recipient: recipient.email,
         expiresAt,
         content: {
           type: activation ? 'SUBSCRIPTION_ACTIVATED' : 'PAYMENT_CONFIRMED',
           organizationName: recipient.organizationName,
-          invoiceNumber: BillingSuccessNotification.number,
-          amountPaidInCents: BillingSuccessNotification.amountPaid,
-          currency: BillingSuccessNotification.currency,
+          invoiceNumber: billingSuccessNotification.number,
+          amountPaidInCents: billingSuccessNotification.amountPaid,
+          currency: billingSuccessNotification.currency,
         },
       });
     });

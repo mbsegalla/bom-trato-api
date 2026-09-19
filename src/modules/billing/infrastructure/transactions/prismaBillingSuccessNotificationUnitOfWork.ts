@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.js';
-import { BillingSuccessNotificationUnitOfWork } from '../../application/ports/prismaBillingSuccessNotificationUnitOfWork.port.js';
+import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
+import { BillingSuccessNotificationUnitOfWork } from '../../application/ports/billingSuccessNotificationUnitOfWork.port.js';
 import type { BillingSuccessNotificationTransaction } from '../../application/types/billing.types.js';
 
 @Injectable()
@@ -72,7 +72,7 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
 
           await operation({
             notificationOutbox: this.outbox.using(db, onNotificationInserted),
-            BillingSuccessNotification: {
+            billingSuccessNotification: {
               kind: 'INVOICE',
               id: invoice.id,
               stripeInvoiceId: invoice.stripeInvoiceId,
@@ -153,7 +153,7 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
 
         await operation({
           notificationOutbox: this.outbox.using(db, onNotificationInserted),
-          BillingSuccessNotification: {
+          billingSuccessNotification: {
             kind: 'PLAN_CHANGE',
             id: change.id,
             planName: change.targetPlanPrice.plan.name,
