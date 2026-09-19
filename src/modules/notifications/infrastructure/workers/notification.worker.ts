@@ -1,23 +1,29 @@
 import { randomUUID } from 'node:crypto';
 
-import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import type { OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
+import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 
 import { notificationConfig } from '../../../../config/notification.config.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
+import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
 import { NotificationDeliveryError, ResendEmailGateway } from '../resend/resendEmail.gateway.js';
 import { NotificationCipher } from '../security/notificationCipher.js';
 
 @Injectable()
-export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
+export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(NotificationWorker.name);
 
   private running?: Promise<void>;
   private cleaning?: Promise<void>;
+  private timer?: ReturnType<typeof setTimeout>;
+
+  private started = false;
   private stopping = false;
+  private wakeRequested = false;
 
   constructor(
     @Inject(notificationConfig.KEY)
@@ -28,30 +34,91 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     private readonly sender: ResendEmailGateway,
   ) {}
 
-  onModuleInit(): void {
-    if (this.config.workerEnabled) {
-      this.logger.log('Notification worker started; polling every 2 seconds');
-    }
-  }
-
-  @Interval('notification-poll', 2000)
-  async poll(): Promise<void> {
-    if (!this.config.workerEnabled || this.stopping || this.running !== undefined) {
+  onApplicationBootstrap(): void {
+    if (!this.config.workerEnabled) {
       return;
     }
 
+    this.started = true;
+
+    this.logger.log('Notification worker started; event-driven processing with recovery every 60 seconds');
+
+    // Startup recovery does not depend on an event listener being ready.
+    this.wake();
+  }
+
+  @OnEvent(NOTIFICATIONS_AVAILABLE_EVENT, {
+    suppressErrors: true,
+  })
+  handleNotificationsAvailable(): void {
+    this.wake();
+  }
+
+  @Interval('notification-recovery', 60_000)
+  recover(): void {
+    this.wake();
+  }
+
+  private wake(): void {
+    if (!this.config.workerEnabled || !this.started || this.stopping) {
+      return;
+    }
+
+    this.wakeRequested = true;
+
+    if (this.running !== undefined || this.timer !== undefined) {
+      return;
+    }
+
+    this.startProcessing();
+  }
+
+  private startProcessing(): void {
+    if (!this.config.workerEnabled || !this.started || this.stopping || this.running !== undefined) {
+      return;
+    }
+
+    this.wakeRequested = false;
+
+    let foundJob = false;
+    let failed = false;
+
     this.running = this.process()
+      .then((processed) => {
+        foundJob = processed;
+      })
       .catch(() => {
-        this.logger.error('Notification polling failed; retrying on the next poll');
+        failed = true;
+
+        this.logger.error('Notification processing failed; pending jobs remain available for recovery');
       })
       .finally(() => {
         this.running = undefined;
-      });
 
-    await this.running;
+        if (this.stopping || failed) {
+          return;
+        }
+
+        if (foundJob || this.wakeRequested) {
+          this.scheduleNext();
+        }
+      });
   }
 
-  private async process(): Promise<void> {
+  private scheduleNext(): void {
+    if (this.stopping || this.timer !== undefined) {
+      return;
+    }
+
+    // Pace processing while work is available.
+    // Scheduling stops after a query finds no available job.
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      this.startProcessing();
+    }, 2000);
+  }
+
+  private async process(): Promise<boolean> {
     const token = randomUUID();
 
     const jobs = await this.db.$queryRaw<NotificationJob[]>`
@@ -88,7 +155,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     const job = jobs[0];
 
     if (job === undefined) {
-      return;
+      return false;
     }
 
     const deadline = Math.min(
@@ -98,7 +165,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
 
     if (Date.now() >= deadline || job.attempts > 16) {
       await this.finish(job, 'SKIPPED', 'RETRY_WINDOW_EXPIRED');
-      return;
+
+      return true;
     }
 
     let message: NotificationMessage;
@@ -111,7 +179,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       message = this.cipher.decrypt(job.id, job.encryptedPayload);
     } catch {
       await this.finish(job, 'FAILED', 'INVALID_ENCRYPTED_PAYLOAD');
-      return;
+
+      return true;
     }
 
     let providerId: string;
@@ -132,7 +201,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
 
       if (!retryable || job.attempts >= 16 || availableAt.getTime() >= deadline) {
         await this.finish(job, 'FAILED', code);
-        return;
+
+        return true;
       }
 
       await this.db.notificationOutbox.updateMany({
@@ -156,7 +226,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
         code,
       });
 
-      return;
+      return true;
     }
 
     // A persistence failure leaves the job recoverable with the same
@@ -184,6 +254,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
         notificationId: job.id,
       });
     }
+
+    return true;
   }
 
   private async finish(job: NotificationJob, status: 'FAILED' | 'SKIPPED', code: string): Promise<void> {
@@ -219,7 +291,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
     waitForCompletion: true,
   })
   async cleanup(): Promise<void> {
-    if (!this.config.workerEnabled || this.stopping || this.cleaning !== undefined) {
+    if (!this.config.workerEnabled || !this.started || this.stopping || this.cleaning !== undefined) {
       return;
     }
 
@@ -249,6 +321,11 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     this.stopping = true;
+
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
 
     await Promise.all([this.running, this.cleaning]);
   }

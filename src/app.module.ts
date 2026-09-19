@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import { ConfigurationModule } from './config/configuration.module.js';
@@ -20,6 +21,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
   imports: [
     ConfigurationModule,
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     DatabaseModule,
     HttpModule,
     PlansModule,

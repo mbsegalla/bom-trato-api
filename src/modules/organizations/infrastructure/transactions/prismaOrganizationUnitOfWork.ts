@@ -50,8 +50,10 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
     );
   }
 
-  run<T>(params: OrganizationActorParams, operation: (tx: OrganizationTransaction) => Promise<T>): Promise<T> {
-    return organizationTransaction(
+  async run<T>(params: OrganizationActorParams, operation: (tx: OrganizationTransaction) => Promise<T>): Promise<T> {
+    let notificationInserted = false;
+
+    const result = await organizationTransaction(
       this.prisma,
       params.organizationId,
       'write',
@@ -62,10 +64,18 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
           invitations: new PrismaOrganizationInvitationRepository(db),
           access: new PrismaOrganizationTeamAccess(db),
           invitationRateLimit: new PrismaOrganizationInvitationRateLimit(db),
-          notifications: this.outbox.using(db),
+          notifications: this.outbox.using(db, () => {
+            notificationInserted = true;
+          }),
         }),
       this.errors(),
     );
+
+    if (notificationInserted) {
+      this.outbox.notifyWorker();
+    }
+
+    return result;
   }
 
   private async readIdentity(
@@ -73,7 +83,9 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
     params: OrganizationActorParams,
   ): Promise<Pick<OrganizationTransaction, 'organization' | 'actor' | 'actorRole'>> {
     const actor = await db.user.findUnique({
-      where: { id: params.userId },
+      where: {
+        id: params.userId,
+      },
       select: {
         id: true,
         email: true,
@@ -87,7 +99,9 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
     }
 
     const organization = await db.organization.findUniqueOrThrow({
-      where: { id: params.organizationId },
+      where: {
+        id: params.organizationId,
+      },
       select: {
         id: true,
         name: true,
@@ -102,7 +116,9 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
           userId: params.userId,
         },
       },
-      select: { role: true },
+      select: {
+        role: true,
+      },
     });
 
     return {
