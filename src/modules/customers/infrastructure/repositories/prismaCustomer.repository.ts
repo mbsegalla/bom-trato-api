@@ -2,7 +2,16 @@ import type { Prisma } from '../../../../generated/prisma/client.js';
 import type { Customer } from '../../domain/entities/customer.entity.js';
 import { CustomerError } from '../../domain/errors/customer.error.js';
 import { CustomerRepository } from '../../domain/repositories/customer.repository.js';
-import type { CustomerPageParams } from '../../domain/types/customer.types.js';
+import type { CustomerOverviewSummary, CustomerPageParams } from '../../domain/types/customer.types.js';
+
+interface CustomerOverviewRow {
+  quoteCount: string;
+  workOrderCount: string;
+  completedWorkOrderCount: string;
+  pendingAmountInCents: string;
+  overdueAmountInCents: string;
+  receivedAmountInCents: string;
+}
 
 export class PrismaCustomerRepository extends CustomerRepository {
   constructor(
@@ -102,6 +111,114 @@ export class PrismaCustomerRepository extends CustomerRepository {
     if (result.count !== 1) {
       throw new CustomerError('CUSTOMER_NOT_FOUND');
     }
+  }
+
+  async overviewSummary(customerId: string, now: Date): Promise<CustomerOverviewSummary> {
+    const rows = await this.db.$queryRaw<CustomerOverviewRow[]>`
+      WITH quote_totals AS (
+        SELECT
+          COUNT(*)::text AS "quoteCount"
+        FROM "Quote"
+        WHERE "organizationId" = ${this.organizationId}::uuid
+          AND "customerId" = ${customerId}::uuid
+      ),
+      work_order_totals AS (
+        SELECT
+          COUNT(*)::text AS "workOrderCount",
+          (
+            COUNT(*) FILTER (
+              WHERE "status" = 'COMPLETED'
+            )
+          )::text AS "completedWorkOrderCount"
+        FROM "WorkOrder"
+        WHERE "organizationId" = ${this.organizationId}::uuid
+          AND "customerId" = ${customerId}::uuid
+      ),
+      receivable_totals AS (
+        SELECT
+          COALESCE(
+            SUM(
+              "amountInCents"::bigint -
+              "receivedInCents"::bigint
+            ),
+            0
+          )::text AS "pendingAmountInCents",
+  
+          COALESCE(
+            SUM(
+              "amountInCents"::bigint -
+              "receivedInCents"::bigint
+            ) FILTER (
+              WHERE "dueAt" < ${now}
+            ),
+            0
+          )::text AS "overdueAmountInCents"
+  
+        FROM "Receivable"
+        WHERE "organizationId" = ${this.organizationId}::uuid
+          AND "customerId" = ${customerId}::uuid
+          AND "currency" = 'brl'
+          AND "status" IN ('OPEN', 'PARTIALLY_PAID')
+      ),
+      payment_totals AS (
+        SELECT
+          COALESCE(
+            SUM(payment."amountInCents"::bigint),
+            0
+          )::text AS "receivedAmountInCents"
+  
+        FROM "ReceivablePayment" AS payment
+  
+        INNER JOIN "Receivable" AS receivable
+          ON receivable."id" = payment."receivableId"
+  
+        WHERE receivable."organizationId" = ${this.organizationId}::uuid
+          AND receivable."customerId" = ${customerId}::uuid
+          AND receivable."currency" = 'brl'
+          AND payment."reversedAt" IS NULL
+      )
+      SELECT
+        quote_totals."quoteCount",
+        work_order_totals."workOrderCount",
+        work_order_totals."completedWorkOrderCount",
+        receivable_totals."pendingAmountInCents",
+        receivable_totals."overdueAmountInCents",
+        payment_totals."receivedAmountInCents"
+      FROM quote_totals
+      CROSS JOIN work_order_totals
+      CROSS JOIN receivable_totals
+      CROSS JOIN payment_totals
+    `;
+
+    const row = rows[0];
+
+    if (row === undefined) {
+      throw new CustomerError('CUSTOMER_OVERVIEW_VALUE_OUT_OF_RANGE');
+    }
+
+    return {
+      quoteCount: this.overviewNumber(row.quoteCount),
+      workOrderCount: this.overviewNumber(row.workOrderCount),
+      completedWorkOrderCount: this.overviewNumber(row.completedWorkOrderCount),
+      currency: 'brl',
+      pendingAmountInCents: this.overviewNumber(row.pendingAmountInCents),
+      overdueAmountInCents: this.overviewNumber(row.overdueAmountInCents),
+      receivedAmountInCents: this.overviewNumber(row.receivedAmountInCents),
+    };
+  }
+
+  private overviewNumber(value: string): number {
+    if (!/^\d+$/.test(value)) {
+      throw new CustomerError('CUSTOMER_OVERVIEW_VALUE_OUT_OF_RANGE');
+    }
+
+    const number = BigInt(value);
+
+    if (number > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new CustomerError('CUSTOMER_OVERVIEW_VALUE_OUT_OF_RANGE');
+    }
+
+    return Number(number);
   }
 
   private scopedState(customer: Customer) {

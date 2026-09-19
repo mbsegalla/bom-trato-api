@@ -7,7 +7,7 @@ export interface CustomerActorParams {
 }
 
 export interface CustomerReadContext {
-  readonly customers: Pick<CustomerRepository, 'findById' | 'list'>;
+  readonly customers: Pick<CustomerRepository, 'findById' | 'list' | 'overviewSummary'>;
   readonly access: OrganizationAccessContext;
 }
 

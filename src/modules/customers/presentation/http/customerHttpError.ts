@@ -18,6 +18,7 @@ const statuses = {
   INVALID_CUSTOMER_NOTES: HttpStatus.BAD_REQUEST,
   EMPTY_CUSTOMER_UPDATE: HttpStatus.BAD_REQUEST,
   CUSTOMERS_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
+  CUSTOMER_OVERVIEW_VALUE_OUT_OF_RANGE: HttpStatus.BAD_REQUEST,
 } satisfies Record<CustomerErrorCode, HttpStatus>;
 
 export function customerOperation<T>(operation: () => Promise<T>): Promise<T> {

@@ -11,7 +11,8 @@ export type CustomerErrorCode =
   | 'INVALID_CUSTOMER_PHONE'
   | 'INVALID_CUSTOMER_NOTES'
   | 'EMPTY_CUSTOMER_UPDATE'
-  | 'CUSTOMERS_BUSY';
+  | 'CUSTOMERS_BUSY'
+  | 'CUSTOMER_OVERVIEW_VALUE_OUT_OF_RANGE';
 
 export class CustomerError extends Error {
   constructor(readonly code: CustomerErrorCode) {

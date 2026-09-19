@@ -7,6 +7,7 @@ import { CustomerApplicationService } from './application/services/customerAppli
 import { ArchiveCustomerUseCase } from './application/useCases/archiveCustomer.useCase.js';
 import { CreateCustomerUseCase } from './application/useCases/createCustomer.useCase.js';
 import { GetCustomerUseCase } from './application/useCases/getCustomer.useCase.js';
+import { GetCustomerOverviewUseCase } from './application/useCases/getCustomerOverview.useCase.js';
 import { ListCustomersUseCase } from './application/useCases/listCustomers.useCase.js';
 import { RestoreCustomerUseCase } from './application/useCases/restoreCustomer.useCase.js';
 import { UpdateCustomerUseCase } from './application/useCases/updateCustomer.useCase.js';
@@ -54,6 +55,11 @@ import { CustomersController } from './presentation/http/controllers/customers.c
     {
       provide: RestoreCustomerUseCase,
       useFactory: (processor: CustomerApplicationService) => new RestoreCustomerUseCase(processor),
+      inject: [CustomerApplicationService],
+    },
+    {
+      provide: GetCustomerOverviewUseCase,
+      useFactory: (processor: CustomerApplicationService) => new GetCustomerOverviewUseCase(processor),
       inject: [CustomerApplicationService],
     },
   ],

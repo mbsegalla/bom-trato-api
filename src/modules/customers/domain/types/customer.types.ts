@@ -7,4 +7,14 @@ export interface CustomerPageParams extends PageParams {
   status: (typeof customerStatuses)[number];
 }
 
+export interface CustomerOverviewSummary {
+  quoteCount: number;
+  workOrderCount: number;
+  completedWorkOrderCount: number;
+  currency: 'brl';
+  pendingAmountInCents: number;
+  overdueAmountInCents: number;
+  receivedAmountInCents: number;
+}
+
 export type CustomerPage<T> = Page<T>;
