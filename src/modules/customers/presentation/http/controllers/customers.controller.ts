@@ -7,12 +7,17 @@ import { CurrentAuth } from '../../../../auth/presentation/http/decorators/curre
 import { ArchiveCustomerUseCase } from '../../../application/useCases/archiveCustomer.useCase.js';
 import { CreateCustomerUseCase } from '../../../application/useCases/createCustomer.useCase.js';
 import { GetCustomerUseCase } from '../../../application/useCases/getCustomer.useCase.js';
+import { GetCustomerOverviewUseCase } from '../../../application/useCases/getCustomerOverview.useCase.js';
 import { ListCustomersUseCase } from '../../../application/useCases/listCustomers.useCase.js';
 import { RestoreCustomerUseCase } from '../../../application/useCases/restoreCustomer.useCase.js';
 import { UpdateCustomerUseCase } from '../../../application/useCases/updateCustomer.useCase.js';
 import { customerOperation } from '../customerHttpError.js';
 import { CreateCustomerDto, CustomerPageDto, UpdateCustomerDto } from '../dtos/requests/customer.dto.js';
-import { CustomerResponseDto, CustomersResponseDto } from '../dtos/responses/customerResponse.dto.js';
+import {
+  CustomerOverviewResponseDto,
+  CustomerResponseDto,
+  CustomersResponseDto,
+} from '../dtos/responses/customerResponse.dto.js';
 
 const uuid = new ParseUUIDPipe({ version: '4' });
 
@@ -27,6 +32,7 @@ export class CustomersController {
     private readonly updateCustomerUseCase: UpdateCustomerUseCase,
     private readonly archiveCustomerUseCase: ArchiveCustomerUseCase,
     private readonly restoreCustomerUseCase: RestoreCustomerUseCase,
+    private readonly getCustomerOverviewUseCase: GetCustomerOverviewUseCase,
   ) {}
 
   @Post()
@@ -137,6 +143,23 @@ export class CustomersController {
         organizationId,
         userId: auth.user.id,
         customerId,
+      }),
+    );
+  }
+
+  @Get(':customerId/overview')
+  @ApiOperation({ summary: 'Get customer overview' })
+  @ApiDataResponse(CustomerOverviewResponseDto)
+  overview(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Param('customerId', uuid) customerId: string,
+  ): Promise<CustomerOverviewResponseDto> {
+    return customerOperation(() =>
+      this.getCustomerOverviewUseCase.execute({
+        organizationId,
+        customerId,
+        userId: auth.user.id,
       }),
     );
   }

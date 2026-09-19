@@ -87,7 +87,7 @@ export class Customer {
 
   private static normalize(details: CustomerDetails) {
     const name = details.name.trim();
-    const email = details.email ? normalizeEmail(details.email) : null;
+    const email = details.email ? normalizeEmail(details.email) || null : null;
     const phone = details.phone?.trim() || null;
     const notes = details.notes?.trim() || null;
 

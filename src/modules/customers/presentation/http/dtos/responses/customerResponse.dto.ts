@@ -29,6 +29,42 @@ export class CustomerResponseDto {
   updatedAt!: Date;
 }
 
+export class CustomerOverviewSummaryResponseDto {
+  @ApiProperty({ minimum: 0 })
+  quoteCount!: number;
+
+  @ApiProperty({ minimum: 0 })
+  workOrderCount!: number;
+
+  @ApiProperty({ minimum: 0 })
+  completedWorkOrderCount!: number;
+
+  @ApiProperty({ minimum: 0 })
+  pendingAmountInCents!: number;
+
+  @ApiProperty({ minimum: 0 })
+  overdueAmountInCents!: number;
+
+  @ApiProperty({ minimum: 0 })
+  receivedAmountInCents!: number;
+
+  @ApiProperty({ enum: ['brl'] })
+  currency!: 'brl';
+}
+
+export class CustomerOverviewResponseDto {
+  @ApiProperty({ type: CustomerResponseDto })
+  customer!: CustomerResponseDto;
+
+  @ApiProperty({
+    type: CustomerOverviewSummaryResponseDto,
+  })
+  summary!: CustomerOverviewSummaryResponseDto;
+
+  @ApiProperty({ type: Date })
+  generatedAt!: Date;
+}
+
 export class CustomersResponseDto {
   @ApiProperty({ type: [CustomerResponseDto] })
   items!: CustomerResponseDto[];
