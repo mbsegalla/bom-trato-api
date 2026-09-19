@@ -14,8 +14,14 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
     super();
   }
 
-  run(operation: (tx: BillingSuccessNotificationTransaction) => Promise<void>): Promise<boolean> {
-    return this.prisma.$transaction(
+  async run(operation: (tx: BillingSuccessNotificationTransaction) => Promise<void>): Promise<boolean> {
+    let notificationInserted = false;
+
+    const onNotificationInserted = (): void => {
+      notificationInserted = true;
+    };
+
+    const result = await this.prisma.$transaction(
       async (db) => {
         const invoices = await db.$queryRaw<Array<{ id: string }>>`
           SELECT "id"
@@ -31,7 +37,9 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
 
         if (invoiceId !== undefined) {
           const invoice = await db.billingInvoice.findUniqueOrThrow({
-            where: { id: invoiceId },
+            where: {
+              id: invoiceId,
+            },
             select: {
               id: true,
               stripeInvoiceId: true,
@@ -63,7 +71,7 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
           const owner = invoice.organization.owner;
 
           await operation({
-            notificationOutbox: this.outbox.using(db),
+            notificationOutbox: this.outbox.using(db, onNotificationInserted),
             BillingSuccessNotification: {
               kind: 'INVOICE',
               id: invoice.id,
@@ -83,7 +91,9 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
           });
 
           await db.billingInvoice.update({
-            where: { id: invoice.id },
+            where: {
+              id: invoice.id,
+            },
             data: {
               paymentNotificationHandledAt: new Date(),
             },
@@ -109,7 +119,9 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
         }
 
         const change = await db.planChange.findUniqueOrThrow({
-          where: { id: changeId },
+          where: {
+            id: changeId,
+          },
           select: {
             id: true,
             updatedAt: true,
@@ -140,7 +152,7 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
         const owner = change.organization.owner;
 
         await operation({
-          notificationOutbox: this.outbox.using(db),
+          notificationOutbox: this.outbox.using(db, onNotificationInserted),
           BillingSuccessNotification: {
             kind: 'PLAN_CHANGE',
             id: change.id,
@@ -155,7 +167,9 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
         });
 
         await db.planChange.update({
-          where: { id: change.id },
+          where: {
+            id: change.id,
+          },
           data: {
             appliedNotificationHandledAt: new Date(),
           },
@@ -168,5 +182,11 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
         timeout: 10000,
       },
     );
+
+    if (notificationInserted) {
+      this.outbox.notifyWorker();
+    }
+
+    return result;
   }
 }
