@@ -11,8 +11,8 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import { NotificationOutbox } from '../../application/ports/notificationOutbox.port.js';
 import type { EnqueueNotification } from '../../application/types/notification.types.js';
 import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
+import { mapNotificationTemplate } from '../resend/notificationTemplate.mapper.js';
 import { NotificationCipher } from '../security/notificationCipher.js';
-import { renderNotificationEmail } from '../templates/notificationEmail.renderer.js';
 
 @Injectable()
 export class PrismaNotificationOutbox extends NotificationOutbox {
@@ -65,7 +65,7 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
   private async insert(db: Prisma.TransactionClient, input: EnqueueNotification): Promise<boolean> {
     const id = randomUUID();
 
-    const message = renderNotificationEmail(input, this.app.frontendUrl, this.config.from);
+    const message = mapNotificationTemplate(input, this.app.frontendUrl, this.config.from, this.config.templates);
 
     const result = await db.notificationOutbox.createMany({
       data: [

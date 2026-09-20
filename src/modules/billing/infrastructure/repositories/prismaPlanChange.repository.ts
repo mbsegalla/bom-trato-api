@@ -120,7 +120,7 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
       this.workerNotifier.notify(BillingWork.CONFIRMATIONS);
     }
 
-    this.workerNotifier.notify(BillingWork.PLAN_CHANGES);
+    this.workerNotifier.scheduleChanged(BillingWork.PLAN_CHANGES);
   }
 
   async due(): Promise<PlanChangeProps[]> {
@@ -146,7 +146,7 @@ export class PrismaPlanChangeRepository extends PlanChangeRepository {
     });
 
     if (result.count > 0) {
-      this.workerNotifier.notify(BillingWork.PLAN_CHANGES);
+      this.workerNotifier.scheduleChanged(BillingWork.PLAN_CHANGES);
     }
   }
 }

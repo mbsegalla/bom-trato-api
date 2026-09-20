@@ -18,13 +18,16 @@ import { BillingRepository } from '../../domain/repositories/billing.repository.
 import { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 import { ClaimedWebhookJob, WebhookOutcome } from '../../domain/types/billing.types.js';
-import { BILLING_WORK_AVAILABLE_EVENT, BillingWork } from '../events/billing.events.js';
+import { BILLING_SCHEDULE_CHANGED_EVENT, BILLING_WORK_AVAILABLE_EVENT, BillingWork } from '../events/billing.events.js';
+import { safeBillingError } from '../logging/safeBillingError.js';
 import { PrismaBillingScheduleRepository } from '../repositories/prismaBillingSchedule.repository.js';
 
 @Injectable()
 export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(BillingWebhookWorker.name);
+
   private readonly pending = new Set<BillingWork>();
+  private readonly scheduleChanges = new Set<BillingWork>();
 
   private running?: Promise<void>;
   private started = false;
@@ -61,18 +64,50 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
   @OnEvent(BILLING_WORK_AVAILABLE_EVENT, { suppressErrors: true })
   handleWorkAvailable(work: BillingWork): void {
-    this.request(work);
+    try {
+      this.request(work);
+    } catch (error: unknown) {
+      this.logDispatchFailure(error);
+    }
+  }
+
+  @OnEvent(BILLING_SCHEDULE_CHANGED_EVENT, { suppressErrors: true })
+  handleScheduleChanged(work: BillingWork): void {
+    try {
+      if (!this.accepts(work)) {
+        return;
+      }
+
+      this.clearTimer(work);
+      this.scheduleChanges.add(work);
+      this.start();
+    } catch (error: unknown) {
+      this.logDispatchFailure(error);
+    }
+  }
+
+  private logDispatchFailure(error: unknown): void {
+    this.logger.error({
+      message: 'Billing task dispatch failed; recovery remains available',
+      ...safeBillingError(error),
+    });
+  }
+
+  private accepts(work: BillingWork): boolean {
+    return (
+      this.started && !this.stopping && this.configuration.workerEnabled && Object.values(BillingWork).includes(work)
+    );
   }
 
   @Interval('billing-recovery', 60_000)
   recover(): void {
     for (const work of Object.values(BillingWork)) {
-      this.request(work);
+      this.handleWorkAvailable(work);
     }
   }
 
   private request(work: BillingWork): void {
-    if (!this.started || this.stopping || !this.configuration.workerEnabled) {
+    if (!this.accepts(work)) {
       return;
     }
 
@@ -82,15 +117,18 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
   }
 
   private start(): void {
-    if (this.running !== undefined || this.stopping || this.pending.size === 0) {
+    if (this.running !== undefined || this.stopping || (this.pending.size === 0 && this.scheduleChanges.size === 0)) {
       return;
     }
 
     // Coalesce synchronous events before starting database work.
     this.running = Promise.resolve()
       .then(() => this.drain())
-      .catch(() => {
-        this.logger.error('Billing worker failed; persisted work remains available for recovery');
+      .catch((error: unknown) => {
+        this.logger.error({
+          message: 'Billing worker failed; persisted work remains available for recovery',
+          ...safeBillingError(error),
+        });
       })
       .finally(() => {
         this.running = undefined;
@@ -100,45 +138,55 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
   private async drain(): Promise<void> {
     while (!this.stopping) {
-      const work = this.pending.values().next().value;
+      const work = this.pending.values().next().value ?? this.scheduleChanges.values().next().value;
 
       if (work === undefined) {
         return;
       }
 
-      this.pending.delete(work);
+      const shouldProcess = this.pending.delete(work);
+
+      this.scheduleChanges.delete(work);
 
       try {
-        const more = await this.runBatch(work);
+        const more = shouldProcess ? await this.runBatch(work) : false;
 
         if (this.stopping || this.pending.has(work)) {
           continue;
         }
 
         if (more) {
+          this.scheduleChanges.delete(work);
           this.schedule(work, 25);
           continue;
         }
 
+        // Changes emitted while processing are covered by this fresh read.
+        this.scheduleChanges.delete(work);
+
         const nextRunAt = await this.scheduleRepository.nextRunAt(work);
 
-        if (this.stopping || this.pending.has(work)) {
+        // A change during the read invalidates its result.
+        // Read again without processing another batch.
+        if (this.stopping || this.pending.has(work) || this.scheduleChanges.has(work)) {
           continue;
         }
 
         if (nextRunAt !== null) {
           const delay = nextRunAt.getTime() - Date.now();
+          const fallbackDelay = shouldProcess ? 60_000 : 25;
 
-          // Overdue but unavailable work may be locked by another instance.
-          this.schedule(work, delay > 0 ? delay : 60_000);
+          this.schedule(work, delay > 0 ? delay : fallbackDelay);
         }
-      } catch {
+      } catch (error: unknown) {
         this.logger.error({
           message: 'Billing task failed; retry scheduled',
           work,
+          ...safeBillingError(error),
         });
 
         this.pending.delete(work);
+        this.scheduleChanges.delete(work);
         this.schedule(work, 60_000);
       }
     }
@@ -172,8 +220,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
     const timeout = setTimeout(
       () => {
-        this.clearTimer(work);
-        this.request(work);
+        this.handleWorkAvailable(work);
       },
       Math.min(2_147_483_647, Math.max(25, Math.ceil(delay))),
     );
@@ -232,9 +279,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
         this.logger.error({
           message: 'Plan change reconciliation failed',
-          changeId: change.id,
-          organizationId: change.organizationId,
-          code: error instanceof BillingError ? error.code : 'PLAN_CHANGE_RECONCILIATION_FAILED',
+          ...safeBillingError(error),
         });
       }
     }
@@ -264,9 +309,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
         this.logger.error({
           message: 'Payment method update reconciliation failed',
-          updateId: update.id,
-          organizationId: update.organizationId,
-          code: error instanceof BillingError ? error.code : 'PAYMENT_METHOD_UPDATE_FAILED',
+          ...safeBillingError(error),
         });
       }
     }
@@ -303,7 +346,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
         });
       } catch (error: unknown) {
         if (!(error instanceof BillingError && error.code === 'BILLING_BUSY')) {
-          this.logReconciliationFailure(customer.organizationId, error);
+          this.logReconciliationFailure(error);
         }
 
         await this.billingRepository.postponeReconciliation(customer.organizationId);
@@ -398,7 +441,6 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     if (leaseLost) {
       this.logger.warn({
         message: 'Webhook lease lost; completion was not acknowledged',
-        eventId: event.id,
       });
 
       return;
@@ -409,7 +451,6 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     if (!settled) {
       this.logger.warn({
         message: 'Webhook lease expired or changed before completion',
-        eventId: event.id,
       });
 
       return;
@@ -419,45 +460,22 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
       this.logger.warn({
         message:
           event.attempts + 1 >= 25 ? 'Billing webhook requires manual recovery' : 'Billing webhook will be retried',
-        eventId: event.id,
-        code,
+        ...safeBillingError({ code }),
       });
     }
   }
 
-  private logReconciliationFailure(organizationId: string, error: unknown): void {
-    const cause = error instanceof BillingError ? (error.cause ?? error) : error;
-
-    const rawCode = typeof cause === 'object' && cause !== null && 'code' in cause ? cause.code : undefined;
-
-    const causeCode =
-      typeof rawCode === 'string' &&
-      /^(P[0-9]{4}|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|api_connection_error|api_error|rate_limit|resource_missing)$/.test(
-        rawCode,
-      )
-        ? rawCode
-        : undefined;
-
-    const rawStatus =
-      typeof cause === 'object' && cause !== null && 'statusCode' in cause ? cause.statusCode : undefined;
-
-    const upstreamStatus =
-      typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 400 && rawStatus <= 599
-        ? rawStatus
-        : undefined;
-
+  private logReconciliationFailure(error: unknown): void {
     this.logger.error({
       message: 'Scheduled billing reconciliation failed',
-      organizationId,
-      code: error instanceof BillingError ? error.code : 'BILLING_RECONCILIATION_FAILED',
-      causeCode,
-      upstreamStatus,
+      ...safeBillingError(error),
     });
   }
 
   async onModuleDestroy(): Promise<void> {
     this.stopping = true;
     this.pending.clear();
+    this.scheduleChanges.clear();
 
     for (const work of Object.values(BillingWork)) {
       this.clearTimer(work);

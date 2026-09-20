@@ -4,7 +4,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 
 import { notificationConfig } from '../../../../config/notification.config.js';
-import type { NotificationMessage } from '../../application/types/notification.types.js';
+import type { NotificationMessage, NotificationTemplateVariables } from '../../application/types/notification.types.js';
 
 @Injectable()
 export class NotificationCipher {
@@ -51,12 +51,21 @@ export class NotificationCipher {
       typeof value.from !== 'string' ||
       !('to' in value) ||
       typeof value.to !== 'string' ||
-      !('subject' in value) ||
-      typeof value.subject !== 'string' ||
-      !('html' in value) ||
-      typeof value.html !== 'string' ||
-      !('text' in value) ||
-      typeof value.text !== 'string'
+      !('template' in value)
+    ) {
+      throw new Error('INVALID_NOTIFICATION_PAYLOAD');
+    }
+
+    const template = value.template;
+
+    if (
+      typeof template !== 'object' ||
+      template === null ||
+      !('id' in template) ||
+      typeof template.id !== 'string' ||
+      template.id.length === 0 ||
+      !('variables' in template) ||
+      !this.validVariables(template.variables)
     ) {
       throw new Error('INVALID_NOTIFICATION_PAYLOAD');
     }
@@ -64,9 +73,24 @@ export class NotificationCipher {
     return {
       from: value.from,
       to: value.to,
-      subject: value.subject,
-      html: value.html,
-      text: value.text,
+      template: {
+        id: template.id,
+        variables: template.variables,
+      },
     };
+  }
+
+  private validVariables(value: unknown): value is NotificationTemplateVariables {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.entries(value).every(
+        ([key, item]) =>
+          /^[A-Za-z0-9_]{1,50}$/.test(key) &&
+          ((typeof item === 'string' && item.length <= 2000) ||
+            (typeof item === 'number' && Number.isFinite(item) && Math.abs(item) <= Number.MAX_SAFE_INTEGER)),
+      )
+    );
   }
 }

@@ -61,7 +61,7 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
       },
     });
 
-    this.workerNotifier.notify(BillingWork.PAYMENT_METHOD_UPDATES);
+    this.workerNotifier.scheduleChanged(BillingWork.PAYMENT_METHOD_UPDATES);
 
     return result;
   }
@@ -78,7 +78,7 @@ export class PrismaPaymentMethodUpdateRepository extends PaymentMethodUpdateRepo
     });
 
     if (result.count > 0) {
-      this.workerNotifier.notify(BillingWork.PAYMENT_METHOD_UPDATES);
+      this.workerNotifier.scheduleChanged(BillingWork.PAYMENT_METHOD_UPDATES);
     }
   }
 
