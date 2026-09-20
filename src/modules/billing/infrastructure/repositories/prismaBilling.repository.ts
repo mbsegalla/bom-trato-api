@@ -388,7 +388,7 @@ export class PrismaBillingRepository extends BillingRepository {
     );
 
     if (nextReconcileAt !== undefined) {
-      this.workerNotifier.notify(BillingWork.RECONCILIATION);
+      this.workerNotifier.scheduleChanged(BillingWork.RECONCILIATION);
     }
 
     if (snapshot.invoices.some((invoice) => invoice.status === 'paid')) {
@@ -486,7 +486,7 @@ export class PrismaBillingRepository extends BillingRepository {
       },
     });
 
-    this.workerNotifier.notify(BillingWork.RECONCILIATION);
+    this.workerNotifier.scheduleChanged(BillingWork.RECONCILIATION);
   }
 
   async notificationContext(organizationId: string, stripeObjectId: string) {

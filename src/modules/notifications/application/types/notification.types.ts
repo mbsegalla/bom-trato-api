@@ -29,12 +29,22 @@ export interface EnqueueNotification {
   expiresAt: Date;
 }
 
+export type NotificationTemplateVariables = Record<string, string | number>;
+
+export interface NotificationTemplate {
+  id: string;
+  variables: NotificationTemplateVariables;
+}
+
+export interface NotificationTemplate {
+  id: string;
+  variables: NotificationTemplateVariables;
+}
+
 export interface NotificationMessage {
   from: string;
   to: string;
-  subject: string;
-  html: string;
-  text: string;
+  template: NotificationTemplate;
 }
 
 export interface NotificationJob {
@@ -44,20 +54,6 @@ export interface NotificationJob {
   attempts: number;
   expiresAt: Date;
   firstAttemptAt: Date | null;
-}
-
-export interface RenderedNotificationEmail {
-  subject: string;
-  html: string;
-  text: string;
-}
-
-export interface EmailLayoutParams {
-  subject: string;
-  bodyHtml: string;
-  text: string;
-  actionUrl: string;
-  actionLabel: string;
 }
 
 export interface BillingPaymentNotification {
