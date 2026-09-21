@@ -5,6 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingLock } from '../../application/ports/billingLock.port.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
+import { safeBillingError } from '../logging/safeBillingError.js';
 
 @Injectable()
 export class PostgresBillingLock extends BillingLock {
@@ -35,12 +36,12 @@ export class PostgresBillingLock extends BillingLock {
         try {
           await this.release(key, token);
         } catch (releaseError: unknown) {
-          this.logFailure('Billing operation failed and its mutex could not be released', key, token, error);
+          this.logFailure('Billing operation failed and its mutex could not be released', releaseError, key);
 
           throw releaseError;
         }
       } else {
-        this.logFailure('Billing operation requires recovery', key, token, error);
+        this.logFailure('Billing operation requires recovery', error, key);
 
         await this.markRecoveryRequired(key, token);
       }
@@ -63,12 +64,11 @@ export class PostgresBillingLock extends BillingLock {
       if (result.count !== 1) {
         this.logger.error({
           message: 'Billing mutex was not found while marking recovery',
-          key,
-          token,
+          organizationId: this.organizationIdFromKey(key),
         });
       }
     } catch (error: unknown) {
-      this.logFailure('Failed to mark billing mutex for recovery', key, token, error);
+      this.logFailure('Failed to mark billing mutex for recovery', error, key);
     }
   }
 
@@ -84,31 +84,24 @@ export class PostgresBillingLock extends BillingLock {
 
       this.logger.error({
         message: 'Billing mutex was not found during release; reconciliation is required',
-        key,
-        token,
+        organizationId: this.organizationIdFromKey(key),
       });
     } catch (error: unknown) {
-      this.logFailure('Failed to release billing mutex; reconciliation is required', key, token, error);
+      this.logFailure('Failed to release billing mutex; reconciliation is required', error, key);
     }
 
     throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
   }
 
-  private logFailure(message: string, key: string, token: string, error: unknown): void {
-    const rawCode = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
-
-    const code =
-      typeof rawCode === 'string' && /^(P[0-9]{4}|ECONNRESET|ECONNREFUSED|ETIMEDOUT)$/.test(rawCode)
-        ? rawCode
-        : undefined;
-
+  private logFailure(message: string, error: unknown, key: string): void {
     this.logger.error({
       message,
-      key,
-      token,
-      code,
-      billingCode: error instanceof BillingError ? error.code : undefined,
-      errorType: error instanceof Error ? error.name : 'UnknownError',
+      organizationId: this.organizationIdFromKey(key),
+      ...safeBillingError(error),
     });
+  }
+
+  private organizationIdFromKey(key: string): string | undefined {
+    return /^organization:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(key)?.[1];
   }
 }

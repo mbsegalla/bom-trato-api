@@ -79,7 +79,9 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   RESEND_API_KEY: Joi.string().required(),
 
-  NOTIFICATION_ENCRYPTION_KEY: Joi.string().required(),
+  NOTIFICATION_ENCRYPTION_KEY: Joi.string()
+    .pattern(/^[a-fA-F0-9]{64}$/)
+    .required(),
 
   NOTIFICATION_WORKER_ENABLED: Joi.boolean().default(true),
 

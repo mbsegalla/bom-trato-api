@@ -3,6 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import type { Response } from 'express';
 
+import { setAuthenticatedLogUser } from '../../../../../infrastructure/logging/requestLogContext.js';
 import type { AuthSecurity } from '../../../application/ports/authSecurity.port.js';
 import type { AuthRepository } from '../../../domain/repositories/auth.repository.js';
 import type { PostgresAuthRateLimit } from '../../../infrastructure/rateLimits/postgresAuthRateLimit.js';
@@ -72,6 +73,8 @@ export class AccessTokenGuard implements CanActivate {
         },
         new Date(),
       );
+
+      setAuthenticatedLogUser(user.id);
 
       request.auth = {
         user,

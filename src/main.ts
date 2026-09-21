@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 
 import { appConfig } from './config/app.config.js';
+import { requestCorrelationMiddleware } from './infrastructure/http/middleware/requestCorrelation.middleware.js';
 import { setupSwagger } from './infrastructure/http/swagger/swagger.setup.js';
 import { validationExceptionFactory } from './infrastructure/http/validation/validationException.factory.js';
 import { AppModule } from './app.module.js';
@@ -24,11 +25,14 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('api');
 
+  app.use(requestCorrelationMiddleware);
+
   app.use(cookieParser());
 
   app.enableCors({
     origin: configuration.frontendUrl,
     credentials: true,
+    exposedHeaders: ['X-Request-Id'],
   });
 
   app.useGlobalPipes(
