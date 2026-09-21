@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -8,13 +8,17 @@ import { appConfig } from './config/app.config.js';
 import { requestCorrelationMiddleware } from './infrastructure/http/middleware/requestCorrelation.middleware.js';
 import { setupSwagger } from './infrastructure/http/swagger/swagger.setup.js';
 import { validationExceptionFactory } from './infrastructure/http/validation/validationException.factory.js';
+import { safeError } from './infrastructure/logging/safeError.js';
+import { StartupLogger } from './infrastructure/logging/startupLogger.js';
 import { AppModule } from './app.module.js';
 
-const logger = new Logger('Bootstrap');
+const logger = new ConsoleLogger('Bootstrap');
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true,
+    logger: new StartupLogger('Bootstrap'),
+    abortOnError: false,
   });
 
   const configuration = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
@@ -54,6 +58,8 @@ async function bootstrap(): Promise<void> {
 
   await app.listen(configuration.port, '0.0.0.0');
 
+  app.useLogger(new ConsoleLogger());
+
   logger.log(`Bom Trato API running on port ${configuration.port}`);
 
   if (configuration.swaggerEnabled) {
@@ -62,10 +68,10 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? error.stack : undefined;
-
-  logger.error(`Failed to start Bom Trato API: ${message}`, stack);
+  logger.error({
+    message: 'Failed to start Bom Trato API',
+    ...safeError(error),
+  });
 
   process.exitCode = 1;
 });

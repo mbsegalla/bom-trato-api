@@ -1,16 +1,23 @@
 import 'reflect-metadata';
 
-import { Logger } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
+import { safeError } from '../../infrastructure/logging/safeError.js';
+import { StartupLogger } from '../../infrastructure/logging/startupLogger.js';
 import { CleanupAuthUseCase } from '../../modules/auth/application/useCases/cleanupAuth.useCase.js';
 
 import { AuthCommandModule } from './authCommand.module.js';
 
-const logger = new Logger('AuthCleanup');
+const logger = new ConsoleLogger('AuthCleanup');
 
 async function main(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(AuthCommandModule);
+  const app = await NestFactory.createApplicationContext(AuthCommandModule, {
+    logger: new StartupLogger('AuthCleanup'),
+    abortOnError: false,
+  });
+
+  app.useLogger(new ConsoleLogger());
 
   try {
     const cleanup = app.get(CleanupAuthUseCase);
@@ -52,7 +59,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : 'Authentication cleanup failed');
+  logger.error({
+    message: 'Authentication cleanup failed',
+    ...safeError(error),
+  });
 
   process.exitCode = 1;
 });

@@ -1,19 +1,26 @@
 import 'reflect-metadata';
 
-import { Logger } from '@nestjs/common';
+import { ConsoleLogger, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { StartupLogger } from '../../infrastructure/logging/startupLogger.js';
 import { BillingGateway } from '../../modules/billing/application/ports/billingGateway.port.js';
 import { BillingLock } from '../../modules/billing/application/ports/billingLock.port.js';
 import { BillingRepository } from '../../modules/billing/domain/repositories/billing.repository.js';
+import { safeBillingError } from '../../modules/billing/infrastructure/logging/safeBillingError.js';
 
 import { BillingCommandModule } from './billingCommand.module.js';
 
 const logger = new Logger('BillingRecovery');
 
 async function main(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(BillingCommandModule);
+  const app = await NestFactory.createApplicationContext(BillingCommandModule, {
+    logger: new StartupLogger('BillingRecovery'),
+    abortOnError: false,
+  });
+
+  app.useLogger(new ConsoleLogger());
 
   try {
     const prisma = app.get(PrismaService);
@@ -50,13 +57,19 @@ async function main(): Promise<void> {
 
     if (action === 'list') {
       const locks = await prisma.billingMutex.findMany({
+        select: {
+          key: true,
+          acquiredAt: true,
+          recoveryRequired: true,
+        },
         orderBy: {
           acquiredAt: 'asc',
         },
+        take: 100,
       });
 
       logger.log({
-        message: 'Billing locks',
+        message: 'Billing locks (up to 100; tokens omitted)',
         locks,
       });
 
@@ -140,7 +153,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  logger.error(error instanceof Error ? error.message : 'Billing recovery failed');
+  logger.error({
+    message: 'Billing recovery failed',
+    ...safeBillingError(error),
+  });
 
   process.exitCode = 1;
 });

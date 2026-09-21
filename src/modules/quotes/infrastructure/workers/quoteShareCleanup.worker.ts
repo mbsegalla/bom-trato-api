@@ -4,6 +4,7 @@ import type { ConfigType } from '@nestjs/config';
 import { Cron, CronExpression, Timeout } from '@nestjs/schedule';
 
 import { quoteShareConfig } from '../../../../config/quoteShare.config.js';
+import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import { PrismaQuoteShareRateLimit } from '../rateLimits/prismaQuoteShareRateLimit.js';
 
 @Injectable()
@@ -54,17 +55,9 @@ export class QuoteShareCleanupWorker implements OnModuleInit, OnModuleDestroy {
 
     this.running = this.process()
       .catch((error: unknown) => {
-        const rawCode = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
-
-        const code =
-          typeof rawCode === 'string' && /^(P[0-9]{4}|ECONNRESET|ECONNREFUSED|ETIMEDOUT)$/.test(rawCode)
-            ? rawCode
-            : undefined;
-
         this.logger.error({
           message: 'Quote share cleanup failed; retrying at the next scheduled execution',
-          code,
-          errorType: error instanceof Error ? error.name : 'UnknownError',
+          ...safeError(error),
         });
       })
       .finally(() => {
