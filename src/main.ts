@@ -21,49 +21,62 @@ async function bootstrap(): Promise<void> {
     abortOnError: false,
   });
 
-  const configuration = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
+  try {
+    const configuration = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
-  app.set('trust proxy', configuration.trustProxy.length > 0 ? configuration.trustProxy : false);
+    app.set('trust proxy', configuration.trustProxy.length > 0 ? configuration.trustProxy : false);
 
-  app.enableShutdownHooks();
+    app.enableShutdownHooks();
 
-  app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api');
 
-  app.use(requestCorrelationMiddleware);
+    app.use(requestCorrelationMiddleware);
 
-  app.use(cookieParser());
+    app.use(cookieParser());
 
-  app.enableCors({
-    origin: configuration.frontendUrl,
-    credentials: true,
-    exposedHeaders: ['X-Request-Id'],
-  });
+    app.enableCors({
+      origin: configuration.frontendUrl,
+      credentials: true,
+      exposedHeaders: ['X-Request-Id'],
+    });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      exceptionFactory: validationExceptionFactory,
-      validationError: {
-        target: false,
-        value: false,
-      },
-    }),
-  );
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        exceptionFactory: validationExceptionFactory,
+        validationError: {
+          target: false,
+          value: false,
+        },
+      }),
+    );
 
-  if (configuration.swaggerEnabled) {
-    setupSwagger(app);
-  }
+    if (configuration.swaggerEnabled) {
+      setupSwagger(app);
+    }
 
-  await app.listen(configuration.port, '0.0.0.0');
+    await app.listen(configuration.port, '0.0.0.0');
 
-  app.useLogger(new ConsoleLogger());
+    app.useLogger(new ConsoleLogger());
 
-  logger.log(`Bom Trato API running on port ${configuration.port}`);
+    logger.log(`Bom Trato API running on port ${configuration.port}`);
 
-  if (configuration.swaggerEnabled) {
-    logger.log(`Swagger available at http://localhost:${configuration.port}/docs`);
+    if (configuration.swaggerEnabled) {
+      logger.log(`Swagger available at http://localhost:${configuration.port}/docs`);
+    }
+  } catch (error: unknown) {
+    try {
+      await app.close();
+    } catch (closeError: unknown) {
+      logger.error({
+        message: 'Failed to close application after startup failure',
+        ...safeError(closeError),
+      });
+    }
+
+    throw error;
   }
 }
 

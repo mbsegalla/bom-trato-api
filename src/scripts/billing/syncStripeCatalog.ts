@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { Logger } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import Stripe from 'stripe';
 
@@ -13,8 +13,7 @@ import {
   parseStripeProduct,
 } from '../../modules/plans/infrastructure/stripe/stripeCatalog.parser.js';
 
-const logger = new Logger('StripeCatalogSync');
-
+const logger = new ConsoleLogger('StripeCatalogSync');
 interface CatalogEntry {
   plan: ReturnType<typeof parseStripeProduct>;
   prices: ReturnType<typeof parseStripePrice>[];
