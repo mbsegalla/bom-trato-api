@@ -379,12 +379,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
     const assertLease = (): void => {
       if (leaseLost) {
-        this.logger.warn({
-          message: 'Webhook lease lost; completion was not acknowledged',
-          webhookEventId: event.id,
-        });
-
-        return;
+        throw new Error('Webhook lease lost');
       }
     };
 

@@ -1,8 +1,9 @@
 import 'reflect-metadata';
 
-import { Logger } from '@nestjs/common';
+import { ConsoleLogger, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
+import { StartupLogger } from '../../infrastructure/logging/startupLogger.js';
 import { SyncBillingUseCase } from '../../modules/billing/application/useCases/syncBilling.useCase.js';
 import { BillingRepository } from '../../modules/billing/domain/repositories/billing.repository.js';
 import { safeBillingError } from '../../modules/billing/infrastructure/logging/safeBillingError.js';
@@ -12,7 +13,12 @@ import { BillingCommandModule } from './billingCommand.module.js';
 const logger = new Logger('BillingReconciliation');
 
 async function main(): Promise<void> {
-  const app = await NestFactory.createApplicationContext(BillingCommandModule);
+  const app = await NestFactory.createApplicationContext(BillingCommandModule, {
+    logger: new StartupLogger('BillingReconciliation'),
+    abortOnError: false,
+  });
+
+  app.useLogger(new ConsoleLogger());
 
   try {
     const repository = app.get(BillingRepository);
@@ -64,7 +70,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch(() => {
-  logger.error('Billing reconciliation could not complete.');
+main().catch((error: unknown) => {
+  logger.error({
+    message: 'Billing reconciliation could not complete',
+    ...safeBillingError(error),
+  });
+
   process.exitCode = 1;
 });

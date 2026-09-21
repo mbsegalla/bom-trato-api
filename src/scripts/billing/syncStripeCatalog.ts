@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 import { databaseConfig } from '../../config/database.config.js';
 import { stripeConfig } from '../../config/stripe.config.js';
 import { PrismaClient } from '../../generated/prisma/client.js';
+import { safeBillingError } from '../../modules/billing/infrastructure/logging/safeBillingError.js';
 import {
   parseStripePrice,
   parseStripeProduct,
@@ -161,9 +162,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Unknown error';
-
-  logger.error(`Catalog synchronization failed: ${message}`);
+  logger.error({
+    message: 'Catalog synchronization failed',
+    ...safeBillingError(error),
+  });
 
   process.exitCode = 1;
 });

@@ -4,6 +4,7 @@ import type { ConfigType } from '@nestjs/config';
 import { Cron, CronExpression, Timeout } from '@nestjs/schedule';
 
 import { authConfig } from '../../../../config/auth.config.js';
+import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import type { AuthCleanupResult } from '../../application/types/auth.types.js';
 import { CleanupAuthUseCase } from '../../application/useCases/cleanupAuth.useCase.js';
 
@@ -116,17 +117,9 @@ export class AuthCleanupWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private logFailure(error: unknown): void {
-    const rawCode = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
-
-    const code =
-      typeof rawCode === 'string' && /^(P[0-9]{4}|ECONNRESET|ECONNREFUSED|ETIMEDOUT)$/.test(rawCode)
-        ? rawCode
-        : undefined;
-
     this.logger.error({
       message: 'Authentication cleanup failed; another attempt will run at the next scheduled execution',
-      code,
-      errorType: error instanceof Error ? error.name : 'UnknownError',
+      ...safeError(error),
     });
   }
 
