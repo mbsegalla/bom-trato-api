@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { ConsoleLogger, Logger } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { StartupLogger } from '../../infrastructure/logging/startupLogger.js';
@@ -10,7 +10,7 @@ import { safeBillingError } from '../../modules/billing/infrastructure/logging/s
 
 import { BillingCommandModule } from './billingCommand.module.js';
 
-const logger = new Logger('BillingReconciliation');
+const logger = new ConsoleLogger('BillingReconciliation');
 
 async function main(): Promise<void> {
   const app = await NestFactory.createApplicationContext(BillingCommandModule, {

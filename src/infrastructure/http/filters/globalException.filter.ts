@@ -49,21 +49,24 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
       details: [],
     };
 
-    if (statusCode >= 500) {
-      this.logger.error({
-        message: 'HTTP request failed',
-        ...requestLogContext(),
-        statusCode,
-        ...safeError(exception),
-      });
-    } else if (exception instanceof ApiException) {
+    if (exception instanceof ApiException) {
       error = exception.publicError;
-    } else if (exception instanceof HttpException) {
+    } else if (exception instanceof HttpException && statusCode < 500) {
       error = {
         code: `HTTP_${statusCode}`,
         message: getHttpMessage(exception),
         details: [],
       };
+    }
+
+    if (statusCode >= 500) {
+      this.logger.error({
+        message: 'HTTP request failed',
+        statusCode,
+        responseCode: error.code,
+        ...requestLogContext(),
+        ...safeError(exception),
+      });
     }
 
     if (response.headersSent) {
