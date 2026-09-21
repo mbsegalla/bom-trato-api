@@ -1,7 +1,9 @@
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
+import { requestLogContext } from '../../logging/requestLogContext.js';
+import { safeError } from '../../logging/safeError.js';
 import { ApiException } from '../exceptions/api.exception.js';
 import { ApiError, ApiErrorResponse } from '../responses/apiResponse.types.js';
 
@@ -37,7 +39,6 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
-    const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
 
     const statusCode = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
@@ -49,9 +50,12 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
     };
 
     if (statusCode >= 500) {
-      const stack = exception instanceof Error ? exception.stack : undefined;
-
-      this.logger.error(`${request.method} ${request.path} failed with status ${statusCode}`, stack);
+      this.logger.error({
+        message: 'HTTP request failed',
+        ...requestLogContext(),
+        statusCode,
+        ...safeError(exception),
+      });
     } else if (exception instanceof ApiException) {
       error = exception.publicError;
     } else if (exception instanceof HttpException) {

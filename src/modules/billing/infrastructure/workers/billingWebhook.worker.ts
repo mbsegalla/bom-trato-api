@@ -254,7 +254,17 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
         return false;
       }
 
-      await this.processEvent(event);
+      try {
+        await this.processEvent(event);
+      } catch (error: unknown) {
+        this.logger.error({
+          message: 'Billing webhook processing could not complete',
+          webhookEventId: event.id,
+          ...safeBillingError(error),
+        });
+
+        throw error;
+      }
     }
 
     return true;
@@ -279,6 +289,8 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
         this.logger.error({
           message: 'Plan change reconciliation failed',
+          planChangeId: change.id,
+          organizationId: change.organizationId,
           ...safeBillingError(error),
         });
       }
@@ -309,6 +321,8 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
         this.logger.error({
           message: 'Payment method update reconciliation failed',
+          paymentMethodUpdateId: update.id,
+          organizationId: update.organizationId,
           ...safeBillingError(error),
         });
       }
@@ -346,7 +360,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
         });
       } catch (error: unknown) {
         if (!(error instanceof BillingError && error.code === 'BILLING_BUSY')) {
-          this.logReconciliationFailure(error);
+          this.logReconciliationFailure(error, customer.organizationId);
         }
 
         await this.billingRepository.postponeReconciliation(customer.organizationId);
@@ -365,7 +379,12 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
     const assertLease = (): void => {
       if (leaseLost) {
-        throw new Error('Webhook lease lost');
+        this.logger.warn({
+          message: 'Webhook lease lost; completion was not acknowledged',
+          webhookEventId: event.id,
+        });
+
+        return;
       }
     };
 
@@ -441,6 +460,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     if (leaseLost) {
       this.logger.warn({
         message: 'Webhook lease lost; completion was not acknowledged',
+        webhookEventId: event.id,
       });
 
       return;
@@ -451,6 +471,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     if (!settled) {
       this.logger.warn({
         message: 'Webhook lease expired or changed before completion',
+        webhookEventId: event.id,
       });
 
       return;
@@ -460,14 +481,17 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
       this.logger.warn({
         message:
           event.attempts + 1 >= 25 ? 'Billing webhook requires manual recovery' : 'Billing webhook will be retried',
+        webhookEventId: event.id,
+        attempt: event.attempts + 1,
         ...safeBillingError({ code }),
       });
     }
   }
 
-  private logReconciliationFailure(error: unknown): void {
+  private logReconciliationFailure(error: unknown, organizationId: string): void {
     this.logger.error({
       message: 'Scheduled billing reconciliation failed',
+      organizationId,
       ...safeBillingError(error),
     });
   }

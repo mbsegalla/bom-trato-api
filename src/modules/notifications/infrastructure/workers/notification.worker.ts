@@ -8,6 +8,7 @@ import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 
 import { notificationConfig } from '../../../../config/notification.config.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
 import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
 import { NotificationDeliveryError, ResendEmailGateway } from '../resend/resendEmail.gateway.js';
@@ -82,15 +83,22 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
 
     let foundJob = false;
     let failed = false;
+    let notificationId: string | undefined;
 
-    this.running = this.process()
+    this.running = this.process((id) => {
+      notificationId = id;
+    })
       .then((processed) => {
         foundJob = processed;
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         failed = true;
 
-        this.logger.error('Notification processing failed; pending jobs remain available for recovery');
+        this.logger.error({
+          message: 'Notification processing failed; pending jobs remain available for recovery',
+          notificationId,
+          ...safeError(error),
+        });
       })
       .finally(() => {
         this.running = undefined;
@@ -118,7 +126,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     }, 2000);
   }
 
-  private async process(): Promise<boolean> {
+  private async process(onClaim: (notificationId: string) => void): Promise<boolean> {
     const token = randomUUID();
 
     const jobs = await this.db.$queryRaw<NotificationJob[]>`
@@ -157,6 +165,8 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     if (job === undefined) {
       return false;
     }
+
+    onClaim(job.id);
 
     const deadline = Math.min(
       job.expiresAt.getTime(),
@@ -223,6 +233,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       this.logger.warn({
         message: 'Notification retry scheduled',
         notificationId: job.id,
+        attempt: job.attempts,
         code,
       });
 
@@ -252,6 +263,12 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       this.logger.warn({
         message: 'Notification lease lost after provider acceptance',
         notificationId: job.id,
+      });
+    } else {
+      this.logger.log({
+        message: 'Notification accepted by email provider',
+        notificationId: job.id,
+        attempt: job.attempts,
       });
     }
 
@@ -309,8 +326,11 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       WHERE job."id" = candidates."id"
     `
       .then(() => undefined)
-      .catch(() => {
-        this.logger.error('Notification cleanup failed');
+      .catch((error: unknown) => {
+        this.logger.error({
+          message: 'Notification cleanup failed',
+          ...safeError(error),
+        });
       })
       .finally(() => {
         this.cleaning = undefined;

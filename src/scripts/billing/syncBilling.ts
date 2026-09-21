@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 
 import { SyncBillingUseCase } from '../../modules/billing/application/useCases/syncBilling.useCase.js';
 import { BillingRepository } from '../../modules/billing/domain/repositories/billing.repository.js';
+import { safeBillingError } from '../../modules/billing/infrastructure/logging/safeBillingError.js';
 
 import { BillingCommandModule } from './billingCommand.module.js';
 
@@ -38,14 +39,14 @@ async function main(): Promise<void> {
           });
 
           syncedCount += 1;
-        } catch {
+        } catch (error) {
           failedCount += 1;
           process.exitCode = 1;
 
           logger.error({
             message: 'Billing reconciliation failed',
             organizationId: customer.organizationId,
-            includeInvoiceHistory: true,
+            ...safeBillingError(error),
           });
         }
       }

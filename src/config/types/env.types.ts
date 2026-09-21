@@ -23,7 +23,6 @@ export interface EnvironmentVariables {
   AUTH_ABSOLUTE_TTL_SECONDS: number;
   AUTH_RETENTION_DAYS: number;
   AUTH_CLEANUP_WORKER_ENABLED: boolean;
-  AUTH_CLEANUP_INTERVAL_SECONDS: number;
   RESEND_API_KEY: string;
   NOTIFICATION_ENCRYPTION_KEY: string;
   NOTIFICATION_WORKER_ENABLED: boolean;
