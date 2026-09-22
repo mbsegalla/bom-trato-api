@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { Plan } from '../../domain/entities/plan.entity.js';
+import { PlanError } from '../../domain/errors/plan.error.js';
 import { PlanRepository } from '../../domain/repositories/plan.repository.js';
 import { toPlan } from '../mappers/prismaPlan.mapper.js';
 
@@ -47,6 +48,10 @@ export class PrismaPlanRepository extends PlanRepository {
         },
       },
     });
+
+    if (!plans || plans.length === 0) {
+      throw new PlanError('PLAN_NOT_FOUND');
+    }
 
     return plans.map(toPlan);
   }
