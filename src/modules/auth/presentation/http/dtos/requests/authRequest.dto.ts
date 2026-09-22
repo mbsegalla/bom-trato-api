@@ -24,12 +24,19 @@ export class RegisterDto extends EmailDto {
   name: string;
 
   @ApiProperty({
-    minLength: 15,
+    minLength: 12,
     maxLength: 128,
     writeOnly: true,
+    description: 'Deve conter de 12 a 128 caracteres, pelo menos uma letra maiúscula e um caractere especial.',
   })
-  @IsString()
-  @Length(15, 128)
+  @IsString({ message: 'A senha deve ser um texto.' })
+  @Length(12, 128, { message: 'A senha deve conter de 12 a 128 caracteres.' })
+  @Matches(/\p{Lu}/u, {
+    message: 'A senha deve conter pelo menos uma letra maiúscula.',
+  })
+  @Matches(/[\p{P}\p{S}]/u, {
+    message: 'A senha deve conter pelo menos um caractere especial.',
+  })
   password: string;
 }
 

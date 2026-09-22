@@ -37,7 +37,7 @@ async function bootstrap(): Promise<void> {
     app.enableCors({
       origin: configuration.frontendUrl,
       credentials: true,
-      exposedHeaders: ['X-Request-Id'],
+      exposedHeaders: ['X-Request-Id', 'Retry-After'],
     });
 
     app.useGlobalPipes(

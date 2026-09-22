@@ -68,7 +68,13 @@ export class PostgresAuthRateLimit {
       typeof body.email === 'string' &&
       body.email.length <= 254
     ) {
-      await this.consume(`email:${bucket}:${normalizeEmail(body.email)}`, 10, 900, response);
+      const email = normalizeEmail(body.email);
+
+      await this.consume(`email:${bucket}:${email}`, 10, 900, response);
+
+      if (bucket === 'resend-verification') {
+        await this.consume(`verification-cooldown:${email}`, 1, 180, response);
+      }
     }
   }
 }

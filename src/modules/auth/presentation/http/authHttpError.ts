@@ -18,7 +18,11 @@ export function toAuthHttpError(error: unknown): unknown {
   }
 
   if (error.code === 'INVALID_PASSWORD') {
-    return new ApiException(HttpStatus.BAD_REQUEST, error.code, 'Password must contain 15 to 128 characters.');
+    return new ApiException(
+      HttpStatus.BAD_REQUEST,
+      error.code,
+      'Password must be between 12 and 128 characters, contain at least one uppercase letter and one special character.',
+    );
   }
 
   if (error.code === 'INVALID_CREDENTIALS') {

@@ -15,6 +15,12 @@ function frontendLink(frontendUrl: string, path: string, token?: string): string
   return url.toString();
 }
 
+const emailDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: 'America/Sao_Paulo',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
 function templateVariables(input: EnqueueNotification, frontendUrl: string): NotificationTemplateVariables {
   const { content, expiresAt } = input;
   const homeUrl = frontendLink(frontendUrl, '/');
@@ -23,13 +29,13 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
     case 'VERIFY_EMAIL':
       return {
         ACTION_URL: frontendLink(frontendUrl, '/verify-email', content.token),
-        EXPIRES_AT: expiresAt.toISOString(),
+        EXPIRES_AT: emailDateFormatter.format(expiresAt),
       };
 
     case 'RESET_PASSWORD':
       return {
         ACTION_URL: frontendLink(frontendUrl, '/reset-password', content.token),
-        EXPIRES_AT: expiresAt.toISOString(),
+        EXPIRES_AT: emailDateFormatter.format(expiresAt),
       };
 
     case 'PASSWORD_CHANGED':
@@ -41,7 +47,7 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
       return {
         ACTION_URL: frontendLink(frontendUrl, '/organization-invitations/accept', content.token),
         ORGANIZATION_NAME: content.organizationName,
-        EXPIRES_AT: expiresAt.toISOString(),
+        EXPIRES_AT: emailDateFormatter.format(expiresAt),
       };
 
     case 'PAYMENT_FAILED':
