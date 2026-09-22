@@ -28,7 +28,6 @@ export class ResendEmailGateway {
   }
 
   async send(id: string, message: NotificationMessage): Promise<string> {
-    // Resend 6.9.3 forwards request options to fetch, including signal.
     const options: CreateEmailRequestOptions & { signal: AbortSignal } = {
       idempotencyKey: `notification/${id}`,
       signal: AbortSignal.timeout(10_000),

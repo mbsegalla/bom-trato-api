@@ -25,7 +25,9 @@ export class User {
   }
 
   static assertPassword(password: string): void {
-    if (password.length < 15 || password.length > 128) {
+    const length = Array.from(password).length;
+
+    if (length < 12 || length > 128 || !/\p{Lu}/u.test(password) || !/[\p{P}\p{S}]/u.test(password)) {
       throw new UserError('INVALID_PASSWORD');
     }
   }
