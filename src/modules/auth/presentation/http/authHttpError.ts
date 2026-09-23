@@ -9,6 +9,10 @@ export function toAuthHttpError(error: unknown): unknown {
     return error;
   }
 
+  if (error.code === 'PLAN_UNAVAILABLE') {
+    return new ApiException(HttpStatus.BAD_REQUEST, error.code, 'The selected plan price is unavailable.');
+  }
+
   if (error.code === 'EMAIL_ALREADY_EXISTS') {
     return new ApiException(HttpStatus.CONFLICT, error.code, 'An account with this email already exists.');
   }

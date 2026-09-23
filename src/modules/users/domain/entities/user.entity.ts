@@ -6,6 +6,7 @@ export interface UserProps {
   name: string;
   email: string;
   passwordHash: string;
+  selectedPlanPriceId: string | null;
   emailVerifiedAt: Date | null;
   disabledAt: Date | null;
 }
@@ -19,6 +20,7 @@ export class User {
       name: props.name,
       email: props.email,
       passwordHash: props.passwordHash,
+      selectedPlanPriceId: props.selectedPlanPriceId,
       emailVerifiedAt: props.emailVerifiedAt === null ? null : new Date(props.emailVerifiedAt),
       disabledAt: props.disabledAt === null ? null : new Date(props.disabledAt),
     });
@@ -77,6 +79,7 @@ export class User {
       id: this.props.id,
       name: this.props.name,
       email: this.props.email,
+      selectedPlanPriceId: this.props.selectedPlanPriceId,
       emailVerified: this.props.emailVerifiedAt !== null,
     };
   }

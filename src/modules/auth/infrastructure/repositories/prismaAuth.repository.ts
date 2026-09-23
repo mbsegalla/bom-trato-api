@@ -27,6 +27,7 @@ const userSelect = {
   name: true,
   email: true,
   passwordHash: true,
+  selectedPlanPriceId: true,
   emailVerifiedAt: true,
   disabledAt: true,
 } satisfies Prisma.UserSelect;
@@ -50,7 +51,28 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async register(params: RegisterUserParams): Promise<boolean> {
-    const { name, email, passwordHash, tokenHash, expiresAt } = params;
+    const { name, email, passwordHash, tokenHash, expiresAt, selectedPlanPriceId } = params;
+
+    if (selectedPlanPriceId !== null) {
+      const price = await this.db.planPrice.findFirst({
+        where: {
+          id: selectedPlanPriceId,
+          published: true,
+          stripeActive: true,
+          plan: {
+            published: true,
+            stripeActive: true,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (price === null) {
+        throw new AuthError('PLAN_UNAVAILABLE');
+      }
+    }
 
     try {
       await this.db.user.create({
@@ -58,6 +80,7 @@ export class PrismaAuthRepository extends AuthRepository {
           name,
           email,
           passwordHash,
+          selectedPlanPriceId,
           authActionTokens: {
             create: {
               purpose: AuthActionPurpose.VERIFY_EMAIL,
@@ -66,7 +89,9 @@ export class PrismaAuthRepository extends AuthRepository {
             },
           },
         },
-        select: { id: true },
+        select: {
+          id: true,
+        },
       });
 
       return true;
@@ -273,6 +298,7 @@ export class PrismaAuthRepository extends AuthRepository {
             id: true,
             name: true,
             email: true,
+            selectedPlanPriceId: true,
             emailVerifiedAt: true,
             disabledAt: true,
           },

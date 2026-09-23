@@ -17,6 +17,7 @@ export interface SessionSummary {
 }
 
 export interface RegisterUserParams {
+  selectedPlanPriceId: string | null;
   name: string;
   email: string;
   passwordHash: string;
