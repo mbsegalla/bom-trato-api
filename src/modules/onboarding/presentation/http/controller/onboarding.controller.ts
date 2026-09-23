@@ -19,14 +19,14 @@ import { OnboardingResponseDto } from '../dtos/responses/onboardingResponse.dto.
 @ApiBearerAuth('access-token')
 @Controller('onboarding')
 export class OnboardingController {
-  constructor(private readonly service: OnboardingService) {}
+  constructor(private readonly onboardingService: OnboardingService) {}
 
   @Post('bootstrap')
   @HttpCode(200)
   @ApiDataResponse(OnboardingResponseDto)
   bootstrap(@CurrentAuth() auth: AuthContext): Promise<OnboardingResponseDto> {
     return billingOperation(() =>
-      this.service.bootstrap({
+      this.onboardingService.bootstrap({
         userId: auth.user.id,
         email: auth.user.email,
         userName: auth.user.name,
@@ -37,7 +37,7 @@ export class OnboardingController {
   @Get()
   @ApiDataResponse(OnboardingResponseDto)
   state(@CurrentAuth() auth: AuthContext, @Query() query: OnboardingQueryDto): Promise<OnboardingResponseDto> {
-    return billingOperation(() => this.service.state(auth.user.id, query.organizationId));
+    return billingOperation(() => this.onboardingService.state(auth.user.id, query.organizationId));
   }
 
   @Post('plan')
@@ -45,7 +45,7 @@ export class OnboardingController {
   @ApiDataResponse(OnboardingResponseDto)
   selectPlan(@CurrentAuth() auth: AuthContext, @Body() dto: SelectOnboardingPlanDto): Promise<OnboardingResponseDto> {
     return authOperation(() =>
-      billingOperation(() => this.service.selectPlan(auth.user.id, dto.organizationId, dto.planPriceId)),
+      billingOperation(() => this.onboardingService.selectPlan(auth.user.id, dto.organizationId, dto.planPriceId)),
     );
   }
 
@@ -57,7 +57,7 @@ export class OnboardingController {
     @Body() dto: CompleteOnboardingBusinessDto,
   ): Promise<OnboardingResponseDto> {
     return organizationOperation(() =>
-      billingOperation(() => this.service.completeBusiness(auth.user.id, dto.organizationId, dto.name)),
+      billingOperation(() => this.onboardingService.completeBusiness(auth.user.id, dto.organizationId, dto.name)),
     );
   }
 }

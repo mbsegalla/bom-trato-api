@@ -309,9 +309,22 @@ model BillingCustomer {
   createdAt              DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt              DateTime  @updatedAt @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization              Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  billingCustomerReferences BillingCustomerReference[]
 
   @@index([nextReconcileAt, id])
+}
+
+model BillingCustomerReference {
+  id                String    @id @default(uuid()) @db.Uuid
+  billingCustomerId String    @db.Uuid
+  stripeCustomerId  String    @unique
+  detachedAt        DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+
+  billingCustomer BillingCustomer @relation(fields: [billingCustomerId], references: [id], onDelete: Cascade)
+
+  @@index([billingCustomerId, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model Subscription {

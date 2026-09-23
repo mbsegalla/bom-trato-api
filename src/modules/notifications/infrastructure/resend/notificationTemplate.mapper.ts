@@ -73,7 +73,6 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
 
       return {
         ACTION_URL: homeUrl,
-        ORGANIZATION_NAME: content.organizationName,
         INVOICE_NUMBER: content.invoiceNumber ?? 'Não informado',
         AMOUNT_PAID: amount,
         PAYMENT_DESCRIPTION:

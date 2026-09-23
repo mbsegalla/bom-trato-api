@@ -8,6 +8,7 @@ import { Interval, SchedulerRegistry } from '@nestjs/schedule';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
 import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
+import { HandleDeletedBillingCustomerUseCase } from '../../application/useCases/handleDeletedBillingCustomer.useCase.js';
 import { QueueBillingAlertUseCase } from '../../application/useCases/queueBillingAlert.useCase.js';
 import { QueueNextBillingConfirmationUseCase } from '../../application/useCases/queueNextBillingConfirmation.useCase.js';
 import { ReconcilePlanChangeUseCase } from '../../application/useCases/reconcilePlanChange.useCase.js';
@@ -42,6 +43,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     private readonly syncPaymentMethodUpdateUseCase: SyncPaymentMethodUpdateUseCase,
     private readonly queueBillingAlertUseCase: QueueBillingAlertUseCase,
     private readonly queueNextBillingConfirmationUseCase: QueueNextBillingConfirmationUseCase,
+    private readonly handleDeletedBillingCustomerUseCase: HandleDeletedBillingCustomerUseCase,
     private readonly billingRepository: BillingRepository,
     private readonly webhookRepository: BillingWebhookRepository,
     private readonly planChangeRepository: PlanChangeRepository,
@@ -406,36 +408,54 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     heartbeat.unref();
 
     try {
-      const customer = await this.billingRepository.customerByStripeId(event.stripeCustomerId);
-
-      assertLease();
-
-      if (customer === null) {
-        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
-      }
-
-      await this.syncBillingUseCase.execute({
-        organizationId: customer.organizationId,
-        invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
-      });
-
-      assertLease();
-
-      await this.queueBillingAlertUseCase.execute(customer.organizationId, event);
-
-      assertLease();
-
-      await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
-
-      assertLease();
-
-      if (event.type.startsWith('setup_intent.')) {
-        await this.syncPaymentMethodUpdateUseCase.execute({
-          organizationId: customer.organizationId,
-          setupIntentId: event.stripeObjectId,
+      if (event.type === 'customer.deleted') {
+        await this.handleDeletedBillingCustomerUseCase.execute({
+          stripeCustomerId: event.stripeCustomerId,
+          deletedAt: event.receivedAt,
         });
 
         assertLease();
+      } else {
+        const customer = await this.billingRepository.customerByStripeId(event.stripeCustomerId);
+
+        assertLease();
+
+        if (customer === null) {
+          throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+        }
+
+        if (customer.stripeCustomerId !== event.stripeCustomerId) {
+          this.logger.debug({
+            message: 'Ignoring webhook for detached Stripe customer',
+            webhookEventId: event.id,
+            stripeCustomerId: event.stripeCustomerId,
+            organizationId: customer.organizationId,
+          });
+        } else {
+          await this.syncBillingUseCase.execute({
+            organizationId: customer.organizationId,
+            invoiceId: event.type.startsWith('invoice.') ? event.stripeObjectId : undefined,
+          });
+
+          assertLease();
+
+          await this.queueBillingAlertUseCase.execute(customer.organizationId, event);
+
+          assertLease();
+
+          await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
+
+          assertLease();
+
+          if (event.type.startsWith('setup_intent.')) {
+            await this.syncPaymentMethodUpdateUseCase.execute({
+              organizationId: customer.organizationId,
+              setupIntentId: event.stripeObjectId,
+            });
+
+            assertLease();
+          }
+        }
       }
     } catch (error: unknown) {
       if (!leaseLost) {

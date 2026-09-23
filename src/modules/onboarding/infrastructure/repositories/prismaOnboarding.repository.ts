@@ -20,7 +20,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
   }
 
   async ensureOrganization(params: EnsureOnboardingOrganizationParams): Promise<string> {
-    const { userId, email, billingName } = params;
+    const { userId, email, billingName, provisionalOrganizationName } = params;
 
     const existing = await this.prisma.organization.findFirst({
       where: {
@@ -40,7 +40,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
       const organization = await this.prisma.organization.create({
         data: {
           ownerId: userId,
-          name: billingName,
+          name: provisionalOrganizationName,
           creationKey: userId,
           setupCompletedAt: null,
           organizationMembers: {
@@ -111,7 +111,6 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
     const organization = await this.prisma.organization.findFirst({
       where: {
         id: organizationId ?? owned?.id,
-
         organizationMembers: {
           some: {
             userId,
@@ -129,12 +128,10 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
             },
           },
           orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
-
           take: 2,
         },
         checkoutAttempts: {
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-
           take: 1,
         },
       },
@@ -170,13 +167,11 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
               id: planPriceId,
               published: true,
               stripeActive: true,
-
               plan: {
                 published: true,
                 stripeActive: true,
               },
             },
-
             select: {
               id: true,
             },
@@ -189,9 +184,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
         where: {
           organizationId: organization.id,
         },
-
         orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
-
         select: {
           stripeCreatedAt: true,
         },
@@ -220,7 +213,6 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
           id: organizationId,
           ownerId: userId,
         },
-
         select: {
           id: true,
         },
@@ -245,13 +237,11 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
           id: planPriceId,
           published: true,
           stripeActive: true,
-
           plan: {
             published: true,
             stripeActive: true,
           },
         },
-
         select: {
           id: true,
         },
@@ -265,7 +255,6 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
         where: {
           id: userId,
         },
-
         data: {
           selectedPlanPriceId: planPriceId,
         },
@@ -282,20 +271,16 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
           id: organizationId,
           ownerId: userId,
         },
-
         select: {
           id: true,
           setupCompletedAt: true,
-
           subscriptions: {
             where: {
               status: {
                 notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE_EXPIRED],
               },
             },
-
             orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
-
             take: 2,
           },
         },
@@ -325,7 +310,6 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
         where: {
           id: organizationId,
         },
-
         data: {
           name,
           setupCompletedAt: now,
@@ -336,7 +320,6 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
         where: {
           organizationId,
         },
-
         data: {
           billingName: name,
         },

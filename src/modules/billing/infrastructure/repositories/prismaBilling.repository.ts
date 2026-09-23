@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
-import { OrganizationRole, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
+import {
+  CheckoutAttemptStatus,
+  OrganizationRole,
+  PaymentMethodUpdateStatus,
+  PlanChangeStatus,
+  SubscriptionStatus,
+} from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { SubscriptionProps } from '../../domain/entities/subscription.entity.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
@@ -9,6 +15,7 @@ import {
   BillingCustomerProps,
   BillingRepository,
   CheckoutAttemptState,
+  HandleDeletedBillingCustomerParams,
   InvoicePageParams,
   RemoteInvoiceView,
   SaveSnapshotParams,
@@ -80,9 +87,25 @@ export class PrismaBillingRepository extends BillingRepository {
   }
 
   async customerByStripeId(stripeCustomerId: string): Promise<BillingCustomerProps | null> {
-    return this.prisma.billingCustomer.findUnique({
-      where: { stripeCustomerId },
+    const current = await this.prisma.billingCustomer.findUnique({
+      where: {
+        stripeCustomerId,
+      },
     });
+
+    if (current !== null) {
+      return current;
+    }
+
+    const reference = await this.prisma.billingCustomerReference.findUnique({
+      where: {
+        stripeCustomerId,
+      },
+      select: {
+        billingCustomer: true,
+      },
+    });
+    return reference?.billingCustomer ?? null;
   }
 
   async markCustomerCreation(id: string, now: Date): Promise<void> {
@@ -93,21 +116,212 @@ export class PrismaBillingRepository extends BillingRepository {
   }
 
   async setCustomerId(id: string, stripeCustomerId: string): Promise<void> {
-    const result = await this.prisma.billingCustomer.updateMany({
-      where: {
-        id,
-        OR: [{ stripeCustomerId: null }, { stripeCustomerId }],
-      },
-      data: {
-        stripeCustomerId,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      const customer = await tx.billingCustomer.findUnique({
+        where: {
+          id,
+        },
+        select: {
+          id: true,
+          stripeCustomerId: true,
+        },
+      });
+
+      if (customer === null) {
+        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+      }
+
+      if (customer.stripeCustomerId !== null && customer.stripeCustomerId !== stripeCustomerId) {
+        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+      }
+
+      const reference = await tx.billingCustomerReference.findUnique({
+        where: {
+          stripeCustomerId,
+        },
+      });
+
+      if (reference !== null && (reference.billingCustomerId !== id || reference.detachedAt !== null)) {
+        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+      }
+
+      if (reference === null) {
+        await tx.billingCustomerReference.create({
+          data: {
+            billingCustomerId: id,
+            stripeCustomerId,
+          },
+        });
+      }
+
+      const result = await tx.billingCustomer.updateMany({
+        where: {
+          id,
+          OR: [
+            {
+              stripeCustomerId: null,
+            },
+            {
+              stripeCustomerId,
+            },
+          ],
+        },
+        data: {
+          stripeCustomerId,
+        },
+      });
+
+      if (result.count !== 1) {
+        throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+      }
     });
 
-    if (result.count !== 1) {
-      throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
-    }
-
     this.workerNotifier.notify(BillingWork.RECONCILIATION);
+  }
+
+  async handleDeletedCustomer(params: HandleDeletedBillingCustomerParams): Promise<void> {
+    const { organizationId, stripeCustomerId, deletedAt } = params;
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT "id"
+          FROM "Organization"
+          WHERE "id" = ${organizationId}::uuid
+          FOR UPDATE
+        `;
+
+        const customer = await tx.billingCustomer.findUnique({
+          where: {
+            organizationId,
+          },
+          select: {
+            id: true,
+            stripeCustomerId: true,
+          },
+        });
+
+        if (customer === null || customer.stripeCustomerId !== stripeCustomerId) {
+          return;
+        }
+
+        const reference = await tx.billingCustomerReference.findUnique({
+          where: {
+            stripeCustomerId,
+          },
+        });
+
+        if (reference !== null && reference.billingCustomerId !== customer.id) {
+          throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+        }
+
+        if (reference === null) {
+          await tx.billingCustomerReference.create({
+            data: {
+              billingCustomerId: customer.id,
+              stripeCustomerId,
+              detachedAt: deletedAt,
+            },
+          });
+        } else if (reference.detachedAt === null) {
+          await tx.billingCustomerReference.update({
+            where: {
+              id: reference.id,
+            },
+            data: {
+              detachedAt: deletedAt,
+            },
+          });
+        }
+
+        const subscriptions = await tx.subscription.findMany({
+          where: {
+            organizationId,
+            status: {
+              notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE_EXPIRED],
+            },
+          },
+          select: {
+            id: true,
+            canceledAt: true,
+            endedAt: true,
+          },
+        });
+
+        const synchronizedAt = new Date();
+
+        for (const subscription of subscriptions) {
+          await tx.subscription.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              status: SubscriptionStatus.CANCELED,
+              cancelAtPeriodEnd: false,
+              canceledAt: subscription.canceledAt ?? deletedAt,
+              endedAt: subscription.endedAt ?? deletedAt,
+              lastSyncedAt: synchronizedAt,
+            },
+          });
+        }
+
+        await tx.checkoutAttempt.updateMany({
+          where: {
+            organizationId,
+            status: CheckoutAttemptStatus.PENDING,
+          },
+          data: {
+            status: CheckoutAttemptStatus.EXPIRED,
+            activeOrganizationId: null,
+          },
+        });
+
+        await tx.paymentMethodUpdate.updateMany({
+          where: {
+            organizationId,
+            status: PaymentMethodUpdateStatus.PENDING,
+          },
+          data: {
+            status: PaymentMethodUpdateStatus.CANCELED,
+            activeOrganizationId: null,
+            completedAt: deletedAt,
+          },
+        });
+
+        await tx.planChange.updateMany({
+          where: {
+            organizationId,
+            status: {
+              in: [
+                PlanChangeStatus.QUOTED,
+                PlanChangeStatus.PROCESSING,
+                PlanChangeStatus.PENDING_PAYMENT,
+                PlanChangeStatus.SCHEDULED,
+              ],
+            },
+          },
+          data: {
+            status: PlanChangeStatus.CANCELED,
+            activeOrganizationId: null,
+          },
+        });
+
+        await tx.billingCustomer.update({
+          where: {
+            id: customer.id,
+          },
+          data: {
+            stripeCustomerId: null,
+            creationRequestedAt: null,
+            invoiceHistorySyncedAt: null,
+            nextReconcileAt: synchronizedAt,
+          },
+        });
+      },
+      {
+        timeout: 30_000,
+      },
+    );
   }
 
   async availablePrice(id: string): Promise<AvailablePrice> {

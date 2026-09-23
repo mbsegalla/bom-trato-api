@@ -47,6 +47,7 @@ export interface WebhookJob extends WebhookNotice {
 
 export interface ClaimedWebhookJob extends WebhookJob {
   leaseToken: string;
+  receivedAt: Date;
 }
 
 export type WebhookOutcome = 'COMPLETE' | 'DEFER' | 'RETRY';
