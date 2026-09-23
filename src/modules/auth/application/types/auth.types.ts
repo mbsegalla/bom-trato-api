@@ -4,6 +4,7 @@ export interface LoginInput {
   email: string;
   password: string;
   userAgent: string | null;
+  previousRefreshToken?: string;
 }
 
 export interface LoginResult {
@@ -14,6 +15,7 @@ export interface LoginResult {
 }
 
 export interface RegisterUserInput {
+  selectedPlanPriceId?: string | null;
   name: string;
   email: string;
   password: string;
@@ -44,3 +46,11 @@ export interface AuthCleanupResult {
   actionTokens: number;
   rateLimits: number;
 }
+
+export interface VerifyEmailInput {
+  token: string;
+  userAgent: string | null;
+  previousRefreshToken?: string;
+}
+
+export type VerifyEmailResult = LoginResult;

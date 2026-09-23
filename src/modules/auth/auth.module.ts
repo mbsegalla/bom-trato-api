@@ -87,9 +87,13 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
     },
     {
       provide: LoginUseCase,
-      useFactory: (authRepository: AuthRepository, security: AuthSecurity, config: ConfigType<typeof authConfig>) =>
-        new LoginUseCase(authRepository, security, config),
-      inject: [AuthRepository, AuthSecurity, authConfig.KEY],
+      useFactory: (
+        authRepository: AuthRepository,
+        security: AuthSecurity,
+        config: ConfigType<typeof authConfig>,
+        unitOfWork: AuthUnitOfWork,
+      ) => new LoginUseCase(authRepository, security, config, unitOfWork),
+      inject: [AuthRepository, AuthSecurity, authConfig.KEY, AuthUnitOfWork],
     },
     {
       provide: RefreshSessionUseCase,
@@ -130,9 +134,9 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
     },
     {
       provide: VerifyEmailUseCase,
-      useFactory: (authRepository: AuthRepository, security: AuthSecurity) =>
-        new VerifyEmailUseCase(authRepository, security),
-      inject: [AuthRepository, AuthSecurity],
+      useFactory: (unitOfWork: AuthUnitOfWork, security: AuthSecurity, config: ConfigType<typeof authConfig>) =>
+        new VerifyEmailUseCase(unitOfWork, security, config),
+      inject: [AuthUnitOfWork, AuthSecurity, authConfig.KEY],
     },
     {
       provide: CleanupAuthUseCase,

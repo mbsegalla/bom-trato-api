@@ -37,6 +37,13 @@ export class UserResponseDto {
 
   @ApiProperty()
   emailVerified: boolean;
+
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+  })
+  selectedPlanPriceId: string | null;
 }
 
 export class SessionResponseDto {

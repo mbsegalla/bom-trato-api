@@ -29,6 +29,7 @@ export class RegisterUseCase {
         name: name.trim(),
         email,
         passwordHash,
+        selectedPlanPriceId: input.selectedPlanPriceId ?? null,
         tokenHash,
         expiresAt,
       });

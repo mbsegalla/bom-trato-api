@@ -97,14 +97,7 @@ export class AuthController {
       this.loginUseCase.execute({
         ...dto,
         userAgent: request.get('user-agent') ?? null,
-      }),
-    );
-
-    // Retire the previous browser session before replacing its cookie.
-    await authOperation(() =>
-      this.logoutSessionUseCase.execute({
-        refreshToken: this.cookies.refresh(request),
-        reason: SessionRevocationReason.SESSION_REPLACED,
+        previousRefreshToken: this.cookies.refresh(request),
       }),
     );
 
@@ -177,13 +170,14 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @ApiDataResponse(UserResponseDto, { status: 200 })
   me(@CurrentAuth() auth: AuthContext): UserResponseDto {
-    const { id, name, email, emailVerifiedAt } = auth.user;
+    const { id, name, email, emailVerifiedAt, selectedPlanPriceId } = auth.user;
 
     return {
       id,
       name,
       email,
       emailVerified: emailVerifiedAt !== null,
+      selectedPlanPriceId,
     };
   }
 
@@ -236,12 +230,29 @@ export class AuthController {
   }
 
   @Post('verify-email')
-  @HttpCode(204)
+  @HttpCode(200)
   @PublicRoute()
   @AuthEndpoint('verify-email')
-  @ApiNoContentResponse()
-  async verifyEmail(@Body() dto: ActionTokenDto): Promise<void> {
-    await authOperation(() => this.verifyEmailUseCase.execute(dto.token));
+  @ApiDataResponse(TokenResponseDto, { status: 200 })
+  async verifyEmail(
+    @Body() dto: ActionTokenDto,
+    @Req() request: AuthRequest,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<TokenResponseDto> {
+    const result = await authOperation(() =>
+      this.verifyEmailUseCase.execute({
+        token: dto.token,
+        userAgent: request.get('user-agent') ?? null,
+        previousRefreshToken: this.cookies.refresh(request),
+      }),
+    );
+
+    return {
+      accessToken: result.accessToken,
+      expiresIn: result.expiresIn,
+      tokenType: 'Bearer',
+      csrfToken: this.cookies.setSession(response, result.refreshToken, result.refreshExpiresAt),
+    };
   }
 
   @Post('reset-password')

@@ -3,6 +3,7 @@ import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
+import type { AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
 import type { AuthPolicy, LoginInput, LoginResult } from '../types/auth.types.js';
 
 export class LoginUseCase {
@@ -10,6 +11,7 @@ export class LoginUseCase {
     private readonly authRepository: AuthRepository,
     private readonly security: AuthSecurity,
     private readonly policy: AuthPolicy,
+    private readonly unitOfWork: AuthUnitOfWork,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginResult> {
@@ -30,32 +32,44 @@ export class LoginUseCase {
 
     user.assertCanAuthenticate();
 
-    const session = AuthSession.start(
-      this.security.newId(),
-      user.id,
-      new Date(),
-      this.policy.idleTtlSeconds,
-      this.policy.absoluteTtlSeconds,
-      userAgent,
-    );
+    return this.unitOfWork.run(async (tx) => {
+      const now = new Date();
 
-    const state = session.snapshot();
-    const refreshToken = this.security.newToken();
+      if (input.previousRefreshToken) {
+        await tx.auth.revokeByToken({
+          tokenHash: this.security.hashToken(input.previousRefreshToken),
+          now,
+          reason: 'SESSION_REPLACED',
+        });
+      }
 
-    await this.authRepository.startSession({
-      session: state,
-      expectedPasswordHash: user.passwordHash,
-      refreshHash: this.security.hashToken(refreshToken),
+      const session = AuthSession.start(
+        this.security.newId(),
+        user.id,
+        now,
+        this.policy.idleTtlSeconds,
+        this.policy.absoluteTtlSeconds,
+        userAgent,
+      );
+
+      const state = session.snapshot();
+      const refreshToken = this.security.newToken();
+
+      await tx.auth.startSession({
+        session: state,
+        expectedPasswordHash: user.passwordHash,
+        refreshHash: this.security.hashToken(refreshToken),
+      });
+
+      return {
+        accessToken: await this.security.signAccess({
+          sub: user.id,
+          sid: state.id,
+        }),
+        expiresIn: this.policy.accessTtlSeconds,
+        refreshToken,
+        refreshExpiresAt: state.idleExpiresAt,
+      };
     });
-
-    return {
-      accessToken: await this.security.signAccess({
-        sub: user.id,
-        sid: state.id,
-      }),
-      expiresIn: this.policy.accessTtlSeconds,
-      refreshToken,
-      refreshExpiresAt: state.idleExpiresAt,
-    };
   }
 }

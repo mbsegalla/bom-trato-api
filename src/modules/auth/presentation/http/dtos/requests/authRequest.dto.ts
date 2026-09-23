@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
 
 import { normalizeEmail } from '../../../../../../shared/text/email.js';
 
@@ -38,6 +38,16 @@ export class RegisterDto extends EmailDto {
     message: 'A senha deve conter pelo menos um caractere especial.',
   })
   password: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    description: 'Initial plan price selection; does not create a subscription.',
+  })
+  @IsOptional()
+  @IsUUID('4')
+  selectedPlanPriceId?: string | null;
 }
 
 export class LoginDto extends EmailDto {

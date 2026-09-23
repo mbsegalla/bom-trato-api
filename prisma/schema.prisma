@@ -170,6 +170,7 @@ model PlanPrice {
   plan              Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
   sourcePlanChanges PlanChange[]      @relation("PlanChangeSource")
   targetPlanChanges PlanChange[]      @relation("PlanChangeTarget")
+  selectedByUsers   User[]            @relation("UserSelectedPlanPrice")
   checkoutAttempts  CheckoutAttempt[]
   subscriptions     Subscription[]
 
@@ -177,20 +178,24 @@ model PlanPrice {
 }
 
 model User {
-  id              String    @id @default(uuid()) @db.Uuid
-  name            String    @db.VarChar(100)
-  email           String    @unique @db.VarChar(254)
-  passwordHash    String
-  emailVerifiedAt DateTime? @db.Timestamptz(3)
-  disabledAt      DateTime? @db.Timestamptz(3)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+  id                  String    @id @default(uuid()) @db.Uuid
+  name                String    @db.VarChar(100)
+  email               String    @unique @db.VarChar(254)
+  passwordHash        String    @db.VarChar(255)
+  emailVerifiedAt     DateTime? @db.Timestamptz(3)
+  selectedPlanPriceId String?   @db.Uuid
+  disabledAt          DateTime? @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(3)
 
+  selectedPlanPrice   PlanPrice?           @relation("UserSelectedPlanPrice", fields: [selectedPlanPriceId], references: [id], onDelete: SetNull)
   organizations       Organization[]       @relation("OrganizationOwner")
   workOrders          WorkOrder[]          @relation("AssignedWorkOrders")
   authSessions        AuthSession[]
   authActionTokens    AuthActionToken[]
   organizationMembers OrganizationMember[]
+
+  @@index([selectedPlanPriceId])
 }
 
 model AuthSession {

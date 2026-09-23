@@ -6,7 +6,8 @@ export class AuthError extends Error {
       | 'INVALID_SESSION'
       | 'TOKEN_REUSED'
       | 'INVALID_TOKEN'
-      | 'INVALID_PASSWORD',
+      | 'INVALID_PASSWORD'
+      | 'PLAN_UNAVAILABLE',
   ) {
     super(code);
     this.name = 'AuthError';
