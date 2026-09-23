@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { type OnboardingStep, onboardingSteps } from '../../../../domain/onboardingState.js';
+import { type OnboardingStep, onboardingSteps } from '../../../../domain/types/onboarding.types.js';
 
 export class OnboardingResponseDto {
   @ApiProperty({

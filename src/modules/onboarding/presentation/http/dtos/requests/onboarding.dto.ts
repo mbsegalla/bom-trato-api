@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsUUID } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
 
 export class OnboardingQueryDto {
   @ApiPropertyOptional({
@@ -22,4 +23,20 @@ export class SelectOnboardingPlanDto {
   })
   @IsUUID('4')
   planPriceId: string;
+}
+
+export class CompleteOnboardingBusinessDto {
+  @ApiProperty({
+    format: 'uuid',
+  })
+  @IsUUID('4')
+  organizationId: string;
+
+  @ApiProperty({
+    example: 'Marco Serviços',
+  })
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @Length(2, 100)
+  name: string;
 }

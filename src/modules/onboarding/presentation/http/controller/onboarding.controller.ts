@@ -6,8 +6,13 @@ import { authOperation } from '../../../../auth/presentation/http/authHttpError.
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
 import { billingOperation } from '../../../../billing/presentation/http/billingHttpError.js';
+import { organizationOperation } from '../../../../organizations/presentation/http/organizationHttpError.js';
 import { OnboardingService } from '../../../application/services/onboarding.service.js';
-import { OnboardingQueryDto, SelectOnboardingPlanDto } from '../dtos/requests/onboarding.dto.js';
+import {
+  CompleteOnboardingBusinessDto,
+  OnboardingQueryDto,
+  SelectOnboardingPlanDto,
+} from '../dtos/requests/onboarding.dto.js';
 import { OnboardingResponseDto } from '../dtos/responses/onboardingResponse.dto.js';
 
 @ApiTags('Onboarding')
@@ -15,6 +20,19 @@ import { OnboardingResponseDto } from '../dtos/responses/onboardingResponse.dto.
 @Controller('onboarding')
 export class OnboardingController {
   constructor(private readonly service: OnboardingService) {}
+
+  @Post('bootstrap')
+  @HttpCode(200)
+  @ApiDataResponse(OnboardingResponseDto)
+  bootstrap(@CurrentAuth() auth: AuthContext): Promise<OnboardingResponseDto> {
+    return billingOperation(() =>
+      this.service.bootstrap({
+        userId: auth.user.id,
+        email: auth.user.email,
+        userName: auth.user.name,
+      }),
+    );
+  }
 
   @Get()
   @ApiDataResponse(OnboardingResponseDto)
@@ -28,6 +46,18 @@ export class OnboardingController {
   selectPlan(@CurrentAuth() auth: AuthContext, @Body() dto: SelectOnboardingPlanDto): Promise<OnboardingResponseDto> {
     return authOperation(() =>
       billingOperation(() => this.service.selectPlan(auth.user.id, dto.organizationId, dto.planPriceId)),
+    );
+  }
+
+  @Post('business')
+  @HttpCode(200)
+  @ApiDataResponse(OnboardingResponseDto)
+  completeBusiness(
+    @CurrentAuth() auth: AuthContext,
+    @Body() dto: CompleteOnboardingBusinessDto,
+  ): Promise<OnboardingResponseDto> {
+    return organizationOperation(() =>
+      billingOperation(() => this.service.completeBusiness(auth.user.id, dto.organizationId, dto.name)),
     );
   }
 }

@@ -255,12 +255,13 @@ model AuthRateLimit {
 }
 
 model Organization {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @db.VarChar(100)
-  ownerId     String   @db.Uuid
-  creationKey String?  @db.Uuid
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  id               String    @id @default(uuid()) @db.Uuid
+  name             String    @db.VarChar(100)
+  ownerId          String    @db.Uuid
+  creationKey      String?   @db.Uuid
+  setupCompletedAt DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
 
   owner                            User                              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   organizationMembers              OrganizationMember[]
@@ -279,6 +280,7 @@ model Organization {
   receivables                      Receivable[]
 
   @@unique([ownerId, creationKey])
+  @@index([ownerId, setupCompletedAt, createdAt])
 }
 
 model OrganizationMember {
