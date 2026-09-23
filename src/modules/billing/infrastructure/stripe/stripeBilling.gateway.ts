@@ -26,6 +26,7 @@ const supportedEvents = new Set([
   'customer.subscription.resumed',
   'customer.subscription.pending_update_applied',
   'customer.subscription.pending_update_expired',
+  'customer.deleted',
   'invoice.paid',
   'invoice.payment_failed',
   'invoice.payment_action_required',
@@ -129,6 +130,10 @@ export class StripeBillingGateway extends BillingGateway {
   }
 
   async createCustomer(customer: BillingCustomerProps): Promise<string> {
+    if (customer.creationRequestedAt === null) {
+      throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+    }
+
     const result = await this.stripe.customers.create(
       {
         email: customer.billingEmail,
@@ -138,10 +143,18 @@ export class StripeBillingGateway extends BillingGateway {
           billingCustomerId: customer.id,
         },
       },
-      { idempotencyKey: `billing-customer:${customer.id}` },
+      {
+        idempotencyKey: `billing-customer:${customer.id}:${customer.creationRequestedAt.getTime()}`,
+      },
     );
 
     return result.id;
+  }
+
+  async customerState(customerId: string): Promise<'ACTIVE' | 'DELETED'> {
+    const customer = await this.stripe.customers.retrieve(customerId);
+
+    return 'deleted' in customer && customer.deleted ? 'DELETED' : 'ACTIVE';
   }
 
   async validatePrice(availablePrice: AvailablePrice): Promise<void> {
@@ -276,6 +289,10 @@ export class StripeBillingGateway extends BillingGateway {
       billingReason: invoice.billing_reason ?? null,
       stripeCreatedAt: date(invoice.created),
     };
+  }
+
+  async updateCustomerName(customerId: string, name: string): Promise<void> {
+    await this.stripe.customers.update(customerId, { name });
   }
 
   async snapshot(
@@ -423,7 +440,26 @@ export class StripeBillingGateway extends BillingGateway {
 
     const object: unknown = event.data.object;
 
-    if (typeof object !== 'object' || object === null || !('customer' in object)) {
+    if (typeof object !== 'object' || object === null) {
+      return null;
+    }
+
+    if (event.type === 'customer.deleted') {
+      const customerId = objectId(object);
+
+      if (customerId === null) {
+        return null;
+      }
+
+      return {
+        id: event.id,
+        type: event.type,
+        stripeCustomerId: customerId,
+        stripeObjectId: customerId,
+      };
+    }
+
+    if (!('customer' in object)) {
       return null;
     }
 

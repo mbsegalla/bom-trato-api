@@ -4,6 +4,7 @@ export interface EnsureOnboardingOrganizationParams {
   userId: string;
   email: string;
   billingName: string;
+  provisionalOrganizationName: string;
 }
 
 export interface CompleteBusinessSetupParams {

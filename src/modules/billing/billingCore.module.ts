@@ -23,6 +23,7 @@ import { GetEntitlementsUseCase } from './application/useCases/getEntitlements.u
 import { GetPaymentMethodUseCase } from './application/useCases/getPaymentMethod.useCase.js';
 import { GetPlanChangeUseCase } from './application/useCases/getPlanChange.useCase.js';
 import { GetSubscriptionUseCase } from './application/useCases/getSubscription.useCase.js';
+import { HandleDeletedBillingCustomerUseCase } from './application/useCases/handleDeletedBillingCustomer.useCase.js';
 import { ListBillingInvoicesUseCase } from './application/useCases/listBillingInvoices.useCase.js';
 import { PreviewPlanChangeUseCase } from './application/useCases/previewPlanChange.useCase.js';
 import { ReconcilePlanChangeUseCase } from './application/useCases/reconcilePlanChange.useCase.js';
@@ -32,6 +33,7 @@ import { StartPaymentMethodUpdateUseCase } from './application/useCases/startPay
 import { SyncBillingUseCase } from './application/useCases/syncBilling.useCase.js';
 import { SyncPaymentMethodUpdateUseCase } from './application/useCases/syncPaymentMethodUpdate.useCase.js';
 import { SyncPlanChangeUseCase } from './application/useCases/syncPlanChange.useCase.js';
+import { UpdateBillingCustomerNameUseCase } from './application/useCases/updateBillingCustomerName.useCase.js';
 import { BillingRepository } from './domain/repositories/billing.repository.js';
 import { PaymentMethodUpdateRepository } from './domain/repositories/paymentMethodUpdate.repository.js';
 import { PlanChangeRepository } from './domain/repositories/planChange.repository.js';
@@ -177,6 +179,12 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
       inject: [BillingRepository],
     },
     {
+      provide: UpdateBillingCustomerNameUseCase,
+      useFactory: (repository: BillingRepository, gateway: BillingGateway, lock: BillingLock) =>
+        new UpdateBillingCustomerNameUseCase(repository, gateway, lock),
+      inject: [BillingRepository, BillingGateway, BillingLock],
+    },
+    {
       provide: SubscriptionCancellationService,
       useFactory: (
         repository: BillingRepository,
@@ -264,6 +272,12 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
       ) => new SyncPaymentMethodUpdateUseCase(updates, lock, processor),
       inject: [PaymentMethodUpdateRepository, BillingLock, PaymentMethodUpdateProcessor],
     },
+    {
+      provide: HandleDeletedBillingCustomerUseCase,
+      useFactory: (repository: BillingRepository, lock: BillingLock) =>
+        new HandleDeletedBillingCustomerUseCase(repository, lock),
+      inject: [BillingRepository, BillingLock],
+    },
   ],
   exports: [
     PlanChangeRepository,
@@ -290,6 +304,8 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
     CompletePaymentMethodUpdateUseCase,
     GetPaymentMethodUseCase,
     SyncPaymentMethodUpdateUseCase,
+    UpdateBillingCustomerNameUseCase,
+    HandleDeletedBillingCustomerUseCase,
   ],
 })
 export class BillingCoreModule {}

@@ -11,6 +11,12 @@ export interface BillingCustomerProps {
   invoiceHistorySyncedAt: Date | null;
 }
 
+export interface HandleDeletedBillingCustomerParams {
+  organizationId: string;
+  stripeCustomerId: string;
+  deletedAt: Date;
+}
+
 export interface AvailablePrice {
   id: string;
   stripePriceId: string;
@@ -69,6 +75,7 @@ export abstract class BillingRepository {
   abstract customerByStripeId(stripeCustomerId: string): Promise<BillingCustomerProps | null>;
   abstract markCustomerCreation(id: string, now: Date): Promise<void>;
   abstract setCustomerId(id: string, stripeCustomerId: string): Promise<void>;
+  abstract handleDeletedCustomer(params: HandleDeletedBillingCustomerParams): Promise<void>;
   abstract availablePrice(id: string): Promise<AvailablePrice>;
   abstract currentSubscription(organizationId: string): Promise<SubscriptionProps | null>;
   abstract pendingCheckout(organizationId: string): Promise<CheckoutAttemptState | null>;

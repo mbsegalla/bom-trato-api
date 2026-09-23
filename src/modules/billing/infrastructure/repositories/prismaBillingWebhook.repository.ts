@@ -29,34 +29,36 @@ export class PrismaBillingWebhookRepository extends BillingWebhookRepository {
 
   async claimEvent(leaseToken: string): Promise<ClaimedWebhookJob | null> {
     const rows = await this.prisma.$queryRaw<ClaimedWebhookJob[]>`
-      WITH candidate AS (
-        SELECT "id"
-        FROM "StripeWebhookEvent"
-        WHERE "processedAt" IS NULL
-          AND "failedAt" IS NULL
-          AND "nextAttemptAt" <= CURRENT_TIMESTAMP
-          AND (
-            "leaseToken" IS NULL
-            OR "leaseExpiresAt" <= CURRENT_TIMESTAMP
-          )
-        ORDER BY "nextAttemptAt", "id"
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-      )
-      UPDATE "StripeWebhookEvent" AS event
-      SET
-        "leaseToken" = ${leaseToken}::uuid,
-        "leaseExpiresAt" = CURRENT_TIMESTAMP + INTERVAL '2 minutes'
-      FROM candidate
-      WHERE event."id" = candidate."id"
-      RETURNING
-        event."id",
-        event."type",
-        event."stripeCustomerId",
-        event."stripeObjectId",
-        event."attempts",
-        event."leaseToken"
-    `;
+        WITH candidate AS (
+          SELECT "id"
+          FROM "StripeWebhookEvent"
+          WHERE "processedAt" IS NULL
+            AND "failedAt" IS NULL
+            AND "nextAttemptAt" <= CURRENT_TIMESTAMP
+            AND (
+              "leaseToken" IS NULL
+              OR "leaseExpiresAt" <= CURRENT_TIMESTAMP
+            )
+          ORDER BY "nextAttemptAt", "id"
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        UPDATE "StripeWebhookEvent" AS event
+        SET
+          "leaseToken" = ${leaseToken}::uuid,
+          "leaseExpiresAt" =
+            CURRENT_TIMESTAMP + INTERVAL '2 minutes'
+        FROM candidate
+        WHERE event."id" = candidate."id"
+        RETURNING
+          event."id",
+          event."type",
+          event."stripeCustomerId",
+          event."stripeObjectId",
+          event."attempts",
+          event."receivedAt",
+          event."leaseToken"
+      `;
 
     return rows[0] ?? null;
   }

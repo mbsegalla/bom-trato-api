@@ -25,6 +25,20 @@ export class StartCheckoutUseCase {
     return this.billingLock.run(`organization:${organizationId}`, async () => {
       let customer = await this.billingRepository.customer(organizationId);
 
+      if (customer.stripeCustomerId !== null) {
+        const customerState = await this.billingGateway.customerState(customer.stripeCustomerId);
+
+        if (customerState === 'DELETED') {
+          await this.billingRepository.handleDeletedCustomer({
+            organizationId,
+            stripeCustomerId: customer.stripeCustomerId,
+            deletedAt: new Date(),
+          });
+
+          customer = await this.billingRepository.customer(organizationId);
+        }
+      }
+
       if (customer.stripeCustomerId === null) {
         await this.billingRepository.markCustomerCreation(customer.id, new Date());
 

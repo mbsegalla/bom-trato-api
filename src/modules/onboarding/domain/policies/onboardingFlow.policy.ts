@@ -1,4 +1,4 @@
-import { CheckoutAttemptStatus } from '../../../../generated/prisma/enums.js';
+import { CheckoutAttemptStatus, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
 import { type OnboardingSnapshot, type OnboardingState, OnboardingStep } from '../types/onboarding.types.js';
 
@@ -28,7 +28,7 @@ export class OnboardingFlowPolicy {
       step = OnboardingStep.ContactOwner;
     } else if (currentSubscription) {
       step =
-        currentSubscription.status === 'ACTIVE' && currentSubscription.paidThrough === null
+        currentSubscription.status === SubscriptionStatus.ACTIVE && currentSubscription.paidThrough === null
           ? OnboardingStep.PaymentPending
           : OnboardingStep.BillingRequired;
     } else if (snapshot.checkoutStatus === CheckoutAttemptStatus.COMPLETE && snapshot.subscriptions.length === 0) {

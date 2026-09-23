@@ -16,6 +16,8 @@ export interface CreateCheckoutParams {
   attempt: CheckoutAttemptState;
 }
 
+export type BillingCustomerRemoteState = 'ACTIVE' | 'DELETED';
+
 export interface InvoiceReconciliationOptions {
   createdSince: Date;
   pendingInvoiceIds: string[];
@@ -24,10 +26,12 @@ export interface InvoiceReconciliationOptions {
 export abstract class BillingGateway {
   abstract findCustomer(customer: BillingCustomerProps): Promise<string | null>;
   abstract createCustomer(customer: BillingCustomerProps): Promise<string>;
+  abstract customerState(customerId: string): Promise<BillingCustomerRemoteState>;
   abstract validatePrice(price: AvailablePrice): Promise<void>;
   abstract createCheckout(params: CreateCheckoutParams): Promise<CheckoutResult>;
   abstract checkout(id: string): Promise<CheckoutResult>;
   abstract findCheckout(customerId: string, attemptId: string): Promise<CheckoutResult | null>;
+  abstract updateCustomerName(customerId: string, name: string): Promise<void>;
   abstract snapshot(
     customerId: string,
     invoiceId?: string,

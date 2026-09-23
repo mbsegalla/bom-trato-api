@@ -1,3 +1,4 @@
+import type { UpdateBillingCustomerNameUseCase } from '../../../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import { Organization } from '../../../organizations/domain/entities/organization.entity.js';
 import { OnboardingFlowPolicy } from '../../domain/policies/onboardingFlow.policy.js';
 import type { OnboardingRepository } from '../../domain/repositories/onboarding.repository.js';
@@ -9,15 +10,17 @@ interface BootstrapParams {
 }
 
 export class OnboardingService {
-  constructor(private readonly onboardingRepository: OnboardingRepository) {}
+  constructor(
+    private readonly onboardingRepository: OnboardingRepository,
+    private readonly updateBillingCustomerName: UpdateBillingCustomerNameUseCase,
+  ) {}
 
   async bootstrap(params: BootstrapParams) {
-    const billingName = params.userName.trim();
-
     const organizationId = await this.onboardingRepository.ensureOrganization({
       userId: params.userId,
       email: params.email,
-      billingName,
+      billingName: params.userName.trim(),
+      provisionalOrganizationName: 'Meu negócio',
     });
 
     return this.state(params.userId, organizationId);
@@ -41,6 +44,11 @@ export class OnboardingService {
       ownerId: userId,
       name: rawName,
     }).snapshot().name;
+
+    await this.updateBillingCustomerName.execute({
+      organizationId,
+      name,
+    });
 
     await this.onboardingRepository.completeBusinessSetup({
       userId,
