@@ -72,8 +72,8 @@ export class PostgresAuthRateLimit {
 
       await this.consume(`email:${bucket}:${email}`, 10, 900, response);
 
-      if (bucket === 'resend-verification') {
-        await this.consume(`verification-cooldown:${email}`, 1, 180, response);
+      if (bucket === 'resend-verification' || bucket === 'forgot-password') {
+        await this.consume(`email-cooldown:${bucket}:${email}`, 1, 180, response);
       }
     }
   }
