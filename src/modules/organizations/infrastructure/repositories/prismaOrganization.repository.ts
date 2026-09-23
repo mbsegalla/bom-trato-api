@@ -68,12 +68,15 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
         data: {
           ...organization,
           creationKey,
+          setupCompletedAt: new Date(),
+
           organizationMembers: {
             create: {
               userId: organization.ownerId,
               role: OrganizationRole.OWNER,
             },
           },
+
           billingCustomer: {
             create: {
               billingEmail,
@@ -100,6 +103,9 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
     return this.prisma.organization.findMany({
       where: {
         ownerId: userId,
+        setupCompletedAt: {
+          not: null,
+        },
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
