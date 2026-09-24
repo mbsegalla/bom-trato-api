@@ -36,11 +36,6 @@ export interface NotificationTemplate {
   variables: NotificationTemplateVariables;
 }
 
-export interface NotificationTemplate {
-  id: string;
-  variables: NotificationTemplateVariables;
-}
-
 export interface NotificationMessage {
   from: string;
   to: string;
@@ -57,7 +52,6 @@ export interface NotificationJob {
 }
 
 export interface BillingPaymentNotification {
-  organizationName: string;
   invoiceNumber: string | null;
   amountPaidInCents: number;
   currency: string;

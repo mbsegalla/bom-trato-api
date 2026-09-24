@@ -55,7 +55,6 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
               },
               organization: {
                 select: {
-                  name: true,
                   owner: {
                     select: {
                       email: true,
@@ -83,7 +82,6 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
               paidAt: invoice.paidAt,
               subscriptionStatus: invoice.subscription.status,
               recipient: {
-                organizationName: invoice.organization.name,
                 email: owner.email,
                 enabled: owner.disabledAt === null && owner.emailVerifiedAt !== null,
               },
@@ -156,10 +154,10 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
           billingSuccessNotification: {
             kind: 'PLAN_CHANGE',
             id: change.id,
+            organizationName: change.organization.name,
             planName: change.targetPlanPrice.plan.name,
             appliedAt: change.updatedAt,
             recipient: {
-              organizationName: change.organization.name,
               email: owner.email,
               enabled: owner.disabledAt === null && owner.emailVerifiedAt !== null,
             },

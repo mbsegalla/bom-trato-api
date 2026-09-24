@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Prisma } from '../../../../generated/prisma/client.js';
-import { OrganizationRole, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
+import { CheckoutAttemptStatus, OrganizationRole, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { AuthError } from '../../../auth/domain/errors/auth.error.js';
 import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
@@ -155,7 +155,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
 
     const checkout = organization.checkoutAttempts[0];
 
-    const pending = checkout?.status === 'PENDING' && checkout.expiresAt > new Date();
+    const pending = checkout?.status === CheckoutAttemptStatus.PENDING && checkout.expiresAt > new Date();
 
     const planPriceId = pending ? checkout.planPriceId : user.selectedPlanPriceId;
 
@@ -179,7 +179,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
 
     let checkoutStatus: OnboardingSnapshot['checkoutStatus'] = checkout?.status ?? null;
 
-    if (checkout?.status === 'COMPLETE' && organization.subscriptions.length === 0) {
+    if (checkout?.status === CheckoutAttemptStatus.COMPLETE && organization.subscriptions.length === 0) {
       const latest = await this.prisma.subscription.findFirst({
         where: {
           organizationId: organization.id,

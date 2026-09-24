@@ -34,7 +34,7 @@ export class QueueNextBillingConfirmationUseCase {
           expiresAt,
           content: {
             type: 'PLAN_CHANGE_CONFIRMED',
-            organizationName: recipient.organizationName,
+            organizationName: billingSuccessNotification.organizationName,
             planName: billingSuccessNotification.planName,
           },
         });
@@ -54,7 +54,6 @@ export class QueueNextBillingConfirmationUseCase {
         expiresAt,
         content: {
           type: activation ? 'SUBSCRIPTION_ACTIVATED' : 'PAYMENT_CONFIRMED',
-          organizationName: recipient.organizationName,
           invoiceNumber: billingSuccessNotification.number,
           amountPaidInCents: billingSuccessNotification.amountPaid,
           currency: billingSuccessNotification.currency,

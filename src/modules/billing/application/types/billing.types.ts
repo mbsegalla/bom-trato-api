@@ -74,7 +74,6 @@ export interface PaymentMethodUpdateResult {
 }
 
 export interface BillingSuccessRecipient {
-  organizationName: string;
   email: string;
   enabled: boolean;
 }
@@ -95,6 +94,7 @@ export type BillingSuccessNotification =
   | {
       kind: 'PLAN_CHANGE';
       id: string;
+      organizationName: string;
       planName: string;
       appliedAt: Date;
       recipient: BillingSuccessRecipient;
