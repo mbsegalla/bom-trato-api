@@ -4,7 +4,11 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { UpdateBillingCustomerNameUseCase } from '../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import { BillingCoreModule } from '../billing/billingCore.module.js';
 
-import { OnboardingService } from './application/services/onboarding.service.js';
+import { OnboardingApplicationService } from './application/services/onboardingApplicationService.service.js';
+import { BootstrapOnboardingUseCase } from './application/useCases/bootstrapOnboarding.useCase.js';
+import { CompleteOnboardingBusinessUseCase } from './application/useCases/completeOnboardingBusiness.useCase.js';
+import { GetOnboardingStateUseCase } from './application/useCases/getOnboardingState.useCase.js';
+import { SelectOnboardingPlanUseCase } from './application/useCases/selectOnboardingPlan.useCase.js';
 import { OnboardingRepository } from './domain/repositories/onboarding.repository.js';
 import { PrismaOnboardingRepository } from './infrastructure/repositories/prismaOnboarding.repository.js';
 import { OnboardingController } from './presentation/http/controllers/onboarding.controller.js';
@@ -18,10 +22,35 @@ import { OnboardingController } from './presentation/http/controllers/onboarding
       useClass: PrismaOnboardingRepository,
     },
     {
-      provide: OnboardingService,
-      useFactory: (repository: OnboardingRepository, updateBillingCustomerName: UpdateBillingCustomerNameUseCase) =>
-        new OnboardingService(repository, updateBillingCustomerName),
-      inject: [OnboardingRepository, UpdateBillingCustomerNameUseCase],
+      provide: OnboardingApplicationService,
+      useFactory: (repository: OnboardingRepository) => new OnboardingApplicationService(repository),
+      inject: [OnboardingRepository],
+    },
+    {
+      provide: BootstrapOnboardingUseCase,
+      useFactory: (repository: OnboardingRepository, service: OnboardingApplicationService) =>
+        new BootstrapOnboardingUseCase(repository, service),
+      inject: [OnboardingRepository, OnboardingApplicationService],
+    },
+    {
+      provide: GetOnboardingStateUseCase,
+      useFactory: (service: OnboardingApplicationService) => new GetOnboardingStateUseCase(service),
+      inject: [OnboardingApplicationService],
+    },
+    {
+      provide: SelectOnboardingPlanUseCase,
+      useFactory: (repository: OnboardingRepository, service: OnboardingApplicationService) =>
+        new SelectOnboardingPlanUseCase(repository, service),
+      inject: [OnboardingRepository, OnboardingApplicationService],
+    },
+    {
+      provide: CompleteOnboardingBusinessUseCase,
+      useFactory: (
+        repository: OnboardingRepository,
+        service: OnboardingApplicationService,
+        updateBillingCustomerNameUseCase: UpdateBillingCustomerNameUseCase,
+      ) => new CompleteOnboardingBusinessUseCase(repository, service, updateBillingCustomerNameUseCase),
+      inject: [OnboardingRepository, OnboardingApplicationService, UpdateBillingCustomerNameUseCase],
     },
   ],
 })
