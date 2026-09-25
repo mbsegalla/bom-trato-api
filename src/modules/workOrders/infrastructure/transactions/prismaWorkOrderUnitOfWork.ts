@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import type { OrganizationTransactionMode } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
@@ -60,7 +61,9 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
       workOrders: new PrismaWorkOrderRepository(db, organizationId),
       access: await readOrganizationAccess(db, params),
       schedule: new PrismaWorkOrderScheduleRepository(db, organizationId),
+      inAppNotifications: new PrismaInAppNotificationRepository(db),
       findQuote: (id) => quotes.findById(id),
+
       isAssignableMember: async (userId) => {
         const member = await db.organizationMember.findFirst({
           where: {
@@ -71,7 +74,9 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
               emailVerifiedAt: { not: null },
             },
           },
-          select: { id: true },
+          select: {
+            id: true,
+          },
         });
 
         return member !== null;

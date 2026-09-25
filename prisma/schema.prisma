@@ -135,6 +135,21 @@ enum OrganizationDocumentType {
   CNPJ
 }
 
+enum InAppNotificationType {
+  QUOTE_APPROVED
+  QUOTE_DECLINED
+  WORK_ORDER_ASSIGNED
+  WORK_ORDER_SCHEDULED
+  WORK_ORDER_RESCHEDULED
+  ORGANIZATION_MEMBER_JOINED
+  PAYMENT_FAILED
+  PAYMENT_ACTION_REQUIRED
+  PAYMENT_CONFIRMED
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_CANCELED
+  PLAN_CHANGE_CONFIRMED
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -199,6 +214,7 @@ model User {
   authSessions        AuthSession[]
   authActionTokens    AuthActionToken[]
   organizationMembers OrganizationMember[]
+  inAppNotifications  InAppNotification[]
 
   @@index([selectedPlanPriceId])
 }
@@ -214,8 +230,9 @@ model AuthSession {
   userAgent         String?                  @db.VarChar(300)
   createdAt         DateTime                 @default(now()) @db.Timestamptz(3)
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokens RefreshToken[]
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens             RefreshToken[]
+  notificationStreamTickets NotificationStreamTicket[]
 
   @@index([userId, createdAt])
   @@index([absoluteExpiresAt])
@@ -292,6 +309,8 @@ model Organization {
   quotes                           Quote[]
   workOrders                       WorkOrder[]
   receivables                      Receivable[]
+  inAppNotifications               InAppNotification[]
+  notificationStreamTickets        NotificationStreamTicket[]
 
   @@unique([ownerId, creationKey])
   @@index([ownerId, setupCompletedAt, createdAt])
@@ -840,4 +859,38 @@ model NotificationOutbox {
   @@index([status, availableAt, createdAt])
   @@index([status, leaseUntil])
   @@index([finishedAt])
+}
+
+model InAppNotification {
+  id             String                @id @default(uuid()) @db.Uuid
+  key            String                @unique @db.VarChar(200)
+  userId         String                @db.Uuid
+  organizationId String                @db.Uuid
+  type           InAppNotificationType
+  title          String                @db.VarChar(150)
+  message        String                @db.VarChar(500)
+  href           String                @db.VarChar(500)
+  readAt         DateTime?             @db.Timestamptz(3)
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, organizationId, readAt, createdAt(sort: Desc)])
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+model NotificationStreamTicket {
+  id             String   @id @default(uuid()) @db.Uuid
+  tokenHash      String   @unique @db.Char(64)
+  sessionId      String   @db.Uuid
+  organizationId String   @db.Uuid
+  expiresAt      DateTime @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  authSession  AuthSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([sessionId, organizationId])
 }

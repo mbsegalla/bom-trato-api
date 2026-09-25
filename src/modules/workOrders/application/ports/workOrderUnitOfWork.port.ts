@@ -1,3 +1,4 @@
+import type { InAppNotificationRepository } from '../../../notifications/domain/repositories/inAppNotification.repository.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { QuoteProps } from '../../../quotes/domain/entities/quote.entity.js';
 import type { WorkOrderRepository } from '../../domain/repositories/workOrder.repository.js';
@@ -19,6 +20,7 @@ export interface WorkOrderTransaction {
   readonly workOrders: WorkOrderRepository;
   readonly access: OrganizationAccessContext;
   readonly schedule: WorkOrderScheduleRepository;
+  readonly inAppNotifications: Pick<InAppNotificationRepository, 'enqueue'>;
   findQuote(quoteId: string): Promise<QuoteProps | null>;
   isAssignableMember(userId: string): Promise<boolean>;
 }

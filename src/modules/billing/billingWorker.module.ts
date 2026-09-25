@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { NotificationOutbox } from '../notifications/application/ports/notificationOutbox.port.js';
+import { InAppNotificationRepository } from '../notifications/domain/repositories/inAppNotification.repository.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
 import { BillingSuccessNotificationUnitOfWork } from './application/ports/billingSuccessNotificationUnitOfWork.port.js';
@@ -30,9 +31,12 @@ import { BillingCoreModule } from './billingCore.module.js';
     },
     {
       provide: QueueBillingAlertUseCase,
-      useFactory: (repository: BillingRepository, notifications: NotificationOutbox) =>
-        new QueueBillingAlertUseCase(repository, notifications),
-      inject: [BillingRepository, NotificationOutbox],
+      useFactory: (
+        repository: BillingRepository,
+        notifications: NotificationOutbox,
+        inAppNotifications: InAppNotificationRepository,
+      ) => new QueueBillingAlertUseCase(repository, notifications, inAppNotifications),
+      inject: [BillingRepository, NotificationOutbox, InAppNotificationRepository],
     },
   ],
 })

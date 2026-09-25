@@ -1,5 +1,6 @@
 import type { PaymentMethodUpdateStatus } from '../../../../generated/prisma/enums.js';
 import type { NotificationOutbox } from '../../../notifications/application/ports/notificationOutbox.port.js';
+import type { InAppNotificationRepository } from '../../../notifications/domain/repositories/inAppNotification.repository.js';
 
 export interface StartCheckoutParams {
   organizationId: string;
@@ -74,6 +75,7 @@ export interface PaymentMethodUpdateResult {
 }
 
 export interface BillingSuccessRecipient {
+  userId: string;
   email: string;
   enabled: boolean;
 }
@@ -82,6 +84,8 @@ export type BillingSuccessNotification =
   | {
       kind: 'INVOICE';
       id: string;
+      organizationId: string;
+      organizationName: string;
       stripeInvoiceId: string;
       billingReason: string | null;
       number: string | null;
@@ -94,6 +98,7 @@ export type BillingSuccessNotification =
   | {
       kind: 'PLAN_CHANGE';
       id: string;
+      organizationId: string;
       organizationName: string;
       planName: string;
       appliedAt: Date;
@@ -103,4 +108,5 @@ export type BillingSuccessNotification =
 export interface BillingSuccessNotificationTransaction {
   billingSuccessNotification: BillingSuccessNotification;
   notificationOutbox: NotificationOutbox;
+  inAppNotifications: Pick<InAppNotificationRepository, 'enqueue'>;
 }

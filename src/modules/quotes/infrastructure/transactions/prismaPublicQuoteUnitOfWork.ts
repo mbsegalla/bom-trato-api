@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import type { OrganizationTransactionMode } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import type {
@@ -55,6 +56,7 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
         operation({
           quotes: new PrismaQuoteRepository(db, organizationId),
           shares: new PrismaQuoteShareRepository(db, organizationId),
+          inAppNotifications: new PrismaInAppNotificationRepository(db),
           findOrganization: () =>
             db.organization.findUnique({
               where: {
@@ -62,6 +64,7 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
               },
               select: {
                 name: true,
+                ownerId: true,
               },
             }),
         }),

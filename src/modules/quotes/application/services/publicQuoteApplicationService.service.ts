@@ -36,11 +36,35 @@ export class PublicQuoteApplicationService {
 
     return this.unitOfWork.run(hash, async (context) => {
       const { quote, share } = await this.load(context, hash);
+
       const previousVersion = quote.snapshot().version;
 
-      if (share.decide(quote, decision, version, new Date())) {
+      const changed = share.decide(quote, decision, version, new Date());
+
+      if (changed) {
         await context.quotes.save(quote, previousVersion);
         await context.shares.saveDecision(share);
+
+        const organization = await context.findOrganization();
+
+        if (organization === null) {
+          throw new QuoteShareError('QUOTE_SHARE_NOT_FOUND');
+        }
+
+        const quoteState = quote.snapshot();
+        const shareState = share.snapshot();
+
+        const approved = decision === 'APPROVED';
+
+        await context.inAppNotifications.enqueue({
+          key: `quote-decision/${shareState.id}/${decision}/${shareState.decidedVersion}`,
+          userId: organization.ownerId,
+          organizationId: quoteState.organizationId,
+          type: approved ? 'QUOTE_APPROVED' : 'QUOTE_DECLINED',
+          title: approved ? 'Orçamento aprovado' : 'Orçamento recusado',
+          message: `${quoteState.customerName} ${approved ? 'aprovou' : 'recusou'} o orçamento "${quoteState.title}".`,
+          href: `/quotes/${quoteState.id}`,
+        });
       }
 
       const state = share.snapshot();

@@ -39,6 +39,16 @@ export class QueueNextBillingConfirmationUseCase {
           },
         });
 
+        await tx.inAppNotifications.enqueue({
+          key: `plan-change-confirmed/${billingSuccessNotification.id}`,
+          userId: recipient.userId,
+          organizationId: billingSuccessNotification.organizationId,
+          type: 'PLAN_CHANGE_CONFIRMED',
+          title: 'Plano atualizado',
+          message: `Seu plano foi alterado para ${billingSuccessNotification.planName}.`,
+          href: '/settings?tab=billing',
+        });
+
         return;
       }
 
@@ -58,6 +68,18 @@ export class QueueNextBillingConfirmationUseCase {
           amountPaidInCents: billingSuccessNotification.amountPaid,
           currency: billingSuccessNotification.currency,
         },
+      });
+
+      await tx.inAppNotifications.enqueue({
+        key: `billing-success/${billingSuccessNotification.stripeInvoiceId}`,
+        userId: recipient.userId,
+        organizationId: billingSuccessNotification.organizationId,
+        type: activation ? 'SUBSCRIPTION_ACTIVATED' : 'PAYMENT_CONFIRMED',
+        title: activation ? 'Assinatura ativada' : 'Pagamento confirmado',
+        message: activation
+          ? `A assinatura de ${billingSuccessNotification.organizationName} foi ativada.`
+          : `O pagamento da assinatura de ${billingSuccessNotification.organizationName} foi confirmado.`,
+        href: '/settings?tab=billing',
       });
     });
   }

@@ -54,6 +54,7 @@ export type WebhookOutcome = 'COMPLETE' | 'DEFER' | 'RETRY';
 
 export interface BillingNotificationContext {
   organizationName: string;
+  recipientUserId: string;
   recipient: string;
   recipientEnabled: boolean;
   invoiceStatus: string | null;

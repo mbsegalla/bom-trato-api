@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 import { BillingSuccessNotificationUnitOfWork } from '../../application/ports/billingSuccessNotificationUnitOfWork.port.js';
 import type { BillingSuccessNotificationTransaction } from '../../application/types/billing.types.js';
@@ -55,8 +56,11 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
               },
               organization: {
                 select: {
+                  id: true,
+                  name: true,
                   owner: {
                     select: {
+                      id: true,
                       email: true,
                       disabledAt: true,
                       emailVerifiedAt: true,
@@ -71,9 +75,12 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
 
           await operation({
             notificationOutbox: this.outbox.using(db, onNotificationInserted),
+            inAppNotifications: new PrismaInAppNotificationRepository(db),
             billingSuccessNotification: {
               kind: 'INVOICE',
               id: invoice.id,
+              organizationId: invoice.organization.id,
+              organizationName: invoice.organization.name,
               stripeInvoiceId: invoice.stripeInvoiceId,
               billingReason: invoice.billingReason,
               number: invoice.number,
@@ -82,6 +89,7 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
               paidAt: invoice.paidAt,
               subscriptionStatus: invoice.subscription.status,
               recipient: {
+                userId: owner.id,
                 email: owner.email,
                 enabled: owner.disabledAt === null && owner.emailVerifiedAt !== null,
               },
@@ -134,9 +142,11 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
             },
             organization: {
               select: {
+                id: true,
                 name: true,
                 owner: {
                   select: {
+                    id: true,
                     email: true,
                     disabledAt: true,
                     emailVerifiedAt: true,
@@ -151,13 +161,16 @@ export class PrismaBillingSuccessNotificationUnitOfWork extends BillingSuccessNo
 
         await operation({
           notificationOutbox: this.outbox.using(db, onNotificationInserted),
+          inAppNotifications: new PrismaInAppNotificationRepository(db),
           billingSuccessNotification: {
             kind: 'PLAN_CHANGE',
             id: change.id,
+            organizationId: change.organization.id,
             organizationName: change.organization.name,
             planName: change.targetPlanPrice.plan.name,
             appliedAt: change.updatedAt,
             recipient: {
+              userId: owner.id,
               email: owner.email,
               enabled: owner.disabledAt === null && owner.emailVerifiedAt !== null,
             },

@@ -727,6 +727,7 @@ export class PrismaBillingRepository extends BillingRepository {
         name: true,
         owner: {
           select: {
+            id: true,
             email: true,
             disabledAt: true,
             emailVerifiedAt: true,
@@ -763,6 +764,7 @@ export class PrismaBillingRepository extends BillingRepository {
 
     return {
       organizationName: row.name,
+      recipientUserId: row.owner.id,
       recipient: row.owner.email,
       recipientEnabled: row.owner.disabledAt === null && row.owner.emailVerifiedAt !== null,
       invoiceStatus: invoice?.status ?? null,
