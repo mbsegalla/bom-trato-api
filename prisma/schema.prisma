@@ -534,6 +534,7 @@ model Customer {
   receivables  Receivable[]
 
   @@unique([id, organizationId])
+  @@unique([organizationId, email])
   @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
 }
 

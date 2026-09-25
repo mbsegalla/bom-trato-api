@@ -36,4 +36,20 @@ export class CustomerApplicationService {
 
     return Customer.restore(state);
   }
+
+  async assertEmailAvailable(
+    context: Pick<CustomerTransaction, 'customers'>,
+    email: string | null,
+    exceptCustomerId?: string,
+  ): Promise<void> {
+    if (email === null) {
+      return;
+    }
+
+    const existing = await context.customers.findByEmail(email);
+
+    if (existing !== null && existing.id !== exceptCustomerId) {
+      throw new CustomerError('CUSTOMER_EMAIL_ALREADY_EXISTS');
+    }
+  }
 }

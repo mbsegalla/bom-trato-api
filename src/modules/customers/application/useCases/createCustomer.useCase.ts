@@ -21,6 +21,10 @@ export class CreateCustomerUseCase {
         new Date(),
       );
 
+      const state = customer.snapshot();
+
+      await this.processor.assertEmailAvailable(tx, state.email);
+
       await tx.customers.create(customer);
 
       return customer.snapshot();

@@ -1,4 +1,4 @@
-import type { Prisma } from '../../../../generated/prisma/client.js';
+import { Prisma } from '../../../../generated/prisma/client.js';
 import type { Customer } from '../../domain/entities/customer.entity.js';
 import { CustomerError } from '../../domain/errors/customer.error.js';
 import { CustomerRepository } from '../../domain/repositories/customer.repository.js';
@@ -24,9 +24,15 @@ export class PrismaCustomerRepository extends CustomerRepository {
   async create(customer: Customer): Promise<void> {
     const state = this.scopedState(customer);
 
-    await this.db.customer.create({
-      data: state,
-    });
+    try {
+      await this.db.customer.create({
+        data: state,
+      });
+    } catch (error: unknown) {
+      this.handleWriteError(error);
+
+      throw error;
+    }
   }
 
   findById(id: string) {
@@ -34,6 +40,15 @@ export class PrismaCustomerRepository extends CustomerRepository {
       where: {
         id,
         organizationId: this.organizationId,
+      },
+    });
+  }
+
+  findByEmail(email: string) {
+    return this.db.customer.findFirst({
+      where: {
+        organizationId: this.organizationId,
+        email,
       },
     });
   }
@@ -48,11 +63,13 @@ export class PrismaCustomerRepository extends CustomerRepository {
     if (status === 'ACTIVE') {
       where.archivedAt = null;
     } else if (status === 'ARCHIVED') {
-      where.archivedAt = { not: null };
+      where.archivedAt = {
+        not: null,
+      };
     }
 
     if (typeof search === 'string' && search) {
-      const searchTerm: string = search.trim().replace(/[\\%_]/g, '\\$&');
+      const searchTerm = search.trim().replace(/[\\%_]/g, '\\$&');
 
       where.OR = [
         {
@@ -78,7 +95,14 @@ export class PrismaCustomerRepository extends CustomerRepository {
 
     const rows = await this.db.customer.findMany({
       where,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [
+        {
+          createdAt: 'desc',
+        },
+        {
+          id: 'desc',
+        },
+      ],
       skip: (page - 1) * limit,
       take: limit + 1,
     });
@@ -93,101 +117,107 @@ export class PrismaCustomerRepository extends CustomerRepository {
   async save(customer: Customer): Promise<void> {
     const state = this.scopedState(customer);
 
-    const result = await this.db.customer.updateMany({
-      where: {
-        id: state.id,
-        organizationId: this.organizationId,
-      },
-      data: {
-        name: state.name,
-        email: state.email,
-        phone: state.phone,
-        notes: state.notes,
-        archivedAt: state.archivedAt,
-        updatedAt: state.updatedAt,
-      },
-    });
+    try {
+      const result = await this.db.customer.updateMany({
+        where: {
+          id: state.id,
+          organizationId: this.organizationId,
+        },
+        data: {
+          name: state.name,
+          email: state.email,
+          phone: state.phone,
+          notes: state.notes,
+          archivedAt: state.archivedAt,
+          updatedAt: state.updatedAt,
+        },
+      });
 
-    if (result.count !== 1) {
-      throw new CustomerError('CUSTOMER_NOT_FOUND');
+      if (result.count !== 1) {
+        throw new CustomerError('CUSTOMER_NOT_FOUND');
+      }
+    } catch (error: unknown) {
+      this.handleWriteError(error);
+
+      throw error;
     }
   }
 
   async overviewSummary(customerId: string, now: Date): Promise<CustomerOverviewSummary> {
     const rows = await this.db.$queryRaw<CustomerOverviewRow[]>`
-      WITH quote_totals AS (
-        SELECT COUNT(*)::text AS "quoteCount"
-        FROM "Quote"
-        WHERE "organizationId" = ${this.organizationId}::uuid
-          AND "customerId" = ${customerId}::uuid
-      ),
-      work_order_totals AS (
+        WITH quote_totals AS (
+          SELECT COUNT(*)::text AS "quoteCount"
+          FROM "Quote"
+          WHERE "organizationId" = ${this.organizationId}::uuid
+            AND "customerId" = ${customerId}::uuid
+        ),
+        work_order_totals AS (
+          SELECT
+            COUNT(*)::text AS "workOrderCount",
+            (
+              COUNT(*) FILTER (
+                WHERE "status" = 'COMPLETED'
+              )
+            )::text AS "completedWorkOrderCount"
+          FROM "WorkOrder"
+          WHERE "organizationId" = ${this.organizationId}::uuid
+            AND "customerId" = ${customerId}::uuid
+        ),
+        receivable_totals AS (
+          SELECT
+            COALESCE(
+              SUM(
+                "amountInCents"::bigint -
+                "receivedInCents"::bigint
+              ),
+              0
+            )::text AS "pendingAmountInCents",
+    
+            COALESCE(
+              SUM(
+                "amountInCents"::bigint -
+                "receivedInCents"::bigint
+              ) FILTER (
+                WHERE "dueAt" < ${now}
+              ),
+              0
+            )::text AS "overdueAmountInCents"
+    
+          FROM "Receivable"
+          WHERE "organizationId" = ${this.organizationId}::uuid
+            AND "customerId" = ${customerId}::uuid
+            AND "currency" = 'brl'
+            AND "status" IN ('OPEN', 'PARTIALLY_PAID')
+        ),
+        payment_totals AS (
+          SELECT
+            COALESCE(
+              SUM(payment."amountInCents"::bigint),
+              0
+            )::text AS "receivedAmountInCents"
+    
+          FROM "ReceivablePayment" AS payment
+    
+          INNER JOIN "Receivable" AS receivable
+            ON receivable."id" = payment."receivableId"
+    
+          WHERE receivable."organizationId" = ${this.organizationId}::uuid
+            AND receivable."customerId" = ${customerId}::uuid
+            AND receivable."currency" = 'brl'
+            AND payment."reversedAt" IS NULL
+        )
         SELECT
-          COUNT(*)::text AS "workOrderCount",
-          (
-            COUNT(*) FILTER (
-              WHERE "status" = 'COMPLETED'
-            )
-          )::text AS "completedWorkOrderCount"
-        FROM "WorkOrder"
-        WHERE "organizationId" = ${this.organizationId}::uuid
-          AND "customerId" = ${customerId}::uuid
-      ),
-      receivable_totals AS (
-        SELECT
-          COALESCE(
-            SUM(
-              "amountInCents"::bigint -
-              "receivedInCents"::bigint
-            ),
-            0
-          )::text AS "pendingAmountInCents",
-  
-          COALESCE(
-            SUM(
-              "amountInCents"::bigint -
-              "receivedInCents"::bigint
-            ) FILTER (
-              WHERE "dueAt" < ${now}
-            ),
-            0
-          )::text AS "overdueAmountInCents"
-  
-        FROM "Receivable"
-        WHERE "organizationId" = ${this.organizationId}::uuid
-          AND "customerId" = ${customerId}::uuid
-          AND "currency" = 'brl'
-          AND "status" IN ('OPEN', 'PARTIALLY_PAID')
-      ),
-      payment_totals AS (
-        SELECT
-          COALESCE(
-            SUM(payment."amountInCents"::bigint),
-            0
-          )::text AS "receivedAmountInCents"
-  
-        FROM "ReceivablePayment" AS payment
-  
-        INNER JOIN "Receivable" AS receivable
-          ON receivable."id" = payment."receivableId"
-  
-        WHERE receivable."organizationId" = ${this.organizationId}::uuid
-          AND receivable."customerId" = ${customerId}::uuid
-          AND receivable."currency" = 'brl'
-          AND payment."reversedAt" IS NULL
-      )
-      SELECT
-        quote_totals."quoteCount",
-        work_order_totals."workOrderCount",
-        work_order_totals."completedWorkOrderCount",
-        receivable_totals."pendingAmountInCents",
-        receivable_totals."overdueAmountInCents",
-        payment_totals."receivedAmountInCents"
-      FROM quote_totals
-      CROSS JOIN work_order_totals
-      CROSS JOIN receivable_totals
-      CROSS JOIN payment_totals
-    `;
+          quote_totals."quoteCount",
+          work_order_totals."workOrderCount",
+          work_order_totals."completedWorkOrderCount",
+          receivable_totals."pendingAmountInCents",
+          receivable_totals."overdueAmountInCents",
+          payment_totals."receivedAmountInCents"
+        FROM quote_totals
+        CROSS JOIN work_order_totals
+        CROSS JOIN receivable_totals
+        CROSS JOIN payment_totals
+      `;
 
     const row = rows[0];
 
@@ -204,6 +234,12 @@ export class PrismaCustomerRepository extends CustomerRepository {
       overdueAmountInCents: this.overviewNumber(row.overdueAmountInCents),
       receivedAmountInCents: this.overviewNumber(row.receivedAmountInCents),
     };
+  }
+
+  private handleWriteError(error: unknown): void {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new CustomerError('CUSTOMER_EMAIL_ALREADY_EXISTS');
+    }
   }
 
   private overviewNumber(value: string): number {

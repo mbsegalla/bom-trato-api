@@ -408,10 +408,9 @@ export class StripeBillingGateway extends BillingGateway {
     // Plan changes and immediate cancellation are outside this billing policy.
     if (
       !configuration.active ||
-      !configuration.features.payment_method_update.enabled ||
+      configuration.features.payment_method_update.enabled ||
       configuration.features.subscription_update.enabled ||
-      (configuration.features.subscription_cancel.enabled &&
-        configuration.features.subscription_cancel.mode !== 'at_period_end')
+      configuration.features.subscription_cancel.enabled
     ) {
       throw new BillingError('BILLING_PORTAL_UNAVAILABLE');
     }
