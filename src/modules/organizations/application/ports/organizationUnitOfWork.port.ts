@@ -1,5 +1,6 @@
 import type { OrganizationRole } from '../../../../generated/prisma/enums.js';
 import type { NotificationOutbox } from '../../../notifications/application/ports/notificationOutbox.port.js';
+import type { OrganizationProps } from '../../domain/entities/organization.entity.js';
 import type { OrganizationInvitationRepository } from '../../domain/repositories/organizationInvitation.repository.js';
 import type { OrganizationMemberRepository } from '../../domain/repositories/organizationMember.repository.js';
 
@@ -12,11 +13,7 @@ export interface OrganizationActorParams {
 }
 
 export interface OrganizationTransaction {
-  readonly organization: {
-    id: string;
-    name: string;
-    ownerId: string;
-  };
+  readonly organization: OrganizationProps;
   readonly actor: {
     id: string;
     email: string;
@@ -29,10 +26,11 @@ export interface OrganizationTransaction {
   readonly access: OrganizationTeamAccess;
   readonly invitationRateLimit: OrganizationInvitationRateLimit;
   readonly notifications: NotificationOutbox;
+  readonly saveOrganization: (organization: OrganizationProps) => Promise<void>;
 }
 
 export interface OrganizationReadContext {
-  readonly organization: OrganizationTransaction['organization'];
+  readonly organization: OrganizationProps;
   readonly actor: OrganizationTransaction['actor'];
   readonly actorRole: OrganizationTransaction['actorRole'];
   readonly members: Pick<OrganizationMemberRepository, 'list'>;

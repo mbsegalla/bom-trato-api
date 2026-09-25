@@ -8,6 +8,21 @@ import { OrganizationError } from '../../domain/errors/organization.error.js';
 import type { CreateOrganizationParams } from '../../domain/repositories/organization.repository.js';
 import { OrganizationRepository } from '../../domain/repositories/organization.repository.js';
 
+const organizationSelect = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  documentType: true,
+  document: true,
+  addressLine1: true,
+  addressLine2: true,
+  city: true,
+  state: true,
+  postalCode: true,
+  ownerId: true,
+} as const;
+
 @Injectable()
 export class PrismaOrganizationRepository extends OrganizationRepository {
   constructor(private readonly prisma: PrismaService) {
@@ -24,16 +39,10 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
       },
     };
 
-    const select = {
-      id: true,
-      name: true,
-      ownerId: true,
-    } as const;
-
     const resolveExisting = async (): Promise<OrganizationProps | null> => {
       const existing = await this.prisma.organization.findUnique({
         where,
-        select,
+        select: organizationSelect,
       });
 
       if (existing !== null && existing.name !== organization.name) {
@@ -69,14 +78,12 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
           ...organization,
           creationKey,
           setupCompletedAt: new Date(),
-
           organizationMembers: {
             create: {
               userId: organization.ownerId,
               role: OrganizationRole.OWNER,
             },
           },
-
           billingCustomer: {
             create: {
               billingEmail,
@@ -84,7 +91,7 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
             },
           },
         },
-        select,
+        select: organizationSelect,
       });
     } catch (error: unknown) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -108,11 +115,7 @@ export class PrismaOrganizationRepository extends OrganizationRepository {
         },
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        ownerId: true,
-      },
+      select: organizationSelect,
       take: 100,
     });
   }
