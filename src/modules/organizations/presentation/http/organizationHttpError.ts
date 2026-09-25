@@ -9,6 +9,38 @@ const definitions = {
     status: HttpStatus.BAD_REQUEST,
     message: 'Organization name must contain 2 to 100 characters.',
   },
+  INVALID_ORGANIZATION_EMAIL: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization email is invalid.',
+  },
+  INVALID_ORGANIZATION_PHONE: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization phone is invalid.',
+  },
+  INVALID_ORGANIZATION_DOCUMENT: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization document is invalid.',
+  },
+  INVALID_ORGANIZATION_ADDRESS: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization address is invalid.',
+  },
+  INVALID_ORGANIZATION_CITY: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization city is invalid.',
+  },
+  INVALID_ORGANIZATION_STATE: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization state must contain two letters.',
+  },
+  INVALID_ORGANIZATION_POSTAL_CODE: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization postal code must contain eight digits.',
+  },
+  EMPTY_ORGANIZATION_UPDATE: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'At least one organization field must be updated.',
+  },
   IDEMPOTENCY_CONFLICT: {
     status: HttpStatus.CONFLICT,
     message: 'This idempotency key was already used with different organization data.',

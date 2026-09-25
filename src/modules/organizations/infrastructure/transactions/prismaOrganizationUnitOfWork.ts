@@ -67,6 +67,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
           notifications: this.outbox.using(db, () => {
             notificationInserted = true;
           }),
+          saveOrganization: (organization) => this.saveOrganization(db, params.organizationId, organization),
         }),
       this.errors(),
     );
@@ -105,6 +106,15 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
       select: {
         id: true,
         name: true,
+        email: true,
+        phone: true,
+        documentType: true,
+        document: true,
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        state: true,
+        postalCode: true,
         ownerId: true,
       },
     });
@@ -131,6 +141,38 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
       },
       actorRole: member?.role ?? null,
     };
+  }
+
+  private async saveOrganization(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    organization: OrganizationTransaction['organization'],
+  ): Promise<void> {
+    if (organization.id !== organizationId) {
+      throw new OrganizationTeamError('ORGANIZATION_NOT_FOUND');
+    }
+
+    const result = await db.organization.updateMany({
+      where: {
+        id: organizationId,
+      },
+      data: {
+        name: organization.name,
+        email: organization.email,
+        phone: organization.phone,
+        documentType: organization.documentType,
+        document: organization.document,
+        addressLine1: organization.addressLine1,
+        addressLine2: organization.addressLine2,
+        city: organization.city,
+        state: organization.state,
+        postalCode: organization.postalCode,
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new OrganizationTeamError('ORGANIZATION_NOT_FOUND');
+    }
   }
 
   private errors() {

@@ -9,6 +9,7 @@ import { OrganizationUnitOfWork } from './application/ports/organizationUnitOfWo
 import { OrganizationTeamApplicationService } from './application/services/organizationTeamApplicationService.service.js';
 import { AcceptOrganizationInvitationUseCase } from './application/useCases/acceptOrganizationInvitation.useCase.js';
 import { CreateOrganizationUseCase } from './application/useCases/createOrganization.useCase.js';
+import { GetOrganizationProfileUseCase } from './application/useCases/getOrganizationProfile.useCase.js';
 import { InviteOrganizationMemberUseCase } from './application/useCases/inviteOrganizationMember.useCase.js';
 import { ListJoinedOrganizationsUseCase } from './application/useCases/listJoinedOrganizations.useCase.js';
 import { ListOrganizationInvitationsUseCase } from './application/useCases/listOrganizationInvitations.useCase.js';
@@ -18,6 +19,7 @@ import { PreviewOrganizationInvitationUseCase } from './application/useCases/pre
 import { RemoveOrganizationMemberUseCase } from './application/useCases/removeOrganizationMember.useCase.js';
 import { ResendOrganizationInvitationUseCase } from './application/useCases/resendOrganizationInvitation.useCase.js';
 import { RevokeOrganizationInvitationUseCase } from './application/useCases/revokeOrganizationInvitation.useCase.js';
+import { UpdateOrganizationProfileUseCase } from './application/useCases/updateOrganizationProfile.useCase.js';
 import { OrganizationRepository } from './domain/repositories/organization.repository.js';
 import { OrganizationInvitationRepository } from './domain/repositories/organizationInvitation.repository.js';
 import { OrganizationMemberRepository } from './domain/repositories/organizationMember.repository.js';
@@ -27,12 +29,18 @@ import { PrismaOrganizationMemberRepository } from './infrastructure/repositorie
 import { NodeOrganizationInvitationTokens } from './infrastructure/security/nodeOrganizationInvitationTokens.js';
 import { PrismaOrganizationUnitOfWork } from './infrastructure/transactions/prismaOrganizationUnitOfWork.js';
 import { OrganizationInvitationController } from './presentation/http/controllers/organizationInvitation.controller.js';
+import { OrganizationProfileController } from './presentation/http/controllers/organizationProfile.controller.js';
 import { OrganizationsController } from './presentation/http/controllers/organizations.controller.js';
 import { OrganizationTeamController } from './presentation/http/controllers/organizationTeam.controller.js';
 
 @Module({
   imports: [DatabaseModule, NotificationsModule],
-  controllers: [OrganizationsController, OrganizationTeamController, OrganizationInvitationController],
+  controllers: [
+    OrganizationsController,
+    OrganizationTeamController,
+    OrganizationInvitationController,
+    OrganizationProfileController,
+  ],
   providers: [
     {
       provide: ListOwnedOrganizationsUseCase,
@@ -71,6 +79,16 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
       useFactory: (invitations: OrganizationInvitationRepository, unitOfWork: OrganizationUnitOfWork) =>
         new OrganizationTeamApplicationService(invitations, unitOfWork),
       inject: [OrganizationInvitationRepository, OrganizationUnitOfWork],
+    },
+    {
+      provide: GetOrganizationProfileUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService) => new GetOrganizationProfileUseCase(processor),
+      inject: [OrganizationTeamApplicationService],
+    },
+    {
+      provide: UpdateOrganizationProfileUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService) => new UpdateOrganizationProfileUseCase(processor),
+      inject: [OrganizationTeamApplicationService],
     },
     {
       provide: ListJoinedOrganizationsUseCase,
