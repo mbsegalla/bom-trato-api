@@ -13,6 +13,10 @@ export class UpdateCustomerUseCase {
 
       customer.update(details, new Date());
 
+      const state = customer.snapshot();
+
+      await this.processor.assertEmailAvailable(tx, state.email, customerId);
+
       await tx.customers.save(customer);
 
       return customer.snapshot();
