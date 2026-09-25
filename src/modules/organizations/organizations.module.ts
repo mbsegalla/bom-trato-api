@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { UpdateBillingCustomerNameUseCase } from '../billing/application/useCases/updateBillingCustomerName.useCase.js';
+import { BillingCoreModule } from '../billing/billingCore.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
 import { OrganizationInvitationTokens } from './application/ports/organizationInvitationSecurity.port.js';
@@ -34,7 +36,7 @@ import { OrganizationsController } from './presentation/http/controllers/organiz
 import { OrganizationTeamController } from './presentation/http/controllers/organizationTeam.controller.js';
 
 @Module({
-  imports: [DatabaseModule, NotificationsModule],
+  imports: [DatabaseModule, NotificationsModule, BillingCoreModule],
   controllers: [
     OrganizationsController,
     OrganizationTeamController,
@@ -87,8 +89,11 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
     },
     {
       provide: UpdateOrganizationProfileUseCase,
-      useFactory: (processor: OrganizationTeamApplicationService) => new UpdateOrganizationProfileUseCase(processor),
-      inject: [OrganizationTeamApplicationService],
+      useFactory: (
+        processor: OrganizationTeamApplicationService,
+        updateBillingCustomerNameUseCase: UpdateBillingCustomerNameUseCase,
+      ) => new UpdateOrganizationProfileUseCase(processor, updateBillingCustomerNameUseCase),
+      inject: [OrganizationTeamApplicationService, UpdateBillingCustomerNameUseCase],
     },
     {
       provide: ListJoinedOrganizationsUseCase,

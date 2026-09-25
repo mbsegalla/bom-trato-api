@@ -179,6 +179,21 @@ export class PrismaBillingRepository extends BillingRepository {
     this.workerNotifier.notify(BillingWork.RECONCILIATION);
   }
 
+  async setCustomerName(id: string, name: string): Promise<void> {
+    const result = await this.prisma.billingCustomer.updateMany({
+      where: {
+        id,
+      },
+      data: {
+        billingName: name,
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+    }
+  }
+
   async handleDeletedCustomer(params: HandleDeletedBillingCustomerParams): Promise<void> {
     const { organizationId, stripeCustomerId, deletedAt } = params;
 

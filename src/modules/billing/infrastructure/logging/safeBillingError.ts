@@ -3,6 +3,7 @@ import { safeError } from '../../../../infrastructure/logging/safeError.js';
 const billingCodes = [
   'BILLING_BUSY',
   'BILLING_READ_FAILED',
+  'BILLING_WRITE_FAILED',
   'BILLING_RECONCILIATION_REQUIRED',
   'MULTIPLE_SUBSCRIPTIONS',
   'SUBSCRIPTION_NOT_FOUND',
