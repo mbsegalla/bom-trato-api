@@ -431,6 +431,13 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
             stripeCustomerId: event.stripeCustomerId,
             organizationId: customer.organizationId,
           });
+        } else if (event.type.startsWith('setup_intent.')) {
+          await this.syncPaymentMethodUpdateUseCase.execute({
+            organizationId: customer.organizationId,
+            setupIntentId: event.stripeObjectId,
+          });
+
+          assertLease();
         } else {
           await this.syncBillingUseCase.execute({
             organizationId: customer.organizationId,
@@ -446,15 +453,6 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
           await this.reconcilePlanChangeUseCase.execute(customer.organizationId);
 
           assertLease();
-
-          if (event.type.startsWith('setup_intent.')) {
-            await this.syncPaymentMethodUpdateUseCase.execute({
-              organizationId: customer.organizationId,
-              setupIntentId: event.stripeObjectId,
-            });
-
-            assertLease();
-          }
         }
       }
     } catch (error: unknown) {

@@ -179,6 +179,21 @@ export class PrismaBillingRepository extends BillingRepository {
     this.workerNotifier.notify(BillingWork.RECONCILIATION);
   }
 
+  async setCustomerName(id: string, name: string): Promise<void> {
+    const result = await this.prisma.billingCustomer.updateMany({
+      where: {
+        id,
+      },
+      data: {
+        billingName: name,
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+    }
+  }
+
   async handleDeletedCustomer(params: HandleDeletedBillingCustomerParams): Promise<void> {
     const { organizationId, stripeCustomerId, deletedAt } = params;
 
@@ -712,6 +727,7 @@ export class PrismaBillingRepository extends BillingRepository {
         name: true,
         owner: {
           select: {
+            id: true,
             email: true,
             disabledAt: true,
             emailVerifiedAt: true,
@@ -748,6 +764,7 @@ export class PrismaBillingRepository extends BillingRepository {
 
     return {
       organizationName: row.name,
+      recipientUserId: row.owner.id,
       recipient: row.owner.email,
       recipientEnabled: row.owner.disabledAt === null && row.owner.emailVerifiedAt !== null,
       invoiceStatus: invoice?.status ?? null,

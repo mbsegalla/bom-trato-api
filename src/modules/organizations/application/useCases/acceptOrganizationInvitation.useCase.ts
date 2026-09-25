@@ -62,6 +62,20 @@ export class AcceptOrganizationInvitationUseCase {
         await tx.members.add(membership);
         await tx.invitations.save(invitation);
 
+        if (tx.actor.id !== tx.organization.ownerId) {
+          const state = invitation.snapshot();
+
+          await tx.inAppNotifications.enqueue({
+            key: `organization-member-joined/${state.id}`,
+            userId: tx.organization.ownerId,
+            organizationId: tx.organization.id,
+            type: 'ORGANIZATION_MEMBER_JOINED',
+            title: 'Novo membro na equipe',
+            message: `${tx.actor.name} entrou na equipe de ${tx.organization.name}.`,
+            href: '/settings?tab=team',
+          });
+        }
+
         return {
           organizationId: tx.organization.id,
         };

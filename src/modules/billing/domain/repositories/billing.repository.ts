@@ -75,6 +75,7 @@ export abstract class BillingRepository {
   abstract customerByStripeId(stripeCustomerId: string): Promise<BillingCustomerProps | null>;
   abstract markCustomerCreation(id: string, now: Date): Promise<void>;
   abstract setCustomerId(id: string, stripeCustomerId: string): Promise<void>;
+  abstract setCustomerName(id: string, name: string): Promise<void>;
   abstract handleDeletedCustomer(params: HandleDeletedBillingCustomerParams): Promise<void>;
   abstract availablePrice(id: string): Promise<AvailablePrice>;
   abstract currentSubscription(organizationId: string): Promise<SubscriptionProps | null>;

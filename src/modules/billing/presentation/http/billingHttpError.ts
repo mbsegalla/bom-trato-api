@@ -66,6 +66,10 @@ const billingHttpErrors = {
     status: HttpStatus.SERVICE_UNAVAILABLE,
     message: 'Billing information could not be retrieved. Please try again shortly.',
   },
+  BILLING_WRITE_FAILED: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    message: 'Billing information could not be updated. Please try again shortly.',
+  },
   INVALID_WEBHOOK: {
     status: HttpStatus.BAD_REQUEST,
     message: 'Invalid webhook signature or payload.',

@@ -25,7 +25,23 @@ export class UpdateBillingCustomerNameUseCase {
         throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
       }
 
-      await this.billingGateway.updateCustomerName(customer.stripeCustomerId, name);
+      if (customer.billingName === name) {
+        return;
+      }
+
+      try {
+        await this.billingGateway.updateCustomerName(customer.stripeCustomerId, name);
+
+        await this.billingRepository.setCustomerName(customer.id, name);
+      } catch (error: unknown) {
+        if (error instanceof BillingError) {
+          throw error;
+        }
+
+        throw new BillingError('BILLING_WRITE_FAILED', {
+          cause: error,
+        });
+      }
     });
   }
 }

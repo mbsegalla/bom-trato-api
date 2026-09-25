@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 import type {
   OrganizationActorParams,
@@ -67,6 +68,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
           notifications: this.outbox.using(db, () => {
             notificationInserted = true;
           }),
+          inAppNotifications: new PrismaInAppNotificationRepository(db),
           saveOrganization: (organization) => this.saveOrganization(db, params.organizationId, organization),
         }),
       this.errors(),
@@ -89,6 +91,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
       },
       select: {
         id: true,
+        name: true,
         email: true,
         disabledAt: true,
         emailVerifiedAt: true,
@@ -135,6 +138,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
       organization,
       actor: {
         id: actor.id,
+        name: actor.name,
         email: actor.email,
         disabled: actor.disabledAt !== null,
         emailVerified: actor.emailVerifiedAt !== null,
