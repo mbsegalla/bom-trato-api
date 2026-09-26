@@ -1,5 +1,6 @@
 import type { OrganizationDocumentType } from '../../../../generated/prisma/enums.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
+import { isValidBrazilianPhone, normalizeBrazilianPhone } from '../../../../shared/text/phone.js';
 import { OrganizationError } from '../errors/organization.error.js';
 
 export interface OrganizationBusinessDetails {
@@ -108,7 +109,15 @@ export class Organization {
   private static normalize(details: OrganizationBusinessDetails): OrganizationBusinessDetails {
     const name = details.name.trim();
     const email = details.email ? normalizeEmail(details.email) || null : null;
-    const phone = details.phone?.trim() || null;
+
+    const phoneInput = details.phone?.trim() || null;
+
+    if (phoneInput !== null && !isValidBrazilianPhone(phoneInput)) {
+      throw new OrganizationError('INVALID_ORGANIZATION_PHONE');
+    }
+
+    const phone = phoneInput === null ? null : normalizeBrazilianPhone(phoneInput);
+
     const document = details.document ? details.document.replace(/\D/g, '') || null : null;
     const documentType = details.documentType ?? null;
     const addressLine1 = details.addressLine1?.trim() || null;
@@ -123,10 +132,6 @@ export class Organization {
 
     if (email !== null && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
       throw new OrganizationError('INVALID_ORGANIZATION_EMAIL');
-    }
-
-    if (phone !== null && phone.length > 30) {
-      throw new OrganizationError('INVALID_ORGANIZATION_PHONE');
     }
 
     Organization.validateDocument(documentType, document);

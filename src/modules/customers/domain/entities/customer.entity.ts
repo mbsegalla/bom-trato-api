@@ -1,4 +1,5 @@
 import { normalizeEmail } from '../../../../shared/text/email.js';
+import { isValidBrazilianPhone, normalizeBrazilianPhone } from '../../../../shared/text/phone.js';
 import { CustomerError } from '../errors/customer.error.js';
 
 export interface CustomerProps {
@@ -88,7 +89,13 @@ export class Customer {
   private static normalize(details: CustomerDetails) {
     const name = details.name.trim();
     const email = details.email ? normalizeEmail(details.email) || null : null;
-    const phone = details.phone?.trim() || null;
+    const phoneInput = details.phone?.trim() || null;
+
+    if (phoneInput !== null && !isValidBrazilianPhone(phoneInput)) {
+      throw new CustomerError('INVALID_CUSTOMER_PHONE');
+    }
+
+    const phone = phoneInput === null ? null : normalizeBrazilianPhone(phoneInput);
     const notes = details.notes?.trim() || null;
 
     if (name.length < 2 || name.length > 100) {
@@ -97,10 +104,6 @@ export class Customer {
 
     if (email !== null && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
       throw new CustomerError('INVALID_CUSTOMER_EMAIL');
-    }
-
-    if (phone !== null && phone.length > 30) {
-      throw new CustomerError('INVALID_CUSTOMER_PHONE');
     }
 
     if (notes !== null && notes.length > 5000) {
