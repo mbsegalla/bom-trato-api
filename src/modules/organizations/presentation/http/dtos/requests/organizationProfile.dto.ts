@@ -51,12 +51,14 @@ export class UpdateOrganizationProfileDto {
   @ApiPropertyOptional({
     type: String,
     nullable: true,
-    maxLength: 30,
+    maxLength: 20,
+    example: '(34) 99999-9999',
   })
   @Transform(nullableText)
   @IsOptional()
   @IsString()
-  @MaxLength(30)
+  @MaxLength(20)
+  @Matches(/^\+?[\d\s().-]+$/)
   phone?: string | null;
 
   @ApiPropertyOptional({

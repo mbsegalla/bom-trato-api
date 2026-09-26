@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, Length, MaxLength, ValidateIf } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 import { customerStatuses } from '../../../../domain/types/customer.types.js';
@@ -24,12 +24,14 @@ class CustomerContactDto {
   @ApiPropertyOptional({
     type: String,
     nullable: true,
-    maxLength: 30,
+    maxLength: 20,
+    example: '(34) 99999-9999',
   })
   @Transform(nullableText)
   @IsOptional()
   @IsString()
-  @MaxLength(30)
+  @MaxLength(20)
+  @Matches(/^\+?[\d\s().-]+$/)
   phone?: string | null;
 
   @ApiPropertyOptional({
