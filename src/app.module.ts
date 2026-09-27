@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigurationModule } from './config/configuration.module.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { HttpModule } from './infrastructure/http/http.module.js';
+import { AddressModule } from './modules/address/address.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
 import { BillingWorkerModule } from './modules/billing/billingWorker.module.js';
@@ -28,6 +29,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
     HttpModule,
     NotificationsModule,
     PlansModule,
+    AddressModule,
     AuthModule,
     OnboardingModule,
     OrganizationsModule,

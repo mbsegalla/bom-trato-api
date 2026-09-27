@@ -1,4 +1,5 @@
 import type { OrganizationDocumentType } from '../../../../generated/prisma/enums.js';
+import { isBrazilianStateCode } from '../../../../shared/states/brazilianStates.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
 import { isValidBrazilianPhone, normalizeBrazilianPhone } from '../../../../shared/text/phone.js';
 import { OrganizationError } from '../errors/organization.error.js';
@@ -148,7 +149,7 @@ export class Organization {
       throw new OrganizationError('INVALID_ORGANIZATION_CITY');
     }
 
-    if (state !== null && !/^[A-Z]{2}$/.test(state)) {
+    if (state !== null && !isBrazilianStateCode(state)) {
       throw new OrganizationError('INVALID_ORGANIZATION_STATE');
     }
 
