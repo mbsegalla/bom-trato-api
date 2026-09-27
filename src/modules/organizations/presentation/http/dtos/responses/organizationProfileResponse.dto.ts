@@ -14,6 +14,13 @@ export class OrganizationProfileResponseDto {
   @ApiProperty({
     type: String,
     nullable: true,
+    format: 'uri',
+  })
+  logoUrl!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
   })
   email!: string | null;
 

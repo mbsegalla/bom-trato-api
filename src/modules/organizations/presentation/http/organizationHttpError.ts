@@ -37,6 +37,22 @@ const definitions = {
     status: HttpStatus.BAD_REQUEST,
     message: 'Organization postal code must contain eight digits.',
   },
+  INVALID_ORGANIZATION_LOGO: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization logo is invalid.',
+  },
+  ORGANIZATION_LOGO_REQUIRED: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization logo file is required.',
+  },
+  ORGANIZATION_LOGO_TOO_LARGE: {
+    status: HttpStatus.PAYLOAD_TOO_LARGE,
+    message: 'Organization logo must not exceed 2 MB.',
+  },
+  ORGANIZATION_LOGO_STORAGE_FAILED: {
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    message: 'Organization logo storage is temporarily unavailable.',
+  },
   EMPTY_ORGANIZATION_UPDATE: {
     status: HttpStatus.BAD_REQUEST,
     message: 'At least one organization field must be updated.',

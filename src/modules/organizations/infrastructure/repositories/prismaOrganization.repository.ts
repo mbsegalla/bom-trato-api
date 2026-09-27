@@ -13,6 +13,7 @@ const organizationSelect = {
   name: true,
   email: true,
   phone: true,
+  logoKey: true,
   documentType: true,
   document: true,
   addressLine1: true,

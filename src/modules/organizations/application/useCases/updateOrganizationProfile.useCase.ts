@@ -1,6 +1,8 @@
+import type { ObjectStorage } from '../../../../shared/storage/objectStorage.port.js';
 import type { UpdateBillingCustomerNameUseCase } from '../../../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import type { OrganizationBusinessDetails } from '../../domain/entities/organization.entity.js';
 import { Organization } from '../../domain/entities/organization.entity.js';
+import { toOrganizationProfileView } from '../mappers/organizationProfile.mapper.js';
 import type { OrganizationActorParams } from '../ports/organizationUnitOfWork.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 
@@ -13,6 +15,7 @@ export class UpdateOrganizationProfileUseCase {
   constructor(
     private readonly processor: OrganizationTeamApplicationService,
     private readonly updateBillingCustomerNameUseCase: UpdateBillingCustomerNameUseCase,
+    private readonly storage: ObjectStorage,
   ) {}
 
   async execute(params: OrganizationActorParams, details: Partial<OrganizationBusinessDetails>) {
@@ -42,7 +45,7 @@ export class UpdateOrganizationProfileUseCase {
       });
     }
 
-    return this.processor.withTeam(params, async (tx, policy) => {
+    const profile = await this.processor.withTeam(params, async (tx, policy) => {
       policy.assertOwner();
 
       const organization = Organization.restore(tx.organization);
@@ -53,5 +56,7 @@ export class UpdateOrganizationProfileUseCase {
 
       return organization.profile();
     });
+
+    return toOrganizationProfileView(profile, this.storage);
   }
 }
