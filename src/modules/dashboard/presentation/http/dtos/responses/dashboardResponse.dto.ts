@@ -145,3 +145,28 @@ export class DashboardUpcomingResponseDto {
   @ApiProperty()
   hasMore!: boolean;
 }
+
+export class DashboardFinancialTrendItemDto {
+  @ApiProperty({ type: Date })
+  periodStart!: Date;
+
+  @ApiProperty({ minimum: 0 })
+  count!: number;
+
+  @ApiProperty({ minimum: 0 })
+  amountInCents!: number;
+}
+
+export class DashboardFinancialTrendResponseDto {
+  @ApiProperty({ type: Date })
+  generatedAt!: Date;
+
+  @ApiProperty({ enum: ['brl'] })
+  currency!: 'brl';
+
+  @ApiProperty({ type: DashboardPeriodResponseDto })
+  period!: DashboardPeriodResponseDto;
+
+  @ApiProperty({ type: [DashboardFinancialTrendItemDto] })
+  items!: DashboardFinancialTrendItemDto[];
+}

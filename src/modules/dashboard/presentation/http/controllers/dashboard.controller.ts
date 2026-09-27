@@ -5,12 +5,14 @@ import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/a
 import type { AuthContext } from '../../../../auth/presentation/http/authRequest.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
 import { GetDashboardFinancialUseCase } from '../../../application/useCases/getDashboardFinancial.useCase.js';
+import { GetDashboardFinancialTrendUseCase } from '../../../application/useCases/getDashboardFinancialTrend.useCase.js';
 import { GetDashboardSummaryUseCase } from '../../../application/useCases/getDashboardSummary.useCase.js';
 import { ListDashboardUpcomingWorkOrdersUseCase } from '../../../application/useCases/listDashboardUpcomingWorkOrders.useCase.js';
 import { dashboardOperation } from '../dashboardHttpError.js';
 import { DashboardPeriodDto, DashboardUpcomingDto } from '../dtos/requests/dashboard.dto.js';
 import {
   DashboardFinancialResponseDto,
+  DashboardFinancialTrendResponseDto,
   DashboardSummaryResponseDto,
   DashboardUpcomingResponseDto,
 } from '../dtos/responses/dashboardResponse.dto.js';
@@ -24,6 +26,7 @@ export class DashboardController {
   constructor(
     private readonly getDashboardSummaryUseCase: GetDashboardSummaryUseCase,
     private readonly getDashboardFinancialUseCase: GetDashboardFinancialUseCase,
+    private readonly getDashboardFinancialTrendUseCase: GetDashboardFinancialTrendUseCase,
     private readonly listDashboardUpcomingWorkOrdersUseCase: ListDashboardUpcomingWorkOrdersUseCase,
   ) {}
 
@@ -56,6 +59,25 @@ export class DashboardController {
   ): Promise<DashboardFinancialResponseDto> {
     return dashboardOperation(() =>
       this.getDashboardFinancialUseCase.execute(
+        {
+          organizationId,
+          userId: auth.user.id,
+        },
+        dto,
+      ),
+    );
+  }
+
+  @Get('financial-trend')
+  @ApiOperation({ summary: 'Get monthly receipt trend for a period' })
+  @ApiDataResponse(DashboardFinancialTrendResponseDto)
+  financialTrend(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Query() dto: DashboardPeriodDto,
+  ): Promise<DashboardFinancialTrendResponseDto> {
+    return dashboardOperation(() =>
+      this.getDashboardFinancialTrendUseCase.execute(
         {
           organizationId,
           userId: auth.user.id,
