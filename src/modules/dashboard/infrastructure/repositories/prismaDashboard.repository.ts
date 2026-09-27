@@ -3,6 +3,7 @@ import { WorkOrderStatus } from '../../../../generated/prisma/enums.js';
 import type { DashboardRepository } from '../../application/ports/dashboardRepository.port.js';
 import type {
   DashboardFinancialData,
+  DashboardFinancialTrendData,
   DashboardSummaryData,
   DashboardUpcomingData,
 } from '../../application/types/dashboard.types.js';
@@ -27,6 +28,12 @@ interface CurrentReceivablesRow {
 }
 
 interface PeriodReceiptsRow {
+  count: string;
+  amountInCents: string;
+}
+
+interface FinancialTrendRow {
+  periodStart: Date;
   count: string;
   amountInCents: string;
 }
@@ -196,6 +203,67 @@ export class PrismaDashboardRepository implements DashboardRepository {
         count: toDashboardNumber(receipts.count),
         amountInCents: toDashboardNumber(receipts.amountInCents),
       },
+    };
+  }
+
+  async financialTrend(period: DashboardPeriodProps): Promise<DashboardFinancialTrendData> {
+    const rows = await this.db.$queryRaw<FinancialTrendRow[]>`
+      WITH month_series AS (
+        SELECT
+          generate_series(
+            ${period.from}::timestamptz,
+            ${period.to}::timestamptz - INTERVAL '1 microsecond',
+            INTERVAL '1 month'
+          ) AS "periodStart"
+      ),
+  
+      filtered_payments AS (
+        SELECT
+          payment."receivedAt",
+          payment."amountInCents"
+  
+        FROM "Receivable" AS receivable
+  
+        INNER JOIN "ReceivablePayment" AS payment
+          ON payment."receivableId" = receivable."id"
+  
+        WHERE receivable."organizationId" = ${this.organizationId}::uuid
+          AND receivable."currency" = 'brl'
+          AND payment."reversedAt" IS NULL
+          AND payment."receivedAt" >= ${period.from}
+          AND payment."receivedAt" < ${period.to}
+      )
+  
+      SELECT
+        month_series."periodStart",
+  
+        COUNT(filtered_payments."receivedAt")::text AS "count",
+  
+        COALESCE(
+          SUM(filtered_payments."amountInCents"::bigint),
+          0
+        )::text AS "amountInCents"
+  
+      FROM month_series
+  
+      LEFT JOIN filtered_payments
+        ON filtered_payments."receivedAt" >= month_series."periodStart"
+        AND filtered_payments."receivedAt" < LEAST(
+          month_series."periodStart" + INTERVAL '1 month',
+          ${period.to}::timestamptz
+        )
+  
+      GROUP BY month_series."periodStart"
+  
+      ORDER BY month_series."periodStart" ASC
+    `;
+
+    return {
+      items: rows.map((row) => ({
+        periodStart: row.periodStart,
+        count: toDashboardNumber(row.count),
+        amountInCents: toDashboardNumber(row.amountInCents),
+      })),
     };
   }
 

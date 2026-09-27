@@ -5,6 +5,7 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { DashboardUnitOfWork } from './application/ports/dashboardUnitOfWork.port.js';
 import { DashboardApplicationService } from './application/services/dashboardApplicationService.service.js';
 import { GetDashboardFinancialUseCase } from './application/useCases/getDashboardFinancial.useCase.js';
+import { GetDashboardFinancialTrendUseCase } from './application/useCases/getDashboardFinancialTrend.useCase.js';
 import { GetDashboardSummaryUseCase } from './application/useCases/getDashboardSummary.useCase.js';
 import { ListDashboardUpcomingWorkOrdersUseCase } from './application/useCases/listDashboardUpcomingWorkOrders.useCase.js';
 import { PrismaDashboardUnitOfWork } from './infrastructure/transactions/prismaDashboardUnitOfWork.js';
@@ -31,6 +32,11 @@ import { DashboardController } from './presentation/http/controllers/dashboard.c
     {
       provide: GetDashboardFinancialUseCase,
       useFactory: (processor: DashboardApplicationService) => new GetDashboardFinancialUseCase(processor),
+      inject: [DashboardApplicationService],
+    },
+    {
+      provide: GetDashboardFinancialTrendUseCase,
+      useFactory: (processor: DashboardApplicationService) => new GetDashboardFinancialTrendUseCase(processor),
       inject: [DashboardApplicationService],
     },
     {

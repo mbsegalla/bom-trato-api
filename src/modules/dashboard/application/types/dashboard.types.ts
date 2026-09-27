@@ -77,6 +77,22 @@ export interface DashboardFinancialView extends DashboardFinancialData {
   period: DashboardPeriodProps;
 }
 
+export interface DashboardFinancialTrendItem {
+  periodStart: Date;
+  count: number;
+  amountInCents: number;
+}
+
+export interface DashboardFinancialTrendData {
+  items: DashboardFinancialTrendItem[];
+}
+
+export interface DashboardFinancialTrendView extends DashboardFinancialTrendData {
+  generatedAt: Date;
+  currency: 'brl';
+  period: DashboardPeriodProps;
+}
+
 export interface DashboardUpcomingView extends DashboardUpcomingData {
   generatedAt: Date;
 }
