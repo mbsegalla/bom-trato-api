@@ -1,10 +1,4 @@
 import type { ProfessionalReviewProps } from '../entities/professionalReview.entity.js';
-import type { ReviewInvitation } from '../entities/reviewInvitation.entity.js';
-
-export interface ReviewProfileReference {
-  id: string;
-  slug: string;
-}
 
 export interface ReviewInvitationView {
   id: string;
@@ -40,9 +34,6 @@ export interface SubmittedReview {
 }
 
 export abstract class ReviewRepository {
-  abstract findProfileForOrganization(organizationId: string): Promise<ReviewProfileReference | null>;
-  abstract hasReviewForWorkOrder(workOrderId: string): Promise<boolean>;
-  abstract replaceInvitation(invitation: ReviewInvitation): Promise<void>;
   abstract resolveInvitation(tokenHash: string): Promise<ReviewInvitationView | null>;
   abstract submitVerifiedReview(params: SubmitVerifiedReviewParams): Promise<SubmittedReview>;
 }

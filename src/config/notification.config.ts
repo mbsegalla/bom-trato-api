@@ -21,6 +21,7 @@ export const notificationConfig = registerAs('notification', () => {
       SUBSCRIPTION_ACTIVATED: 'subscription-activated-v1',
       PAYMENT_CONFIRMED: 'payment-confirmed-v1',
       PLAN_CHANGE_CONFIRMED: 'plan-change-confirmed-v1',
+      REVIEW_REQUEST: 'review-request-v1',
     },
   };
 });

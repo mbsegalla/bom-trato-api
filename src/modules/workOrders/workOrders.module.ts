@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
+import { ReviewSecurity } from '../reviews/application/ports/reviewSecurity.port.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
 
 import { WorkOrderUnitOfWork } from './application/ports/workOrderUnitOfWork.port.js';
 import { WorkOrderApplicationService } from './application/services/workOrderApplicationService.service.js';
@@ -21,7 +24,7 @@ import { PrismaWorkOrderUnitOfWork } from './infrastructure/transactions/prismaW
 import { WorkOrdersController } from './presentation/http/controllers/workOrders.controller.js';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, NotificationsModule, ReviewsModule],
   controllers: [WorkOrdersController],
   providers: [
     {
@@ -75,8 +78,9 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
     },
     {
       provide: CompleteWorkOrderUseCase,
-      useFactory: (processor: WorkOrderApplicationService) => new CompleteWorkOrderUseCase(processor),
-      inject: [WorkOrderApplicationService],
+      useFactory: (processor: WorkOrderApplicationService, reviewSecurity: ReviewSecurity) =>
+        new CompleteWorkOrderUseCase(processor, reviewSecurity),
+      inject: [WorkOrderApplicationService, ReviewSecurity],
     },
     {
       provide: CancelWorkOrderUseCase,

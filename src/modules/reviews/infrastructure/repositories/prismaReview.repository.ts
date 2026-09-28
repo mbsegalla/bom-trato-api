@@ -14,68 +14,6 @@ export class PrismaReviewRepository extends ReviewRepository {
     super();
   }
 
-  findProfileForOrganization(organizationId: string) {
-    return this.prisma.publicBusinessProfile.findUnique({
-      where: {
-        organizationId,
-      },
-      select: {
-        id: true,
-        slug: true,
-      },
-    });
-  }
-
-  async hasReviewForWorkOrder(workOrderId: string): Promise<boolean> {
-    const review = await this.prisma.professionalReview.findUnique({
-      where: {
-        workOrderId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return review !== null;
-  }
-
-  async replaceInvitation(invitation: ReviewInvitation): Promise<void> {
-    const state = invitation.snapshot();
-
-    await this.prisma.$transaction(async (tx) => {
-      const existingReview = await tx.professionalReview.findUnique({
-        where: {
-          workOrderId: state.workOrderId,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (existingReview) {
-        throw new ReviewError('REVIEW_ALREADY_SUBMITTED');
-      }
-
-      await tx.professionalReviewInvitation.updateMany({
-        where: {
-          workOrderId: state.workOrderId,
-          revokedAt: null,
-          usedAt: null,
-        },
-        data: {
-          revokedAt: state.createdAt,
-        },
-      });
-
-      await tx.professionalReviewInvitation.create({
-        data: state,
-        select: {
-          id: true,
-        },
-      });
-    });
-  }
-
   async resolveInvitation(tokenHash: string) {
     const row = await this.prisma.professionalReviewInvitation.findUnique({
       where: {
