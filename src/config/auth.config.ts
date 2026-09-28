@@ -15,6 +15,7 @@ export const authConfig = registerAs('auth', () => {
     absoluteTtlSeconds: env.AUTH_ABSOLUTE_TTL_SECONDS,
     retentionDays: env.AUTH_RETENTION_DAYS,
     cleanupWorkerEnabled: env.AUTH_CLEANUP_WORKER_ENABLED,
+    googleClientId: env.AUTH_GOOGLE_CLIENT_ID,
     verificationTtlSeconds: 86400,
     resetTtlSeconds: 1800,
   };

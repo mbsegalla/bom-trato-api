@@ -5,7 +5,7 @@ export interface UserProps {
   id: string;
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash: string | null;
   selectedPlanPriceId: string | null;
   emailVerifiedAt: Date | null;
   disabledAt: Date | null;
@@ -62,7 +62,7 @@ export class User {
     return this.props.email;
   }
 
-  get passwordHash(): string {
+  get passwordHash(): string | null {
     return this.props.passwordHash;
   }
 

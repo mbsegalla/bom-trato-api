@@ -24,7 +24,15 @@ export class LoginUseCase {
       throw new AuthError('INVALID_CREDENTIALS');
     }
 
-    const validPassword = await this.security.verifyPassword(user.passwordHash, password);
+    if (user.passwordHash === null) {
+      await this.security.dummyVerify(password);
+
+      throw new AuthError('INVALID_CREDENTIALS');
+    }
+
+    const passwordHash = user.passwordHash;
+
+    const validPassword = await this.security.verifyPassword(passwordHash, password);
 
     if (!validPassword) {
       throw new AuthError('INVALID_CREDENTIALS');
@@ -57,7 +65,7 @@ export class LoginUseCase {
 
       await tx.auth.startSession({
         session: state,
-        expectedPasswordHash: user.passwordHash,
+        expectedPasswordHash: passwordHash,
         refreshHash: this.security.hashToken(refreshToken),
       });
 

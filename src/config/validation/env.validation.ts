@@ -120,6 +120,11 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
       scheme: ['http', 'https'],
     })
     .required(),
+
+  AUTH_GOOGLE_CLIENT_ID: Joi.string()
+    .trim()
+    .pattern(/^[0-9A-Za-z_-]+\.apps\.googleusercontent\.com$/)
+    .required(),
 });
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {

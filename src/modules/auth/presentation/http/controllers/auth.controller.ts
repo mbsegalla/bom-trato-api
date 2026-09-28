@@ -5,8 +5,11 @@ import type { Response } from 'express';
 import { SessionRevocationReason } from '../../../../../generated/prisma/browser.js';
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import { UserError } from '../../../../users/domain/errors/user.error.js';
+import { LinkGoogleIdentityUseCase } from '../../../application/useCases/linkGoogleIdentity.useCase.js';
+import { ListAuthIdentitiesUseCase } from '../../../application/useCases/listAuthIdentities.useCase.js';
 import { ListSessionsUseCase } from '../../../application/useCases/listSessions.useCase.js';
 import { LoginUseCase } from '../../../application/useCases/login.useCase.js';
+import { LoginWithGoogleUseCase } from '../../../application/useCases/loginWithGoogle.useCase.js';
 import { LogoutUseCase } from '../../../application/useCases/logout.useCase.js';
 import { LogoutAllUseCase } from '../../../application/useCases/logoutAll.useCase.js';
 import { RefreshSessionUseCase } from '../../../application/useCases/refreshSession.useCase.js';
@@ -23,8 +26,17 @@ import type { AuthContext, AuthRequest } from '../authRequest.js';
 import { AuthEndpoint } from '../decorators/authEndpoint.decorator.js';
 import { CurrentAuth } from '../decorators/currentAuth.decorator.js';
 import { PublicRoute } from '../decorators/publicRoute.decorator.js';
-import { ActionTokenDto, EmailDto, LoginDto, RegisterDto, ResetPasswordDto } from '../dtos/requests/authRequest.dto.js';
 import {
+  ActionTokenDto,
+  EmailDto,
+  GoogleCredentialDto,
+  GoogleLoginDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from '../dtos/requests/authRequest.dto.js';
+import {
+  AuthIdentitiesResponseDto,
   AuthMessageDto,
   CsrfResponseDto,
   SessionResponseDto,
@@ -57,6 +69,9 @@ export class AuthController {
     private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly loginWithGoogleUseCase: LoginWithGoogleUseCase,
+    private readonly linkGoogleIdentityUseCase: LinkGoogleIdentityUseCase,
+    private readonly listAuthIdentitiesUseCase: ListAuthIdentitiesUseCase,
   ) {}
 
   @Get('csrf')
@@ -264,5 +279,56 @@ export class AuthController {
     await authOperation(() => this.resetPasswordUseCase.execute(dto.token, dto.password));
 
     this.cookies.clear(response);
+  }
+
+  @Post('google')
+  @HttpCode(200)
+  @PublicRoute()
+  @AuthEndpoint('google-login')
+  @ApiOperation({ summary: 'Sign in or create an account with Google' })
+  @ApiDataResponse(TokenResponseDto)
+  async google(
+    @Body() dto: GoogleLoginDto,
+    @Req() request: AuthRequest,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<TokenResponseDto> {
+    const result = await authOperation(() =>
+      this.loginWithGoogleUseCase.execute({
+        credential: dto.credential,
+        selectedPlanPriceId: dto.selectedPlanPriceId ?? null,
+        userAgent: request.get('user-agent') ?? null,
+        previousRefreshToken: this.cookies.refresh(request),
+      }),
+    );
+
+    return {
+      accessToken: result.accessToken,
+      expiresIn: result.expiresIn,
+      tokenType: 'Bearer',
+      csrfToken: this.cookies.setSession(response, result.refreshToken, result.refreshExpiresAt),
+    };
+  }
+
+  @Get('identities')
+  @AuthEndpoint('identities', false)
+  @ApiBearerAuth('access-token')
+  @ApiDataResponse(AuthIdentitiesResponseDto)
+  identities(@CurrentAuth() auth: AuthContext): Promise<AuthIdentitiesResponseDto> {
+    return authOperation(() => this.listAuthIdentitiesUseCase.execute(auth.user.id));
+  }
+
+  @Post('google/link')
+  @HttpCode(204)
+  @AuthEndpoint('google-link')
+  @ApiBearerAuth('access-token')
+  @ApiNoContentResponse()
+  async linkGoogle(@CurrentAuth() auth: AuthContext, @Body() dto: GoogleCredentialDto): Promise<void> {
+    await authOperation(() =>
+      this.linkGoogleIdentityUseCase.execute({
+        userId: auth.user.id,
+        email: auth.user.email,
+        credential: dto.credential,
+      }),
+    );
   }
 }

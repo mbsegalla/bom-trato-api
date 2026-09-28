@@ -33,6 +33,38 @@ export function toAuthHttpError(error: unknown): unknown {
     return new ApiException(HttpStatus.UNAUTHORIZED, error.code, 'Invalid email or password.');
   }
 
+  if (error.code === 'INVALID_GOOGLE_CREDENTIAL') {
+    return new ApiException(HttpStatus.UNAUTHORIZED, error.code, 'Google credential is invalid or expired.');
+  }
+
+  if (error.code === 'GOOGLE_EMAIL_NOT_VERIFIED') {
+    return new ApiException(HttpStatus.FORBIDDEN, error.code, 'Google email is not verified.');
+  }
+
+  if (error.code === 'GOOGLE_ACCOUNT_LINK_REQUIRED') {
+    return new ApiException(
+      HttpStatus.CONFLICT,
+      error.code,
+      'An account already exists with this email. Sign in with your password and connect Google in security settings.',
+    );
+  }
+
+  if (error.code === 'GOOGLE_EMAIL_MISMATCH') {
+    return new ApiException(
+      HttpStatus.CONFLICT,
+      error.code,
+      'The Google account email does not match the current account.',
+    );
+  }
+
+  if (
+    error.code === 'GOOGLE_IDENTITY_IN_USE' ||
+    error.code === 'GOOGLE_PROVIDER_ALREADY_LINKED' ||
+    error.code === 'GOOGLE_IDENTITY_CONFLICT'
+  ) {
+    return new ApiException(HttpStatus.CONFLICT, error.code, 'This Google account is already connected.');
+  }
+
   return new ApiException(HttpStatus.UNAUTHORIZED, 'INVALID_SESSION', 'Authentication is invalid or expired.');
 }
 

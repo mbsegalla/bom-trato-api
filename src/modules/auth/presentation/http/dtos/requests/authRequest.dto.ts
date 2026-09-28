@@ -86,3 +86,24 @@ export class ResetPasswordDto extends ActionTokenDto {
   })
   password: string;
 }
+
+export class GoogleCredentialDto {
+  @ApiProperty({
+    writeOnly: true,
+    description: 'Google Identity Services ID token.',
+  })
+  @IsString()
+  @Length(1, 8192)
+  credential: string;
+}
+
+export class GoogleLoginDto extends GoogleCredentialDto {
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsUUID('4')
+  selectedPlanPriceId?: string | null;
+}
