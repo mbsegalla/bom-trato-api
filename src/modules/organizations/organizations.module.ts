@@ -173,5 +173,6 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
       inject: [OrganizationTeamApplicationService],
     },
   ],
+  exports: [OrganizationTeamApplicationService],
 })
 export class OrganizationsModule {}
