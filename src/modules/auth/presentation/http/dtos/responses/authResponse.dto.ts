@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+import { AuthProvider } from '../../../../../../generated/prisma/enums.js';
+
 export class CsrfResponseDto {
   @ApiProperty({
     description: 'Send in X-CSRF-Token on authentication mutations.',
@@ -44,6 +46,14 @@ export class UserResponseDto {
     nullable: true,
   })
   selectedPlanPriceId: string | null;
+}
+
+export class AuthIdentitiesResponseDto {
+  @ApiProperty({
+    enum: AuthProvider,
+    isArray: true,
+  })
+  providers: AuthProvider[];
 }
 
 export class SessionResponseDto {

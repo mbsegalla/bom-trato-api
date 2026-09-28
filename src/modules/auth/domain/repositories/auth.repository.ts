@@ -1,6 +1,7 @@
-import type { AuthActionPurpose, SessionRevocationReason } from '../../../../generated/prisma/enums.js';
+import type { AuthActionPurpose, AuthProvider, SessionRevocationReason } from '../../../../generated/prisma/enums.js';
 import type { User } from '../../../users/domain/entities/user.entity.js';
 import type { AuthenticatedUser } from '../../../users/domain/types/user.types.js';
+import type { AuthIdentityProps } from '../entities/authIdentity.entity.js';
 import type { AuthSessionProps } from '../entities/authSession.entity.js';
 
 export interface SessionIdentity {
@@ -69,9 +70,28 @@ export interface RevokeByTokenParams {
   reason: SessionRevocationReason;
 }
 
+export interface RegisterFederatedUserParams {
+  userId: string;
+  selectedPlanPriceId: string | null;
+  name: string;
+  email: string;
+  emailVerifiedAt: Date;
+  identity: AuthIdentityProps;
+}
+
+export interface StartFederatedSessionParams {
+  session: AuthSessionProps;
+  refreshHash: string;
+}
+
 export abstract class AuthRepository {
   abstract findUserByEmail(email: string): Promise<User | null>;
+  abstract findUserByIdentity(provider: AuthProvider, providerAccountId: string): Promise<User | null>;
   abstract register(params: RegisterUserParams): Promise<boolean>;
+  abstract registerFederated(params: RegisterFederatedUserParams): Promise<User>;
+  abstract startFederatedSession(params: StartFederatedSessionParams): Promise<void>;
+  abstract linkIdentity(identity: AuthIdentityProps): Promise<void>;
+  abstract listIdentityProviders(userId: string): Promise<AuthProvider[]>;
   abstract startSession(params: StartSessionParams): Promise<void>;
   abstract rotate(params: RotateSessionParams): Promise<RotateSessionResult>;
   abstract authenticate(identity: SessionIdentity, now: Date): Promise<AuthenticatedUser>;

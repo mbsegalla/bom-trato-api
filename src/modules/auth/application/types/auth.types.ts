@@ -54,3 +54,16 @@ export interface VerifyEmailInput {
 }
 
 export type VerifyEmailResult = LoginResult;
+
+export interface GoogleLoginInput {
+  credential: string;
+  selectedPlanPriceId?: string | null;
+  userAgent: string | null;
+  previousRefreshToken?: string;
+}
+
+export interface LinkGoogleIdentityInput {
+  userId: string;
+  email: string;
+  credential: string;
+}

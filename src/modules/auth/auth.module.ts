@@ -11,10 +11,14 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AuthMaintenanceRepository } from './application/ports/authMaintenanceRepository.port.js';
 import { AuthSecurity } from './application/ports/authSecurity.port.js';
 import { AuthUnitOfWork } from './application/ports/authUnitOfWork.port.js';
+import { GoogleIdentityProvider } from './application/ports/googleIdentityProvider.port.js';
 import { AuthEmailSender } from './application/services/authEmailSender.service.js';
 import { CleanupAuthUseCase } from './application/useCases/cleanupAuth.useCase.js';
+import { LinkGoogleIdentityUseCase } from './application/useCases/linkGoogleIdentity.useCase.js';
+import { ListAuthIdentitiesUseCase } from './application/useCases/listAuthIdentities.useCase.js';
 import { ListSessionsUseCase } from './application/useCases/listSessions.useCase.js';
 import { LoginUseCase } from './application/useCases/login.useCase.js';
+import { LoginWithGoogleUseCase } from './application/useCases/loginWithGoogle.useCase.js';
 import { LogoutUseCase } from './application/useCases/logout.useCase.js';
 import { LogoutAllUseCase } from './application/useCases/logoutAll.useCase.js';
 import { RefreshSessionUseCase } from './application/useCases/refreshSession.useCase.js';
@@ -25,6 +29,7 @@ import { ResetPasswordUseCase } from './application/useCases/resetPassword.useCa
 import { RevokeSessionUseCase } from './application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from './application/useCases/verifyEmail.useCase.js';
 import { AuthRepository } from './domain/repositories/auth.repository.js';
+import { GoogleIdentityVerifier } from './infrastructure/identity/googleIdentity.provider.js';
 import { PostgresAuthRateLimit } from './infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { PrismaAuthRepository } from './infrastructure/repositories/prismaAuth.repository.js';
 import { PrismaAuthMaintenanceRepository } from './infrastructure/repositories/prismaAuthMaintenance.repository.js';
@@ -45,10 +50,6 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
   controllers: [AuthController],
   providers: [
     AuthCleanupWorker,
-    {
-      provide: AuthRepository,
-      useClass: PrismaAuthRepository,
-    },
     {
       provide: AuthMaintenanceRepository,
       useClass: PrismaAuthMaintenanceRepository,
@@ -166,6 +167,32 @@ import { AccessTokenGuard } from './presentation/http/guards/accessToken.guard.j
       useFactory: (unitOfWork: AuthUnitOfWork, security: AuthSecurity) =>
         new ResetPasswordUseCase(unitOfWork, security),
       inject: [AuthUnitOfWork, AuthSecurity],
+    },
+    {
+      provide: GoogleIdentityProvider,
+      useFactory: (config: ConfigType<typeof authConfig>) => new GoogleIdentityVerifier(config.googleClientId),
+      inject: [authConfig.KEY],
+    },
+    {
+      provide: LoginWithGoogleUseCase,
+      useFactory: (
+        unitOfWork: AuthUnitOfWork,
+        security: AuthSecurity,
+        google: GoogleIdentityProvider,
+        config: ConfigType<typeof authConfig>,
+      ) => new LoginWithGoogleUseCase(unitOfWork, security, google, config),
+      inject: [AuthUnitOfWork, AuthSecurity, GoogleIdentityProvider, authConfig.KEY],
+    },
+    {
+      provide: LinkGoogleIdentityUseCase,
+      useFactory: (unitOfWork: AuthUnitOfWork, security: AuthSecurity, google: GoogleIdentityProvider) =>
+        new LinkGoogleIdentityUseCase(unitOfWork, security, google),
+      inject: [AuthUnitOfWork, AuthSecurity, GoogleIdentityProvider],
+    },
+    {
+      provide: ListAuthIdentitiesUseCase,
+      useFactory: (authRepository: AuthRepository) => new ListAuthIdentitiesUseCase(authRepository),
+      inject: [AuthRepository],
     },
   ],
 })

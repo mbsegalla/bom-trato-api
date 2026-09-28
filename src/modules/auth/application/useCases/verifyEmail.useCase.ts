@@ -52,9 +52,15 @@ export class VerifyEmailUseCase {
 
       const refreshToken = this.security.newToken();
 
+      const passwordHash = user.passwordHash;
+
+      if (passwordHash === null) {
+        throw new AuthError('INVALID_TOKEN');
+      }
+
       await tx.auth.startSession({
         session,
-        expectedPasswordHash: user.passwordHash,
+        expectedPasswordHash: passwordHash,
         refreshHash: this.security.hashToken(refreshToken),
       });
 
