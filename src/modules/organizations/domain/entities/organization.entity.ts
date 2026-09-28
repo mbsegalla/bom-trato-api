@@ -20,6 +20,7 @@ export interface OrganizationBusinessDetails {
 export interface OrganizationProps extends OrganizationBusinessDetails {
   id: string;
   ownerId: string;
+  logoKey: string | null;
 }
 
 export interface CreateOrganizationProps {
@@ -37,6 +38,7 @@ export class Organization {
     return new Organization({
       id: props.id,
       ownerId: props.ownerId,
+      logoKey: null,
       ...Organization.normalize({
         name: props.name,
         email: null,
@@ -95,6 +97,20 @@ export class Organization {
 
   isOwnedBy(userId: string): boolean {
     return this.props.ownerId === userId;
+  }
+
+  setLogo(logoKey: string): void {
+    const normalized = logoKey.trim();
+
+    if (!normalized || normalized.length > 500) {
+      throw new OrganizationError('INVALID_ORGANIZATION_LOGO');
+    }
+
+    this.props.logoKey = normalized;
+  }
+
+  removeLogo(): void {
+    this.props.logoKey = null;
   }
 
   snapshot(): OrganizationProps {

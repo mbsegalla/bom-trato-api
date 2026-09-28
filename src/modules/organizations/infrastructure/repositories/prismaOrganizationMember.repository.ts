@@ -114,6 +114,7 @@ export class PrismaOrganizationMemberRepository extends OrganizationMemberReposi
           select: {
             id: true,
             name: true,
+            logoKey: true,
           },
         },
       },

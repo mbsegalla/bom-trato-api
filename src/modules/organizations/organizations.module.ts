@@ -2,11 +2,14 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { StorageModule } from '../../infrastructure/storage/storage.module.js';
+import { ObjectStorage } from '../../shared/storage/objectStorage.port.js';
 import { UpdateBillingCustomerNameUseCase } from '../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import { BillingCoreModule } from '../billing/billingCore.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
 import { OrganizationInvitationTokens } from './application/ports/organizationInvitationSecurity.port.js';
+import { OrganizationLogoImageProcessor } from './application/ports/organizationLogoImage.port.js';
 import { OrganizationUnitOfWork } from './application/ports/organizationUnitOfWork.port.js';
 import { OrganizationTeamApplicationService } from './application/services/organizationTeamApplicationService.service.js';
 import { AcceptOrganizationInvitationUseCase } from './application/useCases/acceptOrganizationInvitation.useCase.js';
@@ -18,13 +21,16 @@ import { ListOrganizationInvitationsUseCase } from './application/useCases/listO
 import { ListOrganizationMembersUseCase } from './application/useCases/listOrganizationMembers.useCase.js';
 import { ListOwnedOrganizationsUseCase } from './application/useCases/listOwnedOrganizations.useCase.js';
 import { PreviewOrganizationInvitationUseCase } from './application/useCases/previewOrganizationInvitation.useCase.js';
+import { RemoveOrganizationLogoUseCase } from './application/useCases/removeOrganizationLogo.useCase.js';
 import { RemoveOrganizationMemberUseCase } from './application/useCases/removeOrganizationMember.useCase.js';
 import { ResendOrganizationInvitationUseCase } from './application/useCases/resendOrganizationInvitation.useCase.js';
 import { RevokeOrganizationInvitationUseCase } from './application/useCases/revokeOrganizationInvitation.useCase.js';
 import { UpdateOrganizationProfileUseCase } from './application/useCases/updateOrganizationProfile.useCase.js';
+import { UploadOrganizationLogoUseCase } from './application/useCases/uploadOrganizationLogo.useCase.js';
 import { OrganizationRepository } from './domain/repositories/organization.repository.js';
 import { OrganizationInvitationRepository } from './domain/repositories/organizationInvitation.repository.js';
 import { OrganizationMemberRepository } from './domain/repositories/organizationMember.repository.js';
+import { SharpOrganizationLogoImageProcessor } from './infrastructure/images/sharpOrganizationLogoImage.processor.js';
 import { PrismaOrganizationRepository } from './infrastructure/repositories/prismaOrganization.repository.js';
 import { PrismaOrganizationInvitationRepository } from './infrastructure/repositories/prismaOrganizationInvitation.repository.js';
 import { PrismaOrganizationMemberRepository } from './infrastructure/repositories/prismaOrganizationMember.repository.js';
@@ -36,7 +42,7 @@ import { OrganizationsController } from './presentation/http/controllers/organiz
 import { OrganizationTeamController } from './presentation/http/controllers/organizationTeam.controller.js';
 
 @Module({
-  imports: [DatabaseModule, NotificationsModule, BillingCoreModule],
+  imports: [DatabaseModule, NotificationsModule, BillingCoreModule, StorageModule],
   controllers: [
     OrganizationsController,
     OrganizationTeamController,
@@ -52,6 +58,10 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
     {
       provide: OrganizationRepository,
       useClass: PrismaOrganizationRepository,
+    },
+    {
+      provide: OrganizationLogoImageProcessor,
+      useClass: SharpOrganizationLogoImageProcessor,
     },
     {
       provide: OrganizationMemberRepository,
@@ -84,21 +94,39 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
     },
     {
       provide: GetOrganizationProfileUseCase,
-      useFactory: (processor: OrganizationTeamApplicationService) => new GetOrganizationProfileUseCase(processor),
-      inject: [OrganizationTeamApplicationService],
+      useFactory: (processor: OrganizationTeamApplicationService, storage: ObjectStorage) =>
+        new GetOrganizationProfileUseCase(processor, storage),
+      inject: [OrganizationTeamApplicationService, ObjectStorage],
     },
     {
       provide: UpdateOrganizationProfileUseCase,
       useFactory: (
         processor: OrganizationTeamApplicationService,
         updateBillingCustomerNameUseCase: UpdateBillingCustomerNameUseCase,
-      ) => new UpdateOrganizationProfileUseCase(processor, updateBillingCustomerNameUseCase),
-      inject: [OrganizationTeamApplicationService, UpdateBillingCustomerNameUseCase],
+        storage: ObjectStorage,
+      ) => new UpdateOrganizationProfileUseCase(processor, updateBillingCustomerNameUseCase, storage),
+      inject: [OrganizationTeamApplicationService, UpdateBillingCustomerNameUseCase, ObjectStorage],
+    },
+    {
+      provide: UploadOrganizationLogoUseCase,
+      useFactory: (
+        processor: OrganizationTeamApplicationService,
+        imageProcessor: OrganizationLogoImageProcessor,
+        storage: ObjectStorage,
+      ) => new UploadOrganizationLogoUseCase(processor, imageProcessor, storage),
+      inject: [OrganizationTeamApplicationService, OrganizationLogoImageProcessor, ObjectStorage],
+    },
+    {
+      provide: RemoveOrganizationLogoUseCase,
+      useFactory: (processor: OrganizationTeamApplicationService, storage: ObjectStorage) =>
+        new RemoveOrganizationLogoUseCase(processor, storage),
+      inject: [OrganizationTeamApplicationService, ObjectStorage],
     },
     {
       provide: ListJoinedOrganizationsUseCase,
-      useFactory: (members: OrganizationMemberRepository) => new ListJoinedOrganizationsUseCase(members),
-      inject: [OrganizationMemberRepository],
+      useFactory: (members: OrganizationMemberRepository, storage: ObjectStorage) =>
+        new ListJoinedOrganizationsUseCase(members, storage),
+      inject: [OrganizationMemberRepository, ObjectStorage],
     },
     {
       provide: ListOrganizationMembersUseCase,

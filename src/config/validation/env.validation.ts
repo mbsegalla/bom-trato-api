@@ -100,6 +100,26 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .required(),
 
   QUOTE_SHARE_CLEANUP_WORKER_ENABLED: Joi.boolean().default(true),
+
+  STORAGE_S3_ENDPOINT: Joi.string()
+    .uri({
+      scheme: ['http', 'https'],
+    })
+    .required(),
+
+  STORAGE_S3_REGION: Joi.string().trim().default('auto'),
+
+  STORAGE_S3_ACCESS_KEY_ID: Joi.string().trim().min(1).required(),
+
+  STORAGE_S3_SECRET_ACCESS_KEY: Joi.string().trim().min(1).required(),
+
+  STORAGE_BUCKET: Joi.string().trim().min(3).max(63).required(),
+
+  STORAGE_PUBLIC_BASE_URL: Joi.string()
+    .uri({
+      scheme: ['http', 'https'],
+    })
+    .required(),
 });
 
 export function validateEnvironment(values: Record<string, unknown>): EnvironmentVariables {

@@ -30,4 +30,10 @@ export interface EnvironmentVariables {
   MAIL_FROM_NAME: string;
   QUOTE_SHARE_RATE_LIMIT_SECRET: string;
   QUOTE_SHARE_CLEANUP_WORKER_ENABLED: boolean;
+  STORAGE_S3_ENDPOINT: string;
+  STORAGE_S3_REGION: string;
+  STORAGE_S3_ACCESS_KEY_ID: string;
+  STORAGE_S3_SECRET_ACCESS_KEY: string;
+  STORAGE_BUCKET: string;
+  STORAGE_PUBLIC_BASE_URL: string;
 }

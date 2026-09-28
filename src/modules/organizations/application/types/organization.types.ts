@@ -1,3 +1,4 @@
+import type { OrganizationProfile } from '../../domain/entities/organization.entity.js';
 import type { OrganizationActorParams } from '../ports/organizationUnitOfWork.port.js';
 
 export interface CreateOrganizationParams {
@@ -23,3 +24,7 @@ export interface InvitationTokenParams {
 export interface RemoveMemberParams extends OrganizationActorParams {
   memberId: string;
 }
+
+export type OrganizationProfileView = Omit<OrganizationProfile, 'logoKey'> & {
+  logoUrl: string | null;
+};
