@@ -5,7 +5,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import { PublicBusinessProfile } from '../../domain/entities/publicBusinessProfile.entity.js';
 import { PublicProfileError } from '../../domain/errors/publicProfile.error.js';
 import {
-  PublicProfessionalPageParams,
+  type PublicProfessionalPageParams,
   PublicProfileRepository,
 } from '../../domain/repositories/publicProfile.repository.js';
 
@@ -16,6 +16,56 @@ function ratingAverage(ratingSum: number, ratingCount: number): number | null {
 
   return Math.round((ratingSum / ratingCount) * 10) / 10;
 }
+
+const publicProfessionalDetailsSelect = {
+  slug: true,
+  headline: true,
+  description: true,
+  whatsappEnabled: true,
+  whatsappPhone: true,
+  ratingSum: true,
+  ratingCount: true,
+  professionalReviews: {
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: 6,
+    select: {
+      id: true,
+      reviewerDisplayName: true,
+      rating: true,
+      comment: true,
+      createdAt: true,
+    },
+  },
+  organization: {
+    select: {
+      name: true,
+      logoKey: true,
+      city: true,
+      state: true,
+    },
+  },
+  services: {
+    where: {
+      catalogService: {
+        archivedAt: null,
+      },
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+    select: {
+      catalogService: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.PublicBusinessProfileSelect;
 
 @Injectable()
 export class PrismaPublicProfileRepository extends PublicProfileRepository {
@@ -93,9 +143,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
           }
         }
 
-        const serviceCreates = state.serviceIds.map((catalogServiceId) => ({
-          catalogServiceId,
-        }));
+        const serviceCreates = state.serviceIds.map((catalogServiceId) => ({ catalogServiceId }));
 
         const row = await tx.publicBusinessProfile.upsert({
           where: {
@@ -114,8 +162,14 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
             publishedAt: state.publishedAt,
             createdAt: state.createdAt,
             updatedAt: state.updatedAt,
-            services: serviceCreates.length > 0 ? { create: serviceCreates } : undefined,
+            services:
+              serviceCreates.length > 0
+                ? {
+                    create: serviceCreates,
+                  }
+                : undefined,
           },
+
           update: {
             slug: state.slug,
             headline: state.headline,
@@ -135,6 +189,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
                 : {}),
             },
           },
+
           include: {
             services: {
               select: {
@@ -185,11 +240,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
           : {
               not: null,
             },
-        state: state
-          ? state
-          : {
-              not: null,
-            },
+        state: state ? state : { not: null },
       },
     };
 
@@ -249,6 +300,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
           id: 'desc',
         },
       ],
+
       skip: (page - 1) * limit,
       take: limit + 1,
       select: {
@@ -329,55 +381,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
           },
         },
       },
-      select: {
-        slug: true,
-        headline: true,
-        description: true,
-        whatsappEnabled: true,
-        whatsappPhone: true,
-        ratingSum: true,
-        ratingCount: true,
-        reviews: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-          take: 6,
-          select: {
-            id: true,
-            reviewerDisplayName: true,
-            rating: true,
-            comment: true,
-            createdAt: true,
-          },
-        },
-        organization: {
-          select: {
-            name: true,
-            logoKey: true,
-            city: true,
-            state: true,
-          },
-        },
-        services: {
-          where: {
-            catalogService: {
-              archivedAt: null,
-            },
-          },
-          orderBy: {
-            createdAt: 'asc',
-          },
-          select: {
-            catalogService: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-              },
-            },
-          },
-        },
-      },
+      select: publicProfessionalDetailsSelect,
     });
 
     if (row === null) {
@@ -398,7 +402,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
         state: row.organization.state!,
       },
       services: row.services.map(({ catalogService }) => catalogService),
-      reviews: row.reviews,
+      reviews: row.professionalReviews,
     };
   }
 
@@ -433,7 +437,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
       },
     });
 
-    if (row?.whatsappPhone === null || !row) {
+    if (!row || row.whatsappPhone === null) {
       return null;
     }
 

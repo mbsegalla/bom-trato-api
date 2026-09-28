@@ -6,39 +6,6 @@ export interface PublicProfessionalService {
   description: string | null;
 }
 
-export interface PublicProfessionalRecord {
-  slug: string;
-  headline: string | null;
-  description: string | null;
-  whatsappAvailable: boolean;
-  organization: {
-    name: string;
-    logoKey: string | null;
-    city: string;
-    state: string;
-  };
-  services: PublicProfessionalService[];
-}
-
-export interface PublicProfessionalPageParams {
-  page: number;
-  limit: number;
-  search?: string;
-  city?: string;
-  state?: string;
-}
-
-export interface PublicProfessionalPage {
-  items: PublicProfessionalRecord[];
-  page: number;
-  hasMore: boolean;
-}
-
-export interface PublicWhatsappContact {
-  businessName: string;
-  phone: string;
-}
-
 export interface PublicProfessionalReview {
   id: string;
   reviewerDisplayName: string;
@@ -62,6 +29,25 @@ export interface PublicProfessionalRecord {
   };
   services: PublicProfessionalService[];
   reviews: PublicProfessionalReview[];
+}
+
+export interface PublicProfessionalPageParams {
+  page: number;
+  limit: number;
+  search?: string;
+  city?: string;
+  state?: string;
+}
+
+export interface PublicProfessionalPage {
+  items: PublicProfessionalRecord[];
+  page: number;
+  hasMore: boolean;
+}
+
+export interface PublicWhatsappContact {
+  businessName: string;
+  phone: string;
 }
 
 export abstract class PublicProfileRepository {
