@@ -20,7 +20,14 @@ export type NotificationContent =
     } & BillingPaymentNotification)
   | ({
       type: 'PLAN_CHANGE_CONFIRMED';
-    } & PlanChangeNotification);
+    } & PlanChangeNotification)
+  | {
+      type: 'REVIEW_REQUEST';
+      token: string;
+      customerName: string;
+      organizationName: string;
+      workOrderTitle: string;
+    };
 
 export interface EnqueueNotification {
   key: string;

@@ -88,6 +88,15 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
         ORGANIZATION_NAME: content.organizationName,
         PLAN_NAME: content.planName,
       };
+
+    case 'REVIEW_REQUEST':
+      return {
+        ACTION_URL: frontendLink(frontendUrl, '/avaliar', content.token),
+        CUSTOMER_NAME: content.customerName,
+        ORGANIZATION_NAME: content.organizationName,
+        WORK_ORDER_TITLE: content.workOrderTitle,
+        EXPIRES_AT: emailDateFormatter.format(expiresAt),
+      };
   }
 }
 

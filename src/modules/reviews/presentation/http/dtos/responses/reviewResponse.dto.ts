@@ -1,17 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class ReviewInvitationResponseDto {
-  @ApiProperty({
-    format: 'uri',
-  })
-  url!: string;
-
-  @ApiProperty({
-    type: Date,
-  })
-  expiresAt!: Date;
-}
-
 export class ReviewInvitationPreviewResponseDto {
   @ApiProperty()
   businessName!: string;
