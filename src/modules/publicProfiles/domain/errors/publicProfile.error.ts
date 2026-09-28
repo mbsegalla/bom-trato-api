@@ -1,0 +1,20 @@
+export type PublicProfileErrorCode =
+  | 'INVALID_PUBLIC_PROFILE_SLUG'
+  | 'INVALID_PUBLIC_PROFILE_HEADLINE'
+  | 'INVALID_PUBLIC_PROFILE_DESCRIPTION'
+  | 'INVALID_PUBLIC_PROFILE_PHONE'
+  | 'PUBLIC_PROFILE_CONTACT_REQUIRED'
+  | 'PUBLIC_PROFILE_LOCATION_REQUIRED'
+  | 'PUBLIC_PROFILE_TOO_MANY_SERVICES'
+  | 'PUBLIC_PROFILE_SERVICE_NOT_FOUND'
+  | 'PUBLIC_PROFILE_SLUG_TAKEN'
+  | 'PUBLIC_PROFILE_NOT_FOUND'
+  | 'PUBLIC_PROFILE_CONTACT_UNAVAILABLE';
+
+export class PublicProfileError extends Error {
+  constructor(readonly code: PublicProfileErrorCode) {
+    super(code);
+
+    this.name = PublicProfileError.name;
+  }
+}

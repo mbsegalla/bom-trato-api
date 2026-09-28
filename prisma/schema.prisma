@@ -315,6 +315,7 @@ model Organization {
   updatedAt        DateTime                  @updatedAt @db.Timestamptz(3)
 
   owner                            User                              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  publicBusinessProfile            PublicBusinessProfile?
   organizationMembers              OrganizationMember[]
   billingCustomer                  BillingCustomer?
   subscriptions                    Subscription[]
@@ -334,6 +335,39 @@ model Organization {
 
   @@unique([ownerId, creationKey])
   @@index([ownerId, setupCompletedAt, createdAt])
+  @@index([state, city])
+}
+
+model PublicBusinessProfile {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @unique @db.Uuid
+  slug              String    @unique @db.VarChar(120)
+  headline          String?   @db.VarChar(160)
+  description       String?   @db.Text
+  whatsappPhone     String?   @db.VarChar(11)
+  whatsappEnabled   Boolean   @default(false)
+  whatsappEnabledAt DateTime? @db.Timestamptz(3)
+  published         Boolean   @default(false)
+  publishedAt       DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  services     PublicBusinessProfileService[]
+
+  @@index([published, publishedAt(sort: Desc), id(sort: Desc)])
+}
+
+model PublicBusinessProfileService {
+  publicBusinessProfileId String   @db.Uuid
+  catalogServiceId        String   @db.Uuid
+  createdAt               DateTime @default(now()) @db.Timestamptz(3)
+
+  publicBusinessProfile PublicBusinessProfile @relation(fields: [publicBusinessProfileId], references: [id], onDelete: Cascade)
+  catalogService        CatalogService        @relation(fields: [catalogServiceId], references: [id], onDelete: Cascade)
+
+  @@id([publicBusinessProfileId, catalogServiceId])
+  @@index([catalogServiceId])
 }
 
 model OrganizationMember {
@@ -603,8 +637,9 @@ model CatalogService {
   createdAt      DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  quoteItems   QuoteItem[]
+  organization            Organization                   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quoteItems              QuoteItem[]
+  publicProfileSelections PublicBusinessProfileService[]
 
   @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
 }
