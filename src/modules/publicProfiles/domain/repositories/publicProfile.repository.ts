@@ -39,6 +39,31 @@ export interface PublicWhatsappContact {
   phone: string;
 }
 
+export interface PublicProfessionalReview {
+  id: string;
+  reviewerDisplayName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: Date;
+}
+
+export interface PublicProfessionalRecord {
+  slug: string;
+  headline: string | null;
+  description: string | null;
+  whatsappAvailable: boolean;
+  ratingAverage: number | null;
+  ratingCount: number;
+  organization: {
+    name: string;
+    logoKey: string | null;
+    city: string;
+    state: string;
+  };
+  services: PublicProfessionalService[];
+  reviews: PublicProfessionalReview[];
+}
+
 export abstract class PublicProfileRepository {
   abstract findByOrganizationId(organizationId: string): Promise<PublicBusinessProfileProps | null>;
   abstract suggestAvailableSlug(baseSlug: string, organizationId: string): Promise<string>;

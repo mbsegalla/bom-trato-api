@@ -99,5 +99,6 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
       inject: [WorkOrderApplicationService],
     },
   ],
+  exports: [WorkOrderApplicationService],
 })
 export class WorkOrdersModule {}

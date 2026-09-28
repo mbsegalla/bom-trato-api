@@ -18,6 +18,7 @@ import { PlansModule } from './modules/plans/plans.module.js';
 import { PublicProfilesModule } from './modules/publicProfiles/publicProfiles.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { ReceivablesModule } from './modules/receivables/receivables.module.js';
+import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.module.js';
 import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
 
@@ -35,6 +36,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
     OnboardingModule,
     OrganizationsModule,
     PublicProfilesModule,
+    ReviewsModule,
     BillingModule,
     BillingWorkerModule,
     CustomersModule,

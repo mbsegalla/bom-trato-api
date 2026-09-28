@@ -24,7 +24,13 @@ export class GetPublicProfessionalUseCase {
       city: profile.organization.city,
       state: profile.organization.state,
       whatsappAvailable: profile.whatsappAvailable,
+      ratingAverage: profile.ratingAverage,
+      ratingCount: profile.ratingCount,
       services: profile.services,
+      reviews: profile.reviews.map((review) => ({
+        ...review,
+        verified: true,
+      })),
     };
   }
 }

@@ -104,6 +104,18 @@ export class PublicProfessionalCardDto {
   whatsappAvailable!: boolean;
 
   @ApiProperty({
+    type: Number,
+    nullable: true,
+    example: 4.8,
+  })
+  ratingAverage!: number | null;
+
+  @ApiProperty({
+    minimum: 0,
+  })
+  ratingCount!: number;
+
+  @ApiProperty({
     type: [PublicProfessionalServiceDto],
   })
   services!: Pick<PublicProfessionalServiceDto, 'id' | 'name'>[];
@@ -122,12 +134,47 @@ export class PublicProfessionalsPageDto {
   hasMore!: boolean;
 }
 
+export class PublicProfessionalReviewDto {
+  @ApiProperty({
+    format: 'uuid',
+  })
+  id!: string;
+
+  @ApiProperty()
+  reviewerDisplayName!: string;
+
+  @ApiProperty({
+    minimum: 1,
+    maximum: 5,
+  })
+  rating!: number;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+  })
+  comment!: string | null;
+
+  @ApiProperty({
+    type: Date,
+  })
+  createdAt!: Date;
+
+  @ApiProperty()
+  verified!: boolean;
+}
+
 export class PublicProfessionalResponseDto extends PublicProfessionalCardDto {
   @ApiProperty({
     type: String,
     nullable: true,
   })
   description!: string | null;
+
+  @ApiProperty({
+    type: [PublicProfessionalReviewDto],
+  })
+  reviews!: PublicProfessionalReviewDto[];
 
   @ApiProperty({
     type: [PublicProfessionalServiceDto],
