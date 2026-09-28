@@ -11,6 +11,13 @@ export class TeamOrganizationDto {
 }
 
 export class JoinedOrganizationDto extends TeamOrganizationDto {
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    format: 'uri',
+  })
+  logoUrl!: string | null;
+
   @ApiProperty({ enum: OrganizationRole })
   role!: OrganizationRole;
 }

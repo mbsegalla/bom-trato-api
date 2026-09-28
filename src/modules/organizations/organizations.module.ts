@@ -124,8 +124,9 @@ import { OrganizationTeamController } from './presentation/http/controllers/orga
     },
     {
       provide: ListJoinedOrganizationsUseCase,
-      useFactory: (members: OrganizationMemberRepository) => new ListJoinedOrganizationsUseCase(members),
-      inject: [OrganizationMemberRepository],
+      useFactory: (members: OrganizationMemberRepository, storage: ObjectStorage) =>
+        new ListJoinedOrganizationsUseCase(members, storage),
+      inject: [OrganizationMemberRepository, ObjectStorage],
     },
     {
       provide: ListOrganizationMembersUseCase,

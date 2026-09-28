@@ -14,6 +14,7 @@ export interface OrganizationMemberView {
 export interface JoinedOrganizationView {
   id: string;
   name: string;
+  logoKey: string | null;
   role: OrganizationRole;
 }
 
