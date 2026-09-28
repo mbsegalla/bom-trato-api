@@ -9,6 +9,14 @@ import {
   PublicProfileRepository,
 } from '../../domain/repositories/publicProfile.repository.js';
 
+function ratingAverage(ratingSum: number, ratingCount: number): number | null {
+  if (ratingCount === 0) {
+    return null;
+  }
+
+  return Math.round((ratingSum / ratingCount) * 10) / 10;
+}
+
 @Injectable()
 export class PrismaPublicProfileRepository extends PublicProfileRepository {
   constructor(private readonly prisma: PrismaService) {
@@ -159,9 +167,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
     const { page, limit, search: searchInput, city: cityInput, state: stateInput } = params;
 
     const search = searchInput?.trim();
-
     const city = cityInput?.trim();
-
     const state = stateInput?.trim().toUpperCase();
 
     const where: Prisma.PublicBusinessProfileWhereInput = {
@@ -231,6 +237,12 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
       where,
       orderBy: [
         {
+          reputationScore: 'desc',
+        },
+        {
+          ratingCount: 'desc',
+        },
+        {
           publishedAt: 'desc',
         },
         {
@@ -245,6 +257,8 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
         description: true,
         whatsappEnabled: true,
         whatsappPhone: true,
+        ratingSum: true,
+        ratingCount: true,
         organization: {
           select: {
             name: true,
@@ -284,6 +298,9 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
         headline: row.headline,
         description: row.description,
         whatsappAvailable: row.whatsappEnabled && row.whatsappPhone !== null,
+        ratingAverage: ratingAverage(row.ratingSum, row.ratingCount),
+        ratingCount: row.ratingCount,
+        reviews: [],
         organization: {
           name: row.organization.name,
           logoKey: row.organization.logoKey,
@@ -318,6 +335,21 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
         description: true,
         whatsappEnabled: true,
         whatsappPhone: true,
+        ratingSum: true,
+        ratingCount: true,
+        reviews: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 6,
+          select: {
+            id: true,
+            reviewerDisplayName: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+          },
+        },
         organization: {
           select: {
             name: true,
@@ -357,6 +389,8 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
       headline: row.headline,
       description: row.description,
       whatsappAvailable: row.whatsappEnabled && row.whatsappPhone !== null,
+      ratingAverage: ratingAverage(row.ratingSum, row.ratingCount),
+      ratingCount: row.ratingCount,
       organization: {
         name: row.organization.name,
         logoKey: row.organization.logoKey,
@@ -364,6 +398,7 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
         state: row.organization.state!,
       },
       services: row.services.map(({ catalogService }) => catalogService),
+      reviews: row.reviews,
     };
   }
 

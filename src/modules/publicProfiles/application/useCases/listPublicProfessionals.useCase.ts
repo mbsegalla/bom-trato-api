@@ -23,6 +23,8 @@ export class ListPublicProfessionalsUseCase {
         city: item.organization.city,
         state: item.organization.state,
         whatsappAvailable: item.whatsappAvailable,
+        ratingAverage: item.ratingAverage,
+        ratingCount: item.ratingCount,
         services: item.services.map((service) => ({
           id: service.id,
           name: service.name,
