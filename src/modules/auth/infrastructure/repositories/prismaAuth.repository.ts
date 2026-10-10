@@ -77,7 +77,7 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async register(params: RegisterUserParams): Promise<boolean> {
-    const { name, email, passwordHash, tokenHash, expiresAt, selectedPlanPriceId } = params;
+    const { name, email, passwordHash, tokenHash, expiresAt, selectedPlanPriceId, legalAcceptance } = params;
 
     await this.assertPlanAvailable(selectedPlanPriceId);
 
@@ -94,6 +94,9 @@ export class PrismaAuthRepository extends AuthRepository {
               tokenHash,
               expiresAt,
             },
+          },
+          termsAcceptances: {
+            create: legalAcceptance,
           },
         },
         select: {
@@ -112,7 +115,7 @@ export class PrismaAuthRepository extends AuthRepository {
   }
 
   async registerFederated(params: RegisterFederatedUserParams): Promise<User> {
-    const { userId, name, email, emailVerifiedAt, selectedPlanPriceId, identity } = params;
+    const { userId, name, email, emailVerifiedAt, selectedPlanPriceId, identity, legalAcceptance } = params;
 
     await this.assertPlanAvailable(selectedPlanPriceId);
 
@@ -131,6 +134,9 @@ export class PrismaAuthRepository extends AuthRepository {
               provider: identity.provider,
               providerAccountId: identity.providerAccountId,
             },
+          },
+          termsAcceptances: {
+            create: legalAcceptance,
           },
         },
         select: userSelect,

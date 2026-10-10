@@ -12,6 +12,7 @@ import { BillingWorkerModule } from './modules/billing/billingWorker.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { LeadsModule } from './modules/leads/leads.module.js';
+import { LegalModule } from './modules/legal/legal.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
@@ -33,6 +34,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
     NotificationsModule,
     PlansModule,
     AddressModule,
+    LegalModule,
     AuthModule,
     OnboardingModule,
     OrganizationsModule,
