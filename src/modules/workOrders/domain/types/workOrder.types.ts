@@ -83,7 +83,9 @@ export type WorkOrderSummary = Pick<
   | 'version'
   | 'createdAt'
   | 'updatedAt'
->;
+> & {
+  assignedToName: string | null;
+};
 
 export interface WorkOrderScheduleSlot {
   workOrderId: string;

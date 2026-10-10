@@ -136,7 +136,10 @@ export class WorkOrderSummaryResponseDto extends PickType(WorkOrderResponseDto, 
   'version',
   'createdAt',
   'updatedAt',
-] as const) {}
+] as const) {
+  @ApiProperty({ type: String, nullable: true })
+  assignedToName!: string | null;
+}
 
 export class WorkOrdersResponseDto {
   @ApiProperty({ type: [WorkOrderSummaryResponseDto] })

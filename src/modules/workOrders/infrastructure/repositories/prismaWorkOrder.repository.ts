@@ -39,6 +39,11 @@ const summarySelect = {
   customerName: true,
   title: true,
   assignedToId: true,
+  assignedTo: {
+    select: {
+      name: true,
+    },
+  },
   status: true,
   currency: true,
   totalInCents: true,
@@ -127,7 +132,10 @@ export class PrismaWorkOrderRepository extends WorkOrderRepository {
     });
 
     return {
-      items: rows.slice(0, limit),
+      items: rows.slice(0, limit).map(({ assignedTo, ...row }) => ({
+        ...row,
+        assignedToName: assignedTo?.name ?? null,
+      })),
       page,
       hasMore: rows.length > limit,
     };
