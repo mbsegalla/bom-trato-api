@@ -1,0 +1,27 @@
+export type LeadErrorCode =
+  | 'ORGANIZATION_NOT_FOUND'
+  | 'MEMBER_REQUIRED'
+  | 'VERIFIED_USER_REQUIRED'
+  | 'SUBSCRIPTION_REQUIRED'
+  | 'BILLING_RECONCILIATION_REQUIRED'
+  | 'LEAD_NOT_FOUND'
+  | 'PUBLIC_PROFILE_NOT_FOUND'
+  | 'PUBLIC_SERVICE_NOT_FOUND'
+  | 'INVALID_LEAD_NAME'
+  | 'INVALID_LEAD_EMAIL'
+  | 'INVALID_LEAD_PHONE'
+  | 'INVALID_LEAD_MESSAGE'
+  | 'LEAD_CONTACT_REQUIRED'
+  | 'INVALID_LEAD_TRANSITION'
+  | 'LEAD_REQUEST_CONFLICT'
+  | 'LEAD_CUSTOMER_ARCHIVED'
+  | 'LEAD_CUSTOMER_CONFLICT'
+  | 'LEADS_BUSY';
+
+export class LeadError extends Error {
+  constructor(readonly code: LeadErrorCode) {
+    super(code);
+
+    this.name = LeadError.name;
+  }
+}
