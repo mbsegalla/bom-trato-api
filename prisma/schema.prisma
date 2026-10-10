@@ -140,6 +140,7 @@ enum AuthProvider {
 }
 
 enum InAppNotificationType {
+  LEAD_RECEIVED
   QUOTE_APPROVED
   QUOTE_DECLINED
   WORK_ORDER_ASSIGNED
@@ -152,6 +153,13 @@ enum InAppNotificationType {
   SUBSCRIPTION_ACTIVATED
   SUBSCRIPTION_CANCELED
   PLAN_CHANGE_CONFIRMED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  ARCHIVED
 }
 
 model Plan {
@@ -333,6 +341,7 @@ model Organization {
   receivables                      Receivable[]
   inAppNotifications               InAppNotification[]
   notificationStreamTickets        NotificationStreamTicket[]
+  leads                            Lead[]
 
   @@unique([ownerId, creationKey])
   @@index([ownerId, setupCompletedAt, createdAt])
@@ -362,6 +371,7 @@ model PublicBusinessProfile {
   services                      PublicBusinessProfileService[]
   professionalReviews           ProfessionalReview[]
   professionalReviewInvitations ProfessionalReviewInvitation[]
+  leads                         Lead[]
 
   @@index([published, reputationScore(sort: Desc), ratingCount(sort: Desc), id(sort: Desc)])
 }
@@ -662,6 +672,7 @@ model Customer {
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  convertedLeads      Lead[]               @relation("LeadConvertedCustomer")
   quotes              Quote[]
   workOrders          WorkOrder[]
   receivables         Receivable[]
@@ -687,6 +698,7 @@ model CatalogService {
   organization            Organization                   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   quoteItems              QuoteItem[]
   publicProfileSelections PublicBusinessProfileService[]
+  publicLeads             Lead[]
 
   @@index([organizationId, archivedAt, createdAt(sort: Desc), id(sort: Desc)])
 }
@@ -717,6 +729,7 @@ model Quote {
 
   organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   customer             Customer             @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sourceLead           Lead?                @relation("LeadConvertedQuote")
   quoteItems           QuoteItem[]
   quoteStatusHistories QuoteStatusHistory[]
   workOrders           WorkOrder[]
@@ -997,4 +1010,36 @@ model NotificationStreamTicket {
 
   @@index([expiresAt])
   @@index([sessionId, organizationId])
+}
+
+model Lead {
+  id                      String     @id @default(uuid()) @db.Uuid
+  requestKey              String     @unique @db.Uuid
+  organizationId          String     @db.Uuid
+  publicBusinessProfileId String     @db.Uuid
+  catalogServiceId        String?    @db.Uuid
+  requestedServiceName    String?    @db.VarChar(100)
+  name                    String     @db.VarChar(100)
+  email                   String?    @db.VarChar(254)
+  phone                   String?    @db.VarChar(30)
+  message                 String     @db.VarChar(2000)
+  status                  LeadStatus @default(NEW)
+  convertedCustomerId     String?    @db.Uuid
+  convertedQuoteId        String?    @unique @db.Uuid
+  contactedAt             DateTime?  @db.Timestamptz(3)
+  convertedAt             DateTime?  @db.Timestamptz(3)
+  archivedAt              DateTime?  @db.Timestamptz(3)
+  createdAt               DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime   @updatedAt @db.Timestamptz(3)
+
+  organization          Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  publicBusinessProfile PublicBusinessProfile @relation(fields: [publicBusinessProfileId], references: [id], onDelete: Cascade)
+  catalogService        CatalogService?       @relation(fields: [catalogServiceId], references: [id], onDelete: SetNull)
+  convertedCustomer     Customer?             @relation("LeadConvertedCustomer", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+  convertedQuote        Quote?                @relation("LeadConvertedQuote", fields: [convertedQuoteId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([publicBusinessProfileId, createdAt(sort: Desc)])
+  @@index([catalogServiceId])
+  @@index([convertedCustomerId])
 }
