@@ -11,27 +11,21 @@ export class PrismaAuthMaintenanceRepository extends AuthMaintenanceRepository {
   }
 
   async cleanup(params: AuthCleanupParams): Promise<AuthCleanupResult> {
-    const { expiredBefore, rateLimitBefore, limit } = params;
+    const { refreshTokenBefore, expiredBefore, rateLimitBefore, limit } = params;
 
     return this.prisma.$transaction(
       async (tx) => {
         const refreshTokens = await tx.$executeRaw`
-          WITH sessions AS (
-            SELECT "id"
-            FROM "AuthSession"
-            WHERE "absoluteExpiresAt" < ${expiredBefore}
-               OR "idleExpiresAt" < ${expiredBefore}
-               OR "revokedAt" < ${expiredBefore}
-            ORDER BY "absoluteExpiresAt", "id"
-            LIMIT ${limit}
-            FOR UPDATE SKIP LOCKED
-          ),
-          candidates AS (
+          WITH candidates AS (
             SELECT token."id"
             FROM "RefreshToken" token
-            INNER JOIN sessions
-              ON sessions."id" = token."sessionId"
-            ORDER BY token."id"
+            INNER JOIN "AuthSession" session
+              ON session."id" = token."sessionId"
+            WHERE token."expiresAt" < ${refreshTokenBefore}
+               OR session."revokedAt" IS NOT NULL
+               OR session."absoluteExpiresAt" < ${refreshTokenBefore}
+               OR session."idleExpiresAt" < ${refreshTokenBefore}
+            ORDER BY token."expiresAt", token."id"
             LIMIT ${limit}
             FOR UPDATE OF token SKIP LOCKED
           )
