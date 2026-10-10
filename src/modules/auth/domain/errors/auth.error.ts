@@ -14,7 +14,9 @@ export class AuthError extends Error {
       | 'GOOGLE_EMAIL_MISMATCH'
       | 'GOOGLE_IDENTITY_IN_USE'
       | 'GOOGLE_PROVIDER_ALREADY_LINKED'
-      | 'GOOGLE_IDENTITY_CONFLICT',
+      | 'GOOGLE_IDENTITY_CONFLICT'
+      | 'TERMS_ACCEPTANCE_REQUIRED'
+      | 'LEGAL_DOCUMENT_VERSION_OUTDATED',
   ) {
     super(code);
 

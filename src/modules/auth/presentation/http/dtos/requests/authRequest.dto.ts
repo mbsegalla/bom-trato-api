@@ -48,6 +48,16 @@ export class RegisterDto extends EmailDto {
   @IsOptional()
   @IsUUID('4')
   selectedPlanPriceId?: string | null;
+
+  @ApiProperty({ example: '1.0' })
+  @IsString()
+  @Length(1, 30)
+  termsVersion: string;
+
+  @ApiProperty({ example: '1.0' })
+  @IsString()
+  @Length(1, 30)
+  privacyNoticeVersion: string;
 }
 
 export class LoginDto extends EmailDto {
@@ -106,4 +116,16 @@ export class GoogleLoginDto extends GoogleCredentialDto {
   @IsOptional()
   @IsUUID('4')
   selectedPlanPriceId?: string | null;
+
+  @ApiPropertyOptional({ example: '1.0' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  termsVersion?: string;
+
+  @ApiPropertyOptional({ example: '1.0' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  privacyNoticeVersion?: string;
 }

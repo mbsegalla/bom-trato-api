@@ -65,6 +65,22 @@ export function toAuthHttpError(error: unknown): unknown {
     return new ApiException(HttpStatus.CONFLICT, error.code, 'This Google account is already connected.');
   }
 
+  if (error.code === 'TERMS_ACCEPTANCE_REQUIRED') {
+    return new ApiException(
+      HttpStatus.PRECONDITION_FAILED,
+      error.code,
+      'The current Terms of Use must be accepted before creating an account.',
+    );
+  }
+
+  if (error.code === 'LEGAL_DOCUMENT_VERSION_OUTDATED') {
+    return new ApiException(
+      HttpStatus.CONFLICT,
+      error.code,
+      'The legal documents were updated. Reload the current versions before continuing.',
+    );
+  }
+
   return new ApiException(HttpStatus.UNAUTHORIZED, 'INVALID_SESSION', 'Authentication is invalid or expired.');
 }
 

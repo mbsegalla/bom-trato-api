@@ -19,6 +19,10 @@ export interface RegisterUserInput {
   name: string;
   email: string;
   password: string;
+  termsVersion: string;
+  privacyNoticeVersion: string;
+  ipAddress: string | null;
+  userAgent: string | null;
 }
 
 export interface LogoutInput {
@@ -59,6 +63,9 @@ export type VerifyEmailResult = LoginResult;
 export interface GoogleLoginInput {
   credential: string;
   selectedPlanPriceId?: string | null;
+  termsVersion?: string;
+  privacyNoticeVersion?: string;
+  ipAddress: string | null;
   userAgent: string | null;
   previousRefreshToken?: string;
 }

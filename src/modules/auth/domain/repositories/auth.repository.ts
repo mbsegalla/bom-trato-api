@@ -17,6 +17,17 @@ export interface SessionSummary {
   userAgent: string | null;
 }
 
+export type RegistrationLegalAcceptanceSource = 'PASSWORD_REGISTER' | 'GOOGLE_REGISTER';
+
+export interface RegistrationLegalAcceptance {
+  termsVersion: string;
+  privacyNoticeVersion: string;
+  source: RegistrationLegalAcceptanceSource;
+  ipAddress: string | null;
+  userAgent: string | null;
+  acceptedAt: Date;
+}
+
 export interface RegisterUserParams {
   selectedPlanPriceId: string | null;
   name: string;
@@ -24,6 +35,7 @@ export interface RegisterUserParams {
   passwordHash: string;
   tokenHash: string;
   expiresAt: Date;
+  legalAcceptance: RegistrationLegalAcceptance;
 }
 
 export interface StartSessionParams {
@@ -77,6 +89,7 @@ export interface RegisterFederatedUserParams {
   email: string;
   emailVerifiedAt: Date;
   identity: AuthIdentityProps;
+  legalAcceptance: RegistrationLegalAcceptance;
 }
 
 export interface StartFederatedSessionParams {

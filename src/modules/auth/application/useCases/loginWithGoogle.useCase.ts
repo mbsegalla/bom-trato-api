@@ -1,5 +1,6 @@
 import { AuthProvider } from '../../../../generated/prisma/enums.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
+import { CURRENT_PRIVACY_NOTICE_VERSION, CURRENT_TERMS_VERSION } from '../../../legal/domain/legalDocuments.js';
 import { AuthIdentity } from '../../domain/entities/authIdentity.entity.js';
 import { AuthSession } from '../../domain/entities/authSession.entity.js';
 import { AuthError } from '../../domain/errors/auth.error.js';
@@ -17,7 +18,15 @@ export class LoginWithGoogleUseCase {
   ) {}
 
   async execute(input: GoogleLoginInput): Promise<LoginResult> {
-    const { credential, userAgent, previousRefreshToken, selectedPlanPriceId } = input;
+    const {
+      credential,
+      userAgent,
+      ipAddress,
+      previousRefreshToken,
+      selectedPlanPriceId,
+      termsVersion,
+      privacyNoticeVersion,
+    } = input;
 
     const profile = await this.google.verifyCredential(credential);
 
@@ -28,6 +37,8 @@ export class LoginWithGoogleUseCase {
     const email = normalizeEmail(profile.email);
 
     return this.unitOfWork.run(async (tx) => {
+      const now = new Date();
+
       let user = await tx.auth.findUserByIdentity(AuthProvider.GOOGLE, profile.subject);
 
       if (user === null) {
@@ -35,6 +46,14 @@ export class LoginWithGoogleUseCase {
 
         if (existing !== null) {
           throw new AuthError('GOOGLE_ACCOUNT_LINK_REQUIRED');
+        }
+
+        if (!termsVersion || !privacyNoticeVersion) {
+          throw new AuthError('TERMS_ACCEPTANCE_REQUIRED');
+        }
+
+        if (termsVersion !== CURRENT_TERMS_VERSION || privacyNoticeVersion !== CURRENT_PRIVACY_NOTICE_VERSION) {
+          throw new AuthError('LEGAL_DOCUMENT_VERSION_OUTDATED');
         }
 
         const userId = this.security.newId();
@@ -49,15 +68,21 @@ export class LoginWithGoogleUseCase {
           userId,
           name: profile.name,
           email,
-          emailVerifiedAt: new Date(),
+          emailVerifiedAt: now,
           selectedPlanPriceId: selectedPlanPriceId ?? null,
           identity: identity.snapshot(),
+          legalAcceptance: {
+            termsVersion,
+            privacyNoticeVersion,
+            source: 'GOOGLE_REGISTER',
+            ipAddress,
+            userAgent,
+            acceptedAt: now,
+          },
         });
       }
 
       user.assertCanAuthenticate();
-
-      const now = new Date();
 
       if (previousRefreshToken) {
         await tx.auth.revokeByToken({

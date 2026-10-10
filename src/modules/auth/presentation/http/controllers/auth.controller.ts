@@ -92,8 +92,14 @@ export class AuthController {
   @PublicRoute()
   @AuthEndpoint('register')
   @ApiDataResponse(AuthMessageDto, { status: 201 })
-  async register(@Body() dto: RegisterDto): Promise<AuthMessageDto> {
-    await authOperation(() => this.registerUseCase.execute(dto));
+  async register(@Body() dto: RegisterDto, @Req() request: AuthRequest): Promise<AuthMessageDto> {
+    await authOperation(() =>
+      this.registerUseCase.execute({
+        ...dto,
+        ipAddress: request.ip?.slice(0, 45) ?? null,
+        userAgent: request.get('user-agent')?.slice(0, 300) ?? null,
+      }),
+    );
 
     return genericMessage;
   }
@@ -292,11 +298,16 @@ export class AuthController {
     @Req() request: AuthRequest,
     @Res({ passthrough: true }) response: Response,
   ): Promise<TokenResponseDto> {
+    const { credential, selectedPlanPriceId, termsVersion, privacyNoticeVersion } = dto;
+
     const result = await authOperation(() =>
       this.loginWithGoogleUseCase.execute({
-        credential: dto.credential,
-        selectedPlanPriceId: dto.selectedPlanPriceId ?? null,
-        userAgent: request.get('user-agent') ?? null,
+        credential,
+        selectedPlanPriceId: selectedPlanPriceId ?? null,
+        termsVersion,
+        privacyNoticeVersion,
+        ipAddress: request.ip?.slice(0, 45) ?? null,
+        userAgent: request.get('user-agent')?.slice(0, 300) ?? null,
         previousRefreshToken: this.cookies.refresh(request),
       }),
     );
