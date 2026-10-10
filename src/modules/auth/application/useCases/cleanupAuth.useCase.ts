@@ -13,6 +13,7 @@ export class CleanupAuthUseCase {
     }
 
     return this.repository.cleanup({
+      refreshTokenBefore: now,
       expiredBefore: new Date(now.getTime() - this.retentionDays * 86400000),
       rateLimitBefore: new Date(now.getTime() - 86400000),
       limit: 500,

@@ -35,6 +35,7 @@ export interface AuthPolicy {
 }
 
 export interface AuthCleanupParams {
+  refreshTokenBefore: Date;
   expiredBefore: Date;
   rateLimitBefore: Date;
   limit: number;

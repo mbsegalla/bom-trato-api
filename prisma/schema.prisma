@@ -279,6 +279,7 @@ model RefreshToken {
   authSession AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
+  @@index([expiresAt])
 }
 
 model AuthActionToken {
