@@ -1,5 +1,8 @@
 allowBuilds:
+  '@newrelic/fn-inspect': false
+  '@newrelic/native-metrics': false
   '@prisma/engines': true
   '@scarf/scarf': true
   argon2: true
   prisma: true
+  protobufjs: false
