@@ -27,6 +27,7 @@ import { HandleDeletedBillingCustomerUseCase } from './application/useCases/hand
 import { ListBillingInvoicesUseCase } from './application/useCases/listBillingInvoices.useCase.js';
 import { PreviewPlanChangeUseCase } from './application/useCases/previewPlanChange.useCase.js';
 import { ReconcilePlanChangeUseCase } from './application/useCases/reconcilePlanChange.useCase.js';
+import { RefreshBillingUseCase } from './application/useCases/refreshBilling.useCase.js';
 import { ResumeSubscriptionUseCase } from './application/useCases/resumeSubscription.useCase.js';
 import { StartCheckoutUseCase } from './application/useCases/startCheckout.useCase.js';
 import { StartPaymentMethodUpdateUseCase } from './application/useCases/startPaymentMethodUpdate.useCase.js';
@@ -278,6 +279,12 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
         new HandleDeletedBillingCustomerUseCase(repository, lock),
       inject: [BillingRepository, BillingLock],
     },
+    {
+      provide: RefreshBillingUseCase,
+      useFactory: (repository: BillingRepository, syncBillingUseCase: SyncBillingUseCase) =>
+        new RefreshBillingUseCase(repository, syncBillingUseCase),
+      inject: [BillingRepository, SyncBillingUseCase],
+    },
   ],
   exports: [
     PlanChangeRepository,
@@ -306,6 +313,7 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
     SyncPaymentMethodUpdateUseCase,
     UpdateBillingCustomerNameUseCase,
     HandleDeletedBillingCustomerUseCase,
+    RefreshBillingUseCase,
   ],
 })
 export class BillingCoreModule {}
