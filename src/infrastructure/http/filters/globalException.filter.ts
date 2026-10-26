@@ -2,6 +2,7 @@ import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 
+import { reportNewRelicError } from '../../logging/newRelicErrorReporter.js';
 import { requestLogContext } from '../../logging/requestLogContext.js';
 import { safeError } from '../../logging/safeError.js';
 import { ApiException } from '../exceptions/api.exception.js';
@@ -66,6 +67,11 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
         responseCode: error.code,
         ...requestLogContext(),
         ...safeError(exception),
+      });
+
+      reportNewRelicError(exception, {
+        statusCode,
+        responseCode: error.code,
       });
     }
 
