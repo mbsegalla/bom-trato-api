@@ -9,10 +9,9 @@ import { CreateBillingPortalUseCase } from '../../../application/useCases/create
 import { GetEntitlementsUseCase } from '../../../application/useCases/getEntitlements.useCase.js';
 import { GetSubscriptionUseCase } from '../../../application/useCases/getSubscription.useCase.js';
 import { ListBillingInvoicesUseCase } from '../../../application/useCases/listBillingInvoices.useCase.js';
+import { RefreshBillingUseCase } from '../../../application/useCases/refreshBilling.useCase.js';
 import { ResumeSubscriptionUseCase } from '../../../application/useCases/resumeSubscription.useCase.js';
 import { StartCheckoutUseCase } from '../../../application/useCases/startCheckout.useCase.js';
-import { SyncBillingUseCase } from '../../../application/useCases/syncBilling.useCase.js';
-import { BillingRepository } from '../../../domain/repositories/billing.repository.js';
 import { billingOperation } from '../billingHttpError.js';
 import { InvoiceQueryDto, StartCheckoutDto } from '../dtos/requests/billingRequest.dto.js';
 import {
@@ -35,8 +34,7 @@ export class BillingController {
     private readonly cancelSubscriptionUseCase: CancelSubscriptionUseCase,
     private readonly resumeSubscriptionUseCase: ResumeSubscriptionUseCase,
     private readonly createBillingPortalUseCase: CreateBillingPortalUseCase,
-    private readonly syncBillingUseCase: SyncBillingUseCase,
-    private readonly billingRepository: BillingRepository,
+    private readonly refreshBillingUseCase: RefreshBillingUseCase,
   ) {}
 
   @Post('checkout')
@@ -154,13 +152,11 @@ export class BillingController {
     organizationId: string,
     @CurrentAuth() auth: AuthContext,
   ): Promise<void> {
-    return billingOperation(async () => {
-      await this.billingRepository.assertOwner(organizationId, auth.user.id);
-
-      await this.syncBillingUseCase.execute({
+    return billingOperation(() =>
+      this.refreshBillingUseCase.execute({
         organizationId,
-        reconcile: true,
-      });
-    });
+        userId: auth.user.id,
+      }),
+    );
   }
 }
