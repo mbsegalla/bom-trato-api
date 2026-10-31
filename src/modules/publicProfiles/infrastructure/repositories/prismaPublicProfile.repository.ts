@@ -67,6 +67,45 @@ const publicProfessionalDetailsSelect = {
   },
 } satisfies Prisma.PublicBusinessProfileSelect;
 
+const publicProfessionalListSelect = {
+  id: true,
+  slug: true,
+  headline: true,
+  description: true,
+  whatsappEnabled: true,
+  whatsappPhone: true,
+  ratingSum: true,
+  ratingCount: true,
+  organization: {
+    select: {
+      name: true,
+      logoKey: true,
+      city: true,
+      state: true,
+    },
+  },
+  services: {
+    where: {
+      catalogService: {
+        archivedAt: null,
+      },
+    },
+    orderBy: {
+      createdAt: 'asc',
+    },
+    take: 3,
+    select: {
+      catalogService: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.PublicBusinessProfileSelect;
+
 @Injectable()
 export class PrismaPublicProfileRepository extends PublicProfileRepository {
   constructor(private readonly prisma: PrismaService) {
@@ -221,131 +260,97 @@ export class PrismaPublicProfileRepository extends PublicProfileRepository {
   async listPublished(params: PublicProfessionalPageParams) {
     const { page, limit, search: searchInput, city: cityInput, state: stateInput } = params;
 
-    const search = searchInput?.trim();
-    const city = cityInput?.trim();
-    const state = stateInput?.trim().toUpperCase();
+    const search = searchInput?.trim() || null;
+    const city = cityInput?.trim() || null;
+    const state = stateInput?.trim().toUpperCase() || null;
 
-    const where: Prisma.PublicBusinessProfileWhereInput = {
-      published: true,
-      organization: {
-        setupCompletedAt: {
-          not: null,
-        },
-        city: city
-          ? {
-              not: null,
-              contains: city,
-              mode: 'insensitive',
-            }
-          : {
-              not: null,
-            },
-        state: state ? state : { not: null },
-      },
-    };
+    const profileIds = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT profile."id"
+      FROM "PublicBusinessProfile" profile
+      INNER JOIN "Organization" organization
+        ON organization."id" = profile."organizationId"
+      WHERE profile."published" = true
+        AND organization."setupCompletedAt" IS NOT NULL
+        AND organization."city" IS NOT NULL
+        AND organization."state" IS NOT NULL
+        AND (
+          ${city}::text IS NULL
+          OR POSITION(
+            unaccent(lower(${city}::text))
+            IN unaccent(lower(organization."city"))
+          ) > 0
+        )
+        AND (
+          ${state}::text IS NULL
+          OR upper(organization."state") = ${state}::text
+        )
+        AND (
+          ${search}::text IS NULL
+          OR POSITION(
+            unaccent(lower(${search}::text))
+            IN unaccent(lower(organization."name"))
+          ) > 0
+          OR POSITION(
+            unaccent(lower(${search}::text))
+            IN unaccent(lower(COALESCE(profile."headline", '')))
+          ) > 0
+          OR POSITION(
+            unaccent(lower(${search}::text))
+            IN unaccent(lower(COALESCE(profile."description", '')))
+          ) > 0
+          OR EXISTS (
+            SELECT 1
+            FROM "PublicBusinessProfileService" profileService
+            INNER JOIN "CatalogService" catalogService
+              ON catalogService."id" = profileService."catalogServiceId"
+            WHERE profileService."publicBusinessProfileId" = profile."id"
+              AND catalogService."archivedAt" IS NULL
+              AND POSITION(
+                unaccent(lower(${search}::text))
+                IN unaccent(lower(catalogService."name"))
+              ) > 0
+          )
+        )
+      ORDER BY
+        profile."reputationScore" DESC,
+        profile."ratingCount" DESC,
+        profile."publishedAt" DESC,
+        profile."id" DESC
+      OFFSET ${(page - 1) * limit}
+      LIMIT ${limit + 1}
+    `;
 
-    if (search) {
-      const sanitized = search.replace(/[\\%_]/g, '\\$&');
+    const hasMore = profileIds.length > limit;
 
-      where.OR = [
-        {
-          organization: {
-            name: {
-              contains: sanitized,
-              mode: 'insensitive',
-            },
-          },
-        },
-        {
-          headline: {
-            contains: sanitized,
-            mode: 'insensitive',
-          },
-        },
-        {
-          description: {
-            contains: sanitized,
-            mode: 'insensitive',
-          },
-        },
-        {
-          services: {
-            some: {
-              catalogService: {
-                archivedAt: null,
-                name: {
-                  contains: sanitized,
-                  mode: 'insensitive',
-                },
-              },
-            },
-          },
-        },
-      ];
+    const pageIds = profileIds.slice(0, limit).map((profile) => profile.id);
+
+    if (pageIds.length === 0) {
+      return {
+        page,
+        hasMore,
+        items: [],
+      };
     }
 
     const rows = await this.prisma.publicBusinessProfile.findMany({
-      where,
-      orderBy: [
-        {
-          reputationScore: 'desc',
-        },
-        {
-          ratingCount: 'desc',
-        },
-        {
-          publishedAt: 'desc',
-        },
-        {
-          id: 'desc',
-        },
-      ],
-
-      skip: (page - 1) * limit,
-      take: limit + 1,
-      select: {
-        slug: true,
-        headline: true,
-        description: true,
-        whatsappEnabled: true,
-        whatsappPhone: true,
-        ratingSum: true,
-        ratingCount: true,
-        organization: {
-          select: {
-            name: true,
-            logoKey: true,
-            city: true,
-            state: true,
-          },
-        },
-        services: {
-          where: {
-            catalogService: {
-              archivedAt: null,
-            },
-          },
-          orderBy: {
-            createdAt: 'asc',
-          },
-          take: 3,
-          select: {
-            catalogService: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-              },
-            },
-          },
+      where: {
+        id: {
+          in: pageIds,
         },
       },
+      select: publicProfessionalListSelect,
+    });
+
+    const positions = new Map(pageIds.map((id, index) => [id, index]));
+
+    rows.sort((left, right) => {
+      return (positions.get(left.id) ?? 0) - (positions.get(right.id) ?? 0);
     });
 
     return {
       page,
-      hasMore: rows.length > limit,
-      items: rows.slice(0, limit).map((row) => ({
+      hasMore,
+      items: rows.map((row) => ({
         slug: row.slug,
         headline: row.headline,
         description: row.description,
