@@ -63,3 +63,17 @@ export interface WorkOrderScheduleView extends Page<WorkOrderScheduleItem> {
   from: Date;
   to: Date;
 }
+
+export type WorkOrderReviewDeliveryResult =
+  | {
+      channel: 'EMAIL';
+      recipient: string;
+      token: null;
+      organizationName: string;
+    }
+  | {
+      channel: 'WHATSAPP';
+      recipient: string;
+      token: string;
+      organizationName: string;
+    };

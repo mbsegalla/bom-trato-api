@@ -1,8 +1,8 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
 import {
-  type QueueWorkOrderReviewInvitationParams,
-  type QueueWorkOrderReviewInvitationResult,
+  type CreateWorkOrderReviewInvitationParams,
+  type CreateWorkOrderReviewInvitationResult,
   WorkOrderReviewInvitationRepository,
 } from '../../application/ports/workOrderReviewInvitation.port.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
@@ -15,12 +15,14 @@ export class PrismaWorkOrderReviewInvitationRepository extends WorkOrderReviewIn
     super();
   }
 
-  async queue(params: QueueWorkOrderReviewInvitationParams): Promise<QueueWorkOrderReviewInvitationResult> {
-    if (params.organizationId !== this.organizationId) {
+  async create(params: CreateWorkOrderReviewInvitationParams): Promise<CreateWorkOrderReviewInvitationResult> {
+    const { id, customerEmail, workOrderId, now, organizationId, createdById, expiresAt, tokenHash } = params;
+
+    if (organizationId !== this.organizationId) {
       throw new WorkOrderError('WORK_ORDER_NOT_FOUND');
     }
 
-    const recipient = normalizeEmail(params.customerEmail);
+    const recipientEmail = customerEmail === null ? null : normalizeEmail(customerEmail);
 
     const profile = await this.db.publicBusinessProfile.findUnique({
       where: {
@@ -44,44 +46,45 @@ export class PrismaWorkOrderReviewInvitationRepository extends WorkOrderReviewIn
 
     if (profile === null) {
       return {
-        queued: false,
+        created: false,
         reason: 'NO_PUBLIC_PROFILE',
       };
     }
 
-    const organizationEmail = profile.organization.email === null ? null : normalizeEmail(profile.organization.email);
+    if (recipientEmail !== null) {
+      const organizationEmail = profile.organization.email === null ? null : normalizeEmail(profile.organization.email);
+      const ownerEmail = normalizeEmail(profile.organization.owner.email);
 
-    const ownerEmail = normalizeEmail(profile.organization.owner.email);
+      if (recipientEmail === organizationEmail || recipientEmail === ownerEmail) {
+        return {
+          created: false,
+          reason: 'ORGANIZATION_CONTACT',
+        };
+      }
 
-    if (recipient === organizationEmail || recipient === ownerEmail) {
-      return {
-        queued: false,
-        reason: 'ORGANIZATION_CONTACT',
-      };
-    }
-
-    const member = await this.db.organizationMember.findFirst({
-      where: {
-        organizationId: this.organizationId,
-        user: {
-          email: recipient,
+      const member = await this.db.organizationMember.findFirst({
+        where: {
+          organizationId: this.organizationId,
+          user: {
+            email: recipientEmail,
+          },
         },
-      },
-      select: {
-        id: true,
-      },
-    });
+        select: {
+          id: true,
+        },
+      });
 
-    if (member !== null) {
-      return {
-        queued: false,
-        reason: 'ORGANIZATION_CONTACT',
-      };
+      if (member !== null) {
+        return {
+          created: false,
+          reason: 'ORGANIZATION_CONTACT',
+        };
+      }
     }
 
     const existingReview = await this.db.professionalReview.findUnique({
       where: {
-        workOrderId: params.workOrderId,
+        workOrderId,
       },
       select: {
         id: true,
@@ -90,43 +93,40 @@ export class PrismaWorkOrderReviewInvitationRepository extends WorkOrderReviewIn
 
     if (existingReview !== null) {
       return {
-        queued: false,
+        created: false,
         reason: 'ALREADY_REVIEWED',
       };
     }
 
     await this.db.professionalReviewInvitation.updateMany({
       where: {
-        workOrderId: params.workOrderId,
+        workOrderId,
         usedAt: null,
         revokedAt: null,
       },
       data: {
-        revokedAt: params.now,
+        revokedAt: now,
       },
     });
 
     await this.db.professionalReviewInvitation.create({
       data: {
-        id: params.id,
+        id,
         publicBusinessProfileId: profile.id,
-        workOrderId: params.workOrderId,
-        tokenHash: params.tokenHash,
-        createdById: params.createdById,
-        expiresAt: params.expiresAt,
+        workOrderId,
+        tokenHash,
+        createdById,
+        expiresAt,
         revokedAt: null,
         usedAt: null,
-        createdAt: params.now,
-      },
-      select: {
-        id: true,
+        createdAt: now,
       },
     });
 
     return {
-      queued: true,
-      invitationId: params.id,
-      recipient,
+      created: true,
+      invitationId: id,
+      recipientEmail,
       organizationName: profile.organization.name,
     };
   }

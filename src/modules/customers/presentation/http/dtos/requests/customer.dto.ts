@@ -21,18 +21,11 @@ class CustomerContactDto {
   @MaxLength(254)
   email?: string | null;
 
-  @ApiPropertyOptional({
-    type: String,
-    nullable: true,
-    maxLength: 20,
-    example: '(34) 99999-9999',
-  })
-  @Transform(nullableText)
-  @IsOptional()
+  @ApiProperty({ example: '(34) 99999-9999' })
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
-  @MaxLength(20)
   @Matches(/^\+?[\d\s().-]+$/)
-  phone?: string | null;
+  phone!: string;
 
   @ApiPropertyOptional({
     type: String,
