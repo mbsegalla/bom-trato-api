@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { InAppNotificationType } from '../../../../generated/prisma/enums.js';
 import type { LeadDetails } from '../../domain/entities/lead.entity.js';
 import { Lead } from '../../domain/entities/lead.entity.js';
 import { LeadError } from '../../domain/errors/lead.error.js';
@@ -48,7 +49,7 @@ export class CreatePublicLeadUseCase {
             key: `lead-received/${state.id}/${userId}`,
             userId,
             organizationId: tx.organizationId,
-            type: 'LEAD_RECEIVED',
+            type: InAppNotificationType.LEAD_RECEIVED,
             title: 'Nova solicitação de orçamento',
             message: `${state.name} enviou uma nova solicitação${serviceDescription}.`,
             href: `/leads/${state.id}`,

@@ -17,6 +17,9 @@ export class CustomerResponseDto {
   phone!: string | null;
 
   @ApiProperty({ type: String, nullable: true })
+  defaultServiceAddress!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
   notes!: string | null;
 
   @ApiProperty({ type: Date, nullable: true })

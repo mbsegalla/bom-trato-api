@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsEnum, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsEnum, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 
 import { OrganizationDocumentType } from '../../../../../../generated/prisma/enums.js';
 
@@ -134,4 +134,15 @@ export class UpdateOrganizationProfileDto {
   @IsOptional()
   @Matches(/^\d{8}$/)
   postalCode?: string | null;
+
+  @ApiPropertyOptional({
+    minimum: 0,
+    maximum: 365,
+    default: 7,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  defaultReceivableDueDays?: number;
 }

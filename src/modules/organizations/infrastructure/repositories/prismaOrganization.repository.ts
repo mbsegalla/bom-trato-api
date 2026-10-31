@@ -22,6 +22,7 @@ const organizationSelect = {
   state: true,
   postalCode: true,
   ownerId: true,
+  defaultReceivableDueDays: true,
 } as const;
 
 @Injectable()

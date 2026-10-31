@@ -19,6 +19,7 @@ import { PrismaNotificationOutbox } from './infrastructure/repositories/prismaNo
 import { ResendEmailGateway } from './infrastructure/resend/resendEmail.gateway.js';
 import { NotificationCipher } from './infrastructure/security/notificationCipher.js';
 import { NotificationWorker } from './infrastructure/workers/notification.worker.js';
+import { OperationalReminderWorker } from './infrastructure/workers/operationalReminder.worker.js';
 import { InAppNotificationsController } from './presentation/http/controllers/inAppNotifications.controller.js';
 
 @Module({
@@ -34,6 +35,7 @@ import { InAppNotificationsController } from './presentation/http/controllers/in
     PrismaNotificationOutbox,
     ResendEmailGateway,
     NotificationWorker,
+    OperationalReminderWorker,
     NotificationRealtimeService,
     NotificationStreamTicketService,
     {

@@ -7,6 +7,7 @@ import {
   organizationTransaction,
   OrganizationTransactionMode,
 } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { PrismaWorkOrderRepository } from '../../../workOrders/infrastructure/repositories/prismaWorkOrder.repository.js';
 import type {
   QuoteActorParams,
   QuoteReadContext,
@@ -48,11 +49,60 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
     );
   }
 
+  private async findSingleAssignableMember(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+  ): Promise<string | null> {
+    const members = await db.organizationMember.findMany({
+      where: {
+        organizationId,
+        user: {
+          disabledAt: null,
+          emailVerifiedAt: {
+            not: null,
+          },
+        },
+      },
+      select: {
+        userId: true,
+      },
+      take: 2,
+    });
+
+    if (members.length !== 1) {
+      return null;
+    }
+
+    return members[0].userId;
+  }
+
+  private async findCustomerDefaultServiceAddress(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    customerId: string,
+  ): Promise<string | null> {
+    const customer = await db.customer.findFirst({
+      where: {
+        id: customerId,
+        organizationId,
+      },
+      select: {
+        defaultServiceAddress: true,
+      },
+    });
+
+    return customer?.defaultServiceAddress ?? null;
+  }
+
   private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
     return {
       quotes: new PrismaQuoteRepository(db, params.organizationId),
       shares: new PrismaQuoteShareRepository(db, params.organizationId),
       access: await readOrganizationAccess(db, params),
+      workOrders: new PrismaWorkOrderRepository(db, params.organizationId),
+      findSingleAssignableMember: () => this.findSingleAssignableMember(db, params.organizationId),
+      findCustomerDefaultServiceAddress: (customerId) =>
+        this.findCustomerDefaultServiceAddress(db, params.organizationId, customerId),
       findOrganization: () =>
         db.organization.findUnique({
           where: {

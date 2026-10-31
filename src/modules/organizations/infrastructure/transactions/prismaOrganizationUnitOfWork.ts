@@ -120,6 +120,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
         state: true,
         postalCode: true,
         ownerId: true,
+        defaultReceivableDueDays: true,
       },
     });
 
@@ -173,6 +174,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
         city: organization.city,
         state: organization.state,
         postalCode: organization.postalCode,
+        defaultReceivableDueDays: organization.defaultReceivableDueDays,
       },
     });
 

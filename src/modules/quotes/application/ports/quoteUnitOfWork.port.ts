@@ -1,5 +1,6 @@
 import type { ServiceUnit } from '../../../../generated/prisma/enums.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
+import type { WorkOrderRepository } from '../../../workOrders/domain/repositories/workOrder.repository.js';
 import type { QuoteRepository } from '../../domain/repositories/quote.repository.js';
 import type { QuoteShareRepository } from '../../domain/repositories/quoteShare.repository.js';
 
@@ -40,9 +41,12 @@ export interface QuoteTransaction {
   readonly quotes: QuoteRepository;
   readonly access: OrganizationAccessContext;
   readonly shares: QuoteShareRepository;
+  readonly workOrders: Pick<WorkOrderRepository, 'findByQuoteId' | 'create'>;
   findOrganization(): Promise<QuoteOrganizationSource | null>;
   findCustomer(id: string): Promise<QuoteCustomerSource | null>;
   findCatalogService(id: string): Promise<QuoteCatalogSource | null>;
+  findSingleAssignableMember(): Promise<string | null>;
+  findCustomerDefaultServiceAddress(customerId: string): Promise<string | null>;
 }
 
 export abstract class QuoteUnitOfWork {

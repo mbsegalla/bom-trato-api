@@ -13,7 +13,8 @@ export type OrganizationErrorCode =
   | 'ORGANIZATION_LOGO_STORAGE_FAILED'
   | 'EMPTY_ORGANIZATION_UPDATE'
   | 'IDEMPOTENCY_CONFLICT'
-  | 'VERIFIED_USER_REQUIRED';
+  | 'VERIFIED_USER_REQUIRED'
+  | 'INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS';
 
 export class OrganizationError extends Error {
   constructor(readonly code: OrganizationErrorCode) {

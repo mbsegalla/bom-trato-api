@@ -71,4 +71,10 @@ export class OrganizationProfileResponseDto {
     nullable: true,
   })
   postalCode!: string | null;
+
+  @ApiProperty({
+    minimum: 0,
+    maximum: 365,
+  })
+  defaultReceivableDueDays!: number;
 }

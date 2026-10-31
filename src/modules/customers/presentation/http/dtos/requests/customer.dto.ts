@@ -37,6 +37,17 @@ class CustomerContactDto {
   @ApiPropertyOptional({
     type: String,
     nullable: true,
+    maxLength: 500,
+  })
+  @Transform(nullableText)
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  defaultServiceAddress?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
     maxLength: 5000,
   })
   @Transform(nullableText)

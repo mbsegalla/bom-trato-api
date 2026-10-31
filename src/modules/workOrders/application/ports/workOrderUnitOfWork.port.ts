@@ -2,6 +2,7 @@ import type { NotificationOutbox } from '../../../notifications/application/port
 import type { InAppNotificationRepository } from '../../../notifications/domain/repositories/inAppNotification.repository.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { QuoteProps } from '../../../quotes/domain/entities/quote.entity.js';
+import type { ReceivableRepository } from '../../../receivables/domain/repositories/receivable.repository.js';
 import type { WorkOrderRepository } from '../../domain/repositories/workOrder.repository.js';
 
 import type { WorkOrderReviewInvitationRepository } from './workOrderReviewInvitation.port.js';
@@ -20,6 +21,7 @@ export interface WorkOrderReadContext {
 
 export interface WorkOrderTransaction {
   readonly workOrders: WorkOrderRepository;
+  readonly receivables: Pick<ReceivableRepository, 'findByWorkOrderId' | 'create'>;
   readonly access: OrganizationAccessContext;
   readonly schedule: WorkOrderScheduleRepository;
   readonly inAppNotifications: Pick<InAppNotificationRepository, 'enqueue'>;
@@ -27,6 +29,9 @@ export interface WorkOrderTransaction {
   readonly reviewInvitations: WorkOrderReviewInvitationRepository;
   findQuote(quoteId: string): Promise<QuoteProps | null>;
   isAssignableMember(userId: string): Promise<boolean>;
+  findSingleAssignableMember(): Promise<string | null>;
+  findCustomerDefaultServiceAddress(customerId: string): Promise<string | null>;
+  findDefaultReceivableDueDays(): Promise<number>;
 }
 
 export abstract class WorkOrderUnitOfWork {

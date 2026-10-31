@@ -8,6 +8,7 @@ export interface CustomerProps {
   name: string;
   email: string | null;
   phone: string | null;
+  defaultServiceAddress: string | null;
   notes: string | null;
   archivedAt: Date | null;
   createdAt: Date;
@@ -18,6 +19,7 @@ export interface CustomerDetails {
   name: string;
   email?: string | null;
   phone?: string | null;
+  defaultServiceAddress?: string | null;
   notes?: string | null;
 }
 
@@ -44,7 +46,7 @@ export class Customer {
       throw new CustomerError('CUSTOMER_ARCHIVED');
     }
 
-    const values = [details.name, details.email, details.phone, details.notes];
+    const values = [details.name, details.email, details.phone, details.defaultServiceAddress, details.notes];
 
     if (values.every((value) => value === undefined)) {
       throw new CustomerError('EMPTY_CUSTOMER_UPDATE');
@@ -54,6 +56,8 @@ export class Customer {
       name: details.name === undefined ? this.props.name : details.name,
       email: details.email === undefined ? this.props.email : details.email,
       phone: details.phone === undefined ? this.props.phone : details.phone,
+      defaultServiceAddress:
+        details.defaultServiceAddress === undefined ? this.props.defaultServiceAddress : details.defaultServiceAddress,
       notes: details.notes === undefined ? this.props.notes : details.notes,
     });
 
@@ -96,6 +100,7 @@ export class Customer {
     }
 
     const phone = phoneInput === null ? null : normalizeBrazilianPhone(phoneInput);
+    const defaultServiceAddress = details.defaultServiceAddress?.trim() || null;
     const notes = details.notes?.trim() || null;
 
     if (name.length < 2 || name.length > 100) {
@@ -106,10 +111,14 @@ export class Customer {
       throw new CustomerError('INVALID_CUSTOMER_EMAIL');
     }
 
+    if (defaultServiceAddress !== null && defaultServiceAddress.length > 500) {
+      throw new CustomerError('INVALID_CUSTOMER_ADDRESS');
+    }
+
     if (notes !== null && notes.length > 5000) {
       throw new CustomerError('INVALID_CUSTOMER_NOTES');
     }
 
-    return { name, email, phone, notes };
+    return { name, email, phone, defaultServiceAddress, notes };
   }
 }
