@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { ensureReceivableFromWorkOrder } from '../../../receivables/application/services/receivableCreation.service.js';
 import type { ReviewSecurity } from '../../../reviews/application/ports/reviewSecurity.port.js';
 import type { WorkOrderApplicationService } from '../services/workOrderApplicationService.service.js';
 import type { ChangeWorkOrderParams } from '../types/workOrder.types.js';
@@ -18,13 +19,29 @@ export class CompleteWorkOrderUseCase {
       order.complete(now);
 
       const state = order.snapshot();
+      const dueDays = await tx.findDefaultReceivableDueDays();
+      const dueAt = new Date(now);
+
+      dueAt.setUTCDate(dueAt.getUTCDate() + dueDays);
+
+      await ensureReceivableFromWorkOrder({
+        receivables: tx.receivables,
+        organizationId: state.organizationId,
+        userId: params.userId,
+        source: state,
+        dueAt,
+        notes: null,
+        now,
+      });
 
       if (state.customerEmail === null) {
         return;
       }
 
       const token = this.reviewSecurity.issue();
+
       const expiresAt = new Date(now.getTime() + REVIEW_EXPIRATION_MS);
+
       const invitationId = randomUUID();
 
       const invitation = await tx.reviewInvitations.queue({

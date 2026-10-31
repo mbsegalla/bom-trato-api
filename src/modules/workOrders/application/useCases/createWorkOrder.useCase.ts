@@ -1,9 +1,7 @@
-import { randomUUID } from 'node:crypto';
-
-import { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import type { WorkOrderActorParams } from '../ports/workOrderUnitOfWork.port.js';
 import type { WorkOrderApplicationService } from '../services/workOrderApplicationService.service.js';
+import { ensureWorkOrderFromApprovedQuote } from '../services/workOrderCreation.service.js';
 
 export class CreateWorkOrderUseCase {
   constructor(private readonly processor: WorkOrderApplicationService) {}
@@ -22,19 +20,19 @@ export class CreateWorkOrderUseCase {
         throw new WorkOrderError('QUOTE_NOT_FOUND');
       }
 
-      const order = WorkOrder.create(
-        {
-          ...params,
-          id: randomUUID(),
-          quote,
-          itemIds: quote.items.map(() => randomUUID()),
-        },
-        new Date(),
-      );
+      const [assignedToId, serviceAddress] = await Promise.all([
+        tx.findSingleAssignableMember(),
+        tx.findCustomerDefaultServiceAddress(quote.customerId),
+      ]);
 
-      await tx.workOrders.create(order);
-
-      return order.snapshot();
+      return ensureWorkOrderFromApprovedQuote({
+        workOrders: tx.workOrders,
+        quote,
+        createdById: params.userId,
+        assignedToId,
+        serviceAddress,
+        now: new Date(),
+      });
     });
   }
 }

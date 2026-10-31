@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
+import { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import type { OrganizationTransactionMode } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { PrismaWorkOrderRepository } from '../../../workOrders/infrastructure/repositories/prismaWorkOrder.repository.js';
 import type {
   PublicQuoteReadContext,
   PublicQuoteTransaction,
@@ -26,6 +28,51 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
 
   run<T>(hash: string, operation: (tx: PublicQuoteTransaction) => Promise<T>): Promise<T> {
     return this.execute('write', hash, operation);
+  }
+
+  private async findSingleAssignableMember(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+  ): Promise<string | null> {
+    const members = await db.organizationMember.findMany({
+      where: {
+        organizationId,
+        user: {
+          disabledAt: null,
+          emailVerifiedAt: {
+            not: null,
+          },
+        },
+      },
+      select: {
+        userId: true,
+      },
+      take: 2,
+    });
+
+    if (members.length !== 1) {
+      return null;
+    }
+
+    return members[0].userId;
+  }
+
+  private async findCustomerDefaultServiceAddress(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    customerId: string,
+  ): Promise<string | null> {
+    const customer = await db.customer.findFirst({
+      where: {
+        id: customerId,
+        organizationId,
+      },
+      select: {
+        defaultServiceAddress: true,
+      },
+    });
+
+    return customer?.defaultServiceAddress ?? null;
   }
 
   private async execute<T>(
@@ -56,7 +103,11 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
         operation({
           quotes: new PrismaQuoteRepository(db, organizationId),
           shares: new PrismaQuoteShareRepository(db, organizationId),
+          workOrders: new PrismaWorkOrderRepository(db, organizationId),
           inAppNotifications: new PrismaInAppNotificationRepository(db),
+          findSingleAssignableMember: () => this.findSingleAssignableMember(db, organizationId),
+          findCustomerDefaultServiceAddress: (customerId) =>
+            this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
           findOrganization: () =>
             db.organization.findUnique({
               where: {

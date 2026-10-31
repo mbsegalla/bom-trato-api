@@ -65,6 +65,10 @@ const definitions = {
     status: HttpStatus.FORBIDDEN,
     message: 'An active user with a verified email is required.',
   },
+  INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization default receivable due days must be an integer between 0 and 365.',
+  },
 } satisfies Record<OrganizationErrorCode, { status: HttpStatus; message: string }>;
 
 export async function organizationOperation<T>(operation: () => Promise<T>): Promise<T> {

@@ -143,9 +143,13 @@ enum InAppNotificationType {
   LEAD_RECEIVED
   QUOTE_APPROVED
   QUOTE_DECLINED
+  QUOTE_FOLLOW_UP
   WORK_ORDER_ASSIGNED
   WORK_ORDER_SCHEDULED
   WORK_ORDER_RESCHEDULED
+  WORK_ORDER_REMINDER
+  RECEIVABLE_DUE_SOON
+  RECEIVABLE_OVERDUE
   ORGANIZATION_MEMBER_JOINED
   PAYMENT_FAILED
   PAYMENT_ACTION_REQUIRED
@@ -307,23 +311,24 @@ model AuthRateLimit {
 }
 
 model Organization {
-  id               String                    @id @default(uuid()) @db.Uuid
-  name             String                    @db.VarChar(100)
-  email            String?                   @db.VarChar(254)
-  phone            String?                   @db.VarChar(30)
-  logoKey          String?                   @db.VarChar(500)
-  documentType     OrganizationDocumentType?
-  document         String?                   @db.VarChar(14)
-  addressLine1     String?                   @db.VarChar(150)
-  addressLine2     String?                   @db.VarChar(100)
-  city             String?                   @db.VarChar(100)
-  state            String?                   @db.VarChar(2)
-  postalCode       String?                   @db.VarChar(8)
-  ownerId          String                    @db.Uuid
-  creationKey      String?                   @db.Uuid
-  setupCompletedAt DateTime?                 @db.Timestamptz(3)
-  createdAt        DateTime                  @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime                  @updatedAt @db.Timestamptz(3)
+  id                       String                    @id @default(uuid()) @db.Uuid
+  name                     String                    @db.VarChar(100)
+  email                    String?                   @db.VarChar(254)
+  phone                    String?                   @db.VarChar(30)
+  logoKey                  String?                   @db.VarChar(500)
+  documentType             OrganizationDocumentType?
+  document                 String?                   @db.VarChar(14)
+  addressLine1             String?                   @db.VarChar(150)
+  addressLine2             String?                   @db.VarChar(100)
+  city                     String?                   @db.VarChar(100)
+  state                    String?                   @db.VarChar(2)
+  postalCode               String?                   @db.VarChar(8)
+  defaultReceivableDueDays Int                       @default(7)
+  ownerId                  String                    @db.Uuid
+  creationKey              String?                   @db.Uuid
+  setupCompletedAt         DateTime?                 @db.Timestamptz(3)
+  createdAt                DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime                  @updatedAt @db.Timestamptz(3)
 
   owner                            User                              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   publicBusinessProfile            PublicBusinessProfile?
@@ -663,15 +668,16 @@ model OrganizationInvitationRateLimit {
 }
 
 model Customer {
-  id             String    @id @default(uuid()) @db.Uuid
-  organizationId String    @db.Uuid
-  name           String    @db.VarChar(100)
-  email          String?   @db.VarChar(254)
-  phone          String?   @db.VarChar(30)
-  notes          String?   @db.VarChar(5000)
-  archivedAt     DateTime? @db.Timestamptz(3)
-  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  id                    String    @id @default(uuid()) @db.Uuid
+  organizationId        String    @db.Uuid
+  name                  String    @db.VarChar(100)
+  email                 String?   @db.VarChar(254)
+  phone                 String?   @db.VarChar(30)
+  defaultServiceAddress String?   @db.VarChar(500)
+  notes                 String?   @db.VarChar(5000)
+  archivedAt            DateTime? @db.Timestamptz(3)
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
 
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   convertedLeads      Lead[]               @relation("LeadConvertedCustomer")

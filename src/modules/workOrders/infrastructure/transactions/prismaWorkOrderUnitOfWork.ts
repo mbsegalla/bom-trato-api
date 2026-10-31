@@ -7,6 +7,7 @@ import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { PrismaQuoteRepository } from '../../../quotes/infrastructure/repositories/prismaQuote.repository.js';
+import { PrismaReceivableRepository } from '../../../receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import type {
   WorkOrderActorParams,
   WorkOrderReadContext,
@@ -78,6 +79,64 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
     };
   }
 
+  private async findSingleAssignableMember(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+  ): Promise<string | null> {
+    const members = await db.organizationMember.findMany({
+      where: {
+        organizationId,
+        user: {
+          disabledAt: null,
+          emailVerifiedAt: {
+            not: null,
+          },
+        },
+      },
+      select: {
+        userId: true,
+      },
+      take: 2,
+    });
+
+    if (members.length !== 1) {
+      return null;
+    }
+
+    return members[0].userId;
+  }
+
+  private async findCustomerDefaultServiceAddress(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    customerId: string,
+  ): Promise<string | null> {
+    const customer = await db.customer.findFirst({
+      where: {
+        id: customerId,
+        organizationId,
+      },
+      select: {
+        defaultServiceAddress: true,
+      },
+    });
+
+    return customer?.defaultServiceAddress ?? null;
+  }
+
+  private async findDefaultReceivableDueDays(db: Prisma.TransactionClient, organizationId: string): Promise<number> {
+    const organization = await db.organization.findUnique({
+      where: {
+        id: organizationId,
+      },
+      select: {
+        defaultReceivableDueDays: true,
+      },
+    });
+
+    return organization?.defaultReceivableDueDays ?? 7;
+  }
+
   private async createTransactionContext(
     db: Prisma.TransactionClient,
     params: WorkOrderActorParams,
@@ -94,6 +153,11 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
       inAppNotifications: new PrismaInAppNotificationRepository(db),
       notifications: this.outbox.using(db, onNotificationInserted),
       reviewInvitations: new PrismaWorkOrderReviewInvitationRepository(db, organizationId),
+      receivables: new PrismaReceivableRepository(db, organizationId),
+      findSingleAssignableMember: () => this.findSingleAssignableMember(db, organizationId),
+      findCustomerDefaultServiceAddress: (customerId) =>
+        this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
+      findDefaultReceivableDueDays: () => this.findDefaultReceivableDueDays(db, organizationId),
       findQuote: (id) => quotes.findById(id),
       isAssignableMember: async (userId) => {
         const member = await db.organizationMember.findFirst({

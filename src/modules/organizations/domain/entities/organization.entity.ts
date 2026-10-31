@@ -15,6 +15,7 @@ export interface OrganizationBusinessDetails {
   city: string | null;
   state: string | null;
   postalCode: string | null;
+  defaultReceivableDueDays: number;
 }
 
 export interface OrganizationProps extends OrganizationBusinessDetails {
@@ -50,6 +51,7 @@ export class Organization {
         city: null,
         state: null,
         postalCode: null,
+        defaultReceivableDueDays: 7,
       }),
     });
   }
@@ -70,6 +72,7 @@ export class Organization {
       details.city,
       details.state,
       details.postalCode,
+      details.defaultReceivableDueDays,
     ];
 
     if (values.every((value) => value === undefined)) {
@@ -87,6 +90,7 @@ export class Organization {
       city: details.city === undefined ? this.props.city : details.city,
       state: details.state === undefined ? this.props.state : details.state,
       postalCode: details.postalCode === undefined ? this.props.postalCode : details.postalCode,
+      defaultReceivableDueDays: this.props.defaultReceivableDueDays,
     });
 
     this.props = {
@@ -142,6 +146,7 @@ export class Organization {
     const city = details.city?.trim() || null;
     const state = details.state?.trim().toUpperCase() || null;
     const postalCode = details.postalCode ? details.postalCode.replace(/\D/g, '') || null : null;
+    const defaultReceivableDueDays = details.defaultReceivableDueDays;
 
     if (name.length < 2 || name.length > 100) {
       throw new OrganizationError('INVALID_ORGANIZATION_NAME');
@@ -173,6 +178,10 @@ export class Organization {
       throw new OrganizationError('INVALID_ORGANIZATION_POSTAL_CODE');
     }
 
+    if (!Number.isInteger(defaultReceivableDueDays) || defaultReceivableDueDays < 0 || defaultReceivableDueDays > 365) {
+      throw new OrganizationError('INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS');
+    }
+
     return {
       name,
       email,
@@ -184,6 +193,7 @@ export class Organization {
       city,
       state,
       postalCode,
+      defaultReceivableDueDays,
     };
   }
 

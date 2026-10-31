@@ -1,3 +1,4 @@
+import { ensureWorkOrderFromApprovedQuote } from '../../../workOrders/application/services/workOrderCreation.service.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteShare } from '../../domain/entities/quoteShare.entity.js';
 import { QuoteShareError } from '../../domain/errors/quoteShare.error.js';
@@ -43,6 +44,7 @@ export class PublicQuoteApplicationService {
 
       if (changed) {
         await context.quotes.save(quote, previousVersion);
+
         await context.shares.saveDecision(share);
 
         const organization = await context.findOrganization();
@@ -56,14 +58,36 @@ export class PublicQuoteApplicationService {
 
         const approved = decision === 'APPROVED';
 
+        let href = `/quotes/${quoteState.id}`;
+
+        if (approved) {
+          const [assignedToId, serviceAddress] = await Promise.all([
+            context.findSingleAssignableMember(),
+            context.findCustomerDefaultServiceAddress(quoteState.customerId),
+          ]);
+
+          const workOrder = await ensureWorkOrderFromApprovedQuote({
+            workOrders: context.workOrders,
+            quote: quoteState,
+            createdById: organization.ownerId,
+            assignedToId,
+            serviceAddress,
+            now: new Date(),
+          });
+          href = `/work-orders/${workOrder.id}`;
+        }
+
         await context.inAppNotifications.enqueue({
           key: `quote-decision/${shareState.id}/${decision}/${shareState.decidedVersion}`,
           userId: organization.ownerId,
           organizationId: quoteState.organizationId,
           type: approved ? 'QUOTE_APPROVED' : 'QUOTE_DECLINED',
           title: approved ? 'Orçamento aprovado' : 'Orçamento recusado',
-          message: `${quoteState.customerName} ${approved ? 'aprovou' : 'recusou'} o orçamento "${quoteState.title}".`,
-          href: `/quotes/${quoteState.id}`,
+          message: approved
+            ? `${quoteState.customerName} aprovou o orçamento "${quoteState.title}". A ordem de serviço foi criada automaticamente.`
+            : `${quoteState.customerName} recusou o orçamento "${quoteState.title}".`,
+
+          href,
         });
       }
 

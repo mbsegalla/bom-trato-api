@@ -7,6 +7,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 
 import { notificationConfig } from '../../../../config/notification.config.js';
+import { NotificationStatus } from '../../../../generated/prisma/browser.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
@@ -134,11 +135,11 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
         SELECT "id"
         FROM "NotificationOutbox"
         WHERE (
-          "status" = 'PENDING'
+          "status" = ${NotificationStatus.PENDING}
           AND "availableAt" <= CURRENT_TIMESTAMP
         )
         OR (
-          "status" = 'PROCESSING'
+          "status" = ${NotificationStatus.PROCESSING}
           AND "leaseUntil" <= CURRENT_TIMESTAMP
         )
         ORDER BY "availableAt", "createdAt", "id"
@@ -147,7 +148,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       )
       UPDATE "NotificationOutbox" job
       SET
-        "status" = 'PROCESSING',
+        "status" = ${NotificationStatus.PROCESSING},
         "leaseToken" = ${token}::uuid,
         "leaseUntil" = CURRENT_TIMESTAMP + INTERVAL '2 minutes',
         "firstAttemptAt" = COALESCE(
@@ -174,7 +175,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     );
 
     if (Date.now() >= deadline || job.attempts > 16) {
-      await this.finish(job, 'SKIPPED', 'RETRY_WINDOW_EXPIRED');
+      await this.finish(job, NotificationStatus.SKIPPED, 'RETRY_WINDOW_EXPIRED');
 
       return true;
     }
@@ -188,7 +189,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
 
       message = this.cipher.decrypt(job.id, job.encryptedPayload);
     } catch {
-      await this.finish(job, 'FAILED', 'INVALID_ENCRYPTED_PAYLOAD');
+      await this.finish(job, NotificationStatus.FAILED, 'INVALID_ENCRYPTED_PAYLOAD');
 
       return true;
     }
@@ -210,7 +211,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       const availableAt = new Date(Date.now() + delay * 1000);
 
       if (!retryable || job.attempts >= 16 || availableAt.getTime() >= deadline) {
-        await this.finish(job, 'FAILED', code);
+        await this.finish(job, NotificationStatus.FAILED, code);
 
         return true;
       }
@@ -218,11 +219,11 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       await this.db.notificationOutbox.updateMany({
         where: {
           id: job.id,
-          status: 'PROCESSING',
+          status: NotificationStatus.PROCESSING,
           leaseToken: job.leaseToken,
         },
         data: {
-          status: 'PENDING',
+          status: NotificationStatus.PENDING,
           availableAt,
           leaseToken: null,
           leaseUntil: null,
@@ -245,11 +246,11 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     const result = await this.db.notificationOutbox.updateMany({
       where: {
         id: job.id,
-        status: 'PROCESSING',
+        status: NotificationStatus.PROCESSING,
         leaseToken: job.leaseToken,
       },
       data: {
-        status: 'ACCEPTED',
+        status: NotificationStatus.ACCEPTED,
         providerId,
         encryptedPayload: null,
         finishedAt: new Date(),
@@ -275,11 +276,11 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     return true;
   }
 
-  private async finish(job: NotificationJob, status: 'FAILED' | 'SKIPPED', code: string): Promise<void> {
+  private async finish(job: NotificationJob, status: NotificationStatus, code: string): Promise<void> {
     const result = await this.db.notificationOutbox.updateMany({
       where: {
         id: job.id,
-        status: 'PROCESSING',
+        status: NotificationStatus.PROCESSING,
         leaseToken: job.leaseToken,
       },
       data: {

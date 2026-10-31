@@ -127,6 +127,7 @@ export class PrismaCustomerRepository extends CustomerRepository {
           name: state.name,
           email: state.email,
           phone: state.phone,
+          defaultServiceAddress: state.defaultServiceAddress,
           notes: state.notes,
           archivedAt: state.archivedAt,
           updatedAt: state.updatedAt,
