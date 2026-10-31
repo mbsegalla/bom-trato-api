@@ -25,6 +25,11 @@ const statuses = {
   WORK_ORDERS_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
   INVALID_SCHEDULE_PERIOD: HttpStatus.BAD_REQUEST,
   WORK_ORDER_SCHEDULE_CONFLICT: HttpStatus.CONFLICT,
+  WORK_ORDER_NOT_COMPLETED: HttpStatus.CONFLICT,
+  CUSTOMER_CONTACT_REQUIRED: HttpStatus.CONFLICT,
+  REVIEW_PUBLIC_PROFILE_REQUIRED: HttpStatus.CONFLICT,
+  REVIEW_ALREADY_SUBMITTED: HttpStatus.CONFLICT,
+  REVIEW_RECIPIENT_NOT_ALLOWED: HttpStatus.CONFLICT,
 } satisfies Record<WorkOrderErrorCode, HttpStatus>;
 
 export function workOrderOperation<T>(operation: () => Promise<T>): Promise<T> {

@@ -17,6 +17,7 @@ import { ListWorkOrderScheduleUseCase } from './application/useCases/listWorkOrd
 import { ListWorkOrderScheduleHistoryUseCase } from './application/useCases/listWorkOrderScheduleHistory.useCase.js';
 import { ListWorkOrderStatusHistoryUseCase } from './application/useCases/listWorkOrderStatusHistory.useCase.js';
 import { ScheduleWorkOrderUseCase } from './application/useCases/scheduleWorkOrder.useCase.js';
+import { SendWorkOrderReviewInvitationUseCase } from './application/useCases/sendWorkOrderReviewInvitation.useCase.js';
 import { StartWorkOrderUseCase } from './application/useCases/startWorkOrder.useCase.js';
 import { UpdateWorkOrderUseCase } from './application/useCases/updateWorkOrder.useCase.js';
 import { UpdateWorkOrderExecutionNotesUseCase } from './application/useCases/updateWorkOrderExecutionNotes.useCase.js';
@@ -78,8 +79,13 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
     },
     {
       provide: CompleteWorkOrderUseCase,
+      useFactory: (processor: WorkOrderApplicationService) => new CompleteWorkOrderUseCase(processor),
+      inject: [WorkOrderApplicationService],
+    },
+    {
+      provide: SendWorkOrderReviewInvitationUseCase,
       useFactory: (processor: WorkOrderApplicationService, reviewSecurity: ReviewSecurity) =>
-        new CompleteWorkOrderUseCase(processor, reviewSecurity),
+        new SendWorkOrderReviewInvitationUseCase(processor, reviewSecurity),
       inject: [WorkOrderApplicationService, ReviewSecurity],
     },
     {

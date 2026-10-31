@@ -1,28 +1,28 @@
 export type WorkOrderReviewInvitationSkipReason = 'NO_PUBLIC_PROFILE' | 'ORGANIZATION_CONTACT' | 'ALREADY_REVIEWED';
 
-export interface QueueWorkOrderReviewInvitationParams {
+export interface CreateWorkOrderReviewInvitationParams {
   id: string;
   organizationId: string;
   workOrderId: string;
   createdById: string;
-  customerEmail: string;
+  customerEmail: string | null;
   tokenHash: string;
   expiresAt: Date;
   now: Date;
 }
 
-export type QueueWorkOrderReviewInvitationResult =
+export type CreateWorkOrderReviewInvitationResult =
   | {
-      queued: true;
+      created: true;
       invitationId: string;
-      recipient: string;
+      recipientEmail: string | null;
       organizationName: string;
     }
   | {
-      queued: false;
+      created: false;
       reason: WorkOrderReviewInvitationSkipReason;
     };
 
 export abstract class WorkOrderReviewInvitationRepository {
-  abstract queue(params: QueueWorkOrderReviewInvitationParams): Promise<QueueWorkOrderReviewInvitationResult>;
+  abstract create(params: CreateWorkOrderReviewInvitationParams): Promise<CreateWorkOrderReviewInvitationResult>;
 }

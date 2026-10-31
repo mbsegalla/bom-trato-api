@@ -15,6 +15,7 @@ import { ListWorkOrderScheduleUseCase } from '../../../application/useCases/list
 import { ListWorkOrderScheduleHistoryUseCase } from '../../../application/useCases/listWorkOrderScheduleHistory.useCase.js';
 import { ListWorkOrderStatusHistoryUseCase } from '../../../application/useCases/listWorkOrderStatusHistory.useCase.js';
 import { ScheduleWorkOrderUseCase } from '../../../application/useCases/scheduleWorkOrder.useCase.js';
+import { SendWorkOrderReviewInvitationUseCase } from '../../../application/useCases/sendWorkOrderReviewInvitation.useCase.js';
 import { StartWorkOrderUseCase } from '../../../application/useCases/startWorkOrder.useCase.js';
 import { UpdateWorkOrderUseCase } from '../../../application/useCases/updateWorkOrder.useCase.js';
 import { UpdateWorkOrderExecutionNotesUseCase } from '../../../application/useCases/updateWorkOrderExecutionNotes.useCase.js';
@@ -34,6 +35,7 @@ import {
   WorkOrdersResponseDto,
   WorkOrderStatusHistoryResponseDto,
 } from '../dtos/responses/workOrderResponse.dto.js';
+import { WorkOrderReviewDeliveryResponseDto } from '../dtos/responses/workOrderReviewResponse.dto.js';
 import {
   WorkOrderScheduleHistoryResponseDto,
   WorkOrderScheduleResponseDto,
@@ -60,6 +62,7 @@ export class WorkOrdersController {
     private readonly listWorkOrderStatusHistoryUseCase: ListWorkOrderStatusHistoryUseCase,
     private readonly listWorkOrderScheduleUseCase: ListWorkOrderScheduleUseCase,
     private readonly listWorkOrderScheduleHistoryUseCase: ListWorkOrderScheduleHistoryUseCase,
+    private readonly sendWorkOrderReviewInvitationUseCase: SendWorkOrderReviewInvitationUseCase,
   ) {}
 
   @Post()
@@ -229,6 +232,26 @@ export class WorkOrdersController {
         userId: auth.user.id,
         workOrderId,
         version: dto.version,
+      }),
+    );
+  }
+
+  @Post(':workOrderId/review-invitation')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Create and deliver a review invitation' })
+  @ApiDataResponse(WorkOrderReviewDeliveryResponseDto)
+  sendReviewInvitation(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid)
+    organizationId: string,
+    @Param('workOrderId', uuid)
+    workOrderId: string,
+  ): Promise<WorkOrderReviewDeliveryResponseDto> {
+    return workOrderOperation(() =>
+      this.sendWorkOrderReviewInvitationUseCase.execute({
+        organizationId,
+        userId: auth.user.id,
+        workOrderId,
       }),
     );
   }
