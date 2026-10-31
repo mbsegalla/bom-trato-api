@@ -198,16 +198,12 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     switch (work) {
       case BillingWork.WEBHOOKS:
         return this.processWebhooks();
-
       case BillingWork.PLAN_CHANGES:
         return this.processPlanChanges();
-
       case BillingWork.PAYMENT_METHOD_UPDATES:
         return this.processPaymentMethodUpdates();
-
       case BillingWork.CONFIRMATIONS:
         return this.processSuccessNotifications();
-
       case BillingWork.RECONCILIATION:
         return this.processReconciliation();
     }
