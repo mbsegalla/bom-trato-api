@@ -30,6 +30,7 @@ export abstract class BillingGateway {
   abstract validatePrice(price: AvailablePrice): Promise<void>;
   abstract createCheckout(params: CreateCheckoutParams): Promise<CheckoutResult>;
   abstract checkout(id: string): Promise<CheckoutResult>;
+  abstract expireCheckout(id: string): Promise<CheckoutResult>;
   abstract findCheckout(customerId: string, attemptId: string): Promise<CheckoutResult | null>;
   abstract updateCustomerName(customerId: string, name: string): Promise<void>;
   abstract snapshot(
