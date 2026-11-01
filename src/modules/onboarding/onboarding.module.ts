@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
+import { BillingGateway } from '../billing/application/ports/billingGateway.port.js';
+import { BillingLock } from '../billing/application/ports/billingLock.port.js';
 import { UpdateBillingCustomerNameUseCase } from '../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import { BillingCoreModule } from '../billing/billingCore.module.js';
+import { BillingRepository } from '../billing/domain/repositories/billing.repository.js';
 
 import { OnboardingApplicationService } from './application/services/onboardingApplicationService.service.js';
 import { BootstrapOnboardingUseCase } from './application/useCases/bootstrapOnboarding.useCase.js';
@@ -39,9 +42,14 @@ import { OnboardingController } from './presentation/http/controllers/onboarding
     },
     {
       provide: SelectOnboardingPlanUseCase,
-      useFactory: (repository: OnboardingRepository, service: OnboardingApplicationService) =>
-        new SelectOnboardingPlanUseCase(repository, service),
-      inject: [OnboardingRepository, OnboardingApplicationService],
+      useFactory: (
+        repository: OnboardingRepository,
+        service: OnboardingApplicationService,
+        billingRepository: BillingRepository,
+        billingGateway: BillingGateway,
+        billingLock: BillingLock,
+      ) => new SelectOnboardingPlanUseCase(repository, service, billingRepository, billingGateway, billingLock),
+      inject: [OnboardingRepository, OnboardingApplicationService, BillingRepository, BillingGateway, BillingLock],
     },
     {
       provide: CompleteOnboardingBusinessUseCase,

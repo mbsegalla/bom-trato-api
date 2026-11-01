@@ -227,6 +227,26 @@ export class StripeBillingGateway extends BillingGateway {
     return this.checkoutResult(await this.stripe.checkout.sessions.retrieve(id));
   }
 
+  async expireCheckout(id: string): Promise<CheckoutResult> {
+    const current = await this.stripe.checkout.sessions.retrieve(id);
+
+    if (current.status !== 'open') {
+      return this.checkoutResult(current);
+    }
+
+    try {
+      return this.checkoutResult(await this.stripe.checkout.sessions.expire(id));
+    } catch (error: unknown) {
+      const latest = await this.stripe.checkout.sessions.retrieve(id);
+
+      if (latest.status !== 'open') {
+        return this.checkoutResult(latest);
+      }
+
+      throw error;
+    }
+  }
+
   async findCheckout(customerId: string, attemptId: string): Promise<CheckoutResult | null> {
     for await (const session of this.stripe.checkout.sessions.list({
       customer: customerId,
@@ -405,7 +425,6 @@ export class StripeBillingGateway extends BillingGateway {
 
     const configuration = await this.stripe.billingPortal.configurations.retrieve(this.portalConfigurationId);
 
-    // Plan changes and immediate cancellation are outside this billing policy.
     if (
       !configuration.active ||
       configuration.features.payment_method_update.enabled ||
