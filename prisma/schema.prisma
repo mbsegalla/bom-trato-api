@@ -552,6 +552,7 @@ model BillingMutex {
   key              String   @id @db.VarChar(200)
   token            String   @unique @db.Uuid
   acquiredAt       DateTime @default(now()) @db.Timestamptz(3)
+  leaseUntil       DateTime @db.Timestamptz(3)
   recoveryRequired Boolean  @default(false)
 }
 

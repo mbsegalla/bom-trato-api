@@ -1,6 +1,6 @@
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
 import { Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import { reportNewRelicError } from '../../logging/newRelicErrorReporter.js';
 import { requestLogContext } from '../../logging/requestLogContext.js';
@@ -40,6 +40,8 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
+
+    const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
 
     const statusCode = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
@@ -63,6 +65,8 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
     if (statusCode >= 500) {
       this.logger.error({
         message: 'HTTP request failed',
+        method: request.method,
+        path: request.path,
         statusCode,
         responseCode: error.code,
         ...requestLogContext(),
@@ -70,6 +74,8 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
       });
 
       reportNewRelicError(exception, {
+        method: request.method,
+        path: request.path,
         statusCode,
         responseCode: error.code,
       });
