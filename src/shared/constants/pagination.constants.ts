@@ -1,0 +1,2 @@
+export const DEFAULT_PAGE_LIMIT = 10;
+export const PUBLIC_DIRECTORY_PAGE_LIMIT = 12;

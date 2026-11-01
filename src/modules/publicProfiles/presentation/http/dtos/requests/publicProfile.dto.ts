@@ -1,19 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Length,
   Matches,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
+import { PUBLIC_DIRECTORY_PAGE_LIMIT } from '../../../../../../shared/constants/pagination.constants.js';
 
 function nullableText({ value }: { value: unknown }): unknown {
   if (typeof value !== 'string') {
@@ -116,4 +120,15 @@ export class PublicProfessionalsQueryDto extends PageDto {
   @IsOptional()
   @Matches(/^[A-Z]{2}$/)
   state?: string;
+
+  @ApiPropertyOptional({
+    default: PUBLIC_DIRECTORY_PAGE_LIMIT,
+    minimum: 1,
+    maximum: 100,
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  override limit = PUBLIC_DIRECTORY_PAGE_LIMIT;
 }
