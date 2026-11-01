@@ -3,6 +3,13 @@ import Joi from 'joi';
 import type { EnvironmentVariables } from '../types/env.types.js';
 import { NodeEnvironment } from '../types/env.types.js';
 
+const resendTemplateSchema = Joi.string()
+  .trim()
+  .min(1)
+  .max(200)
+  .pattern(/^[A-Za-z0-9_-]+$/)
+  .required();
+
 export const envValidationSchema = Joi.object<EnvironmentVariables>({
   NODE_ENV: Joi.string()
     .valid(...Object.values(NodeEnvironment))
@@ -64,17 +71,11 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .required(),
 
   AUTH_JWT_ISSUER: Joi.string().trim().default('bom-trato-api'),
-
   AUTH_JWT_AUDIENCE: Joi.string().trim().default('bom-trato-web'),
-
   AUTH_ACCESS_TTL_SECONDS: Joi.number().integer().min(60).max(900).default(900),
-
   AUTH_IDLE_TTL_SECONDS: Joi.number().integer().min(900).max(2592000).default(604800),
-
   AUTH_ABSOLUTE_TTL_SECONDS: Joi.number().integer().min(900).max(7776000).default(2592000),
-
   AUTH_RETENTION_DAYS: Joi.number().integer().min(1).max(365).default(30),
-
   AUTH_CLEANUP_WORKER_ENABLED: Joi.boolean().default(true),
 
   RESEND_API_KEY: Joi.string().required(),
@@ -95,6 +96,18 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .pattern(/^[^<>\r\n]+$/)
     .required(),
 
+  RESEND_TEMPLATE_VERIFY_EMAIL: resendTemplateSchema,
+  RESEND_TEMPLATE_RESET_PASSWORD: resendTemplateSchema,
+  RESEND_TEMPLATE_PASSWORD_CHANGED: resendTemplateSchema,
+  RESEND_TEMPLATE_ORGANIZATION_INVITATION: resendTemplateSchema,
+  RESEND_TEMPLATE_PAYMENT_FAILED: resendTemplateSchema,
+  RESEND_TEMPLATE_PAYMENT_ACTION_REQUIRED: resendTemplateSchema,
+  RESEND_TEMPLATE_SUBSCRIPTION_CANCELED: resendTemplateSchema,
+  RESEND_TEMPLATE_SUBSCRIPTION_ACTIVATED: resendTemplateSchema,
+  RESEND_TEMPLATE_PAYMENT_CONFIRMED: resendTemplateSchema,
+  RESEND_TEMPLATE_PLAN_CHANGE_CONFIRMED: resendTemplateSchema,
+  RESEND_TEMPLATE_REVIEW_REQUEST: resendTemplateSchema,
+
   QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()
     .pattern(/^[a-fA-F0-9]{64}$/)
     .required(),
@@ -108,11 +121,8 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .required(),
 
   STORAGE_S3_REGION: Joi.string().trim().default('auto'),
-
   STORAGE_S3_ACCESS_KEY_ID: Joi.string().trim().min(1).required(),
-
   STORAGE_S3_SECRET_ACCESS_KEY: Joi.string().trim().min(1).required(),
-
   STORAGE_BUCKET: Joi.string().trim().min(3).max(63).required(),
 
   STORAGE_PUBLIC_BASE_URL: Joi.string()
