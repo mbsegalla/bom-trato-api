@@ -56,10 +56,13 @@ async function main(): Promise<void> {
     }
 
     if (action === 'list') {
+      const now = new Date();
+
       const locks = await prisma.billingMutex.findMany({
         select: {
           key: true,
           acquiredAt: true,
+          leaseUntil: true,
           recoveryRequired: true,
         },
         orderBy: {
@@ -70,7 +73,10 @@ async function main(): Promise<void> {
 
       logger.log({
         message: 'Billing locks (up to 100; tokens omitted)',
-        locks,
+        locks: locks.map((lock) => ({
+          ...lock,
+          expired: lock.leaseUntil <= now,
+        })),
       });
 
       const failedEvents = await prisma.stripeWebhookEvent.findMany({
@@ -92,9 +98,37 @@ async function main(): Promise<void> {
       return;
     }
 
+    if (action === 'inspect' && key) {
+      const now = new Date();
+
+      const lock = await prisma.billingMutex.findUnique({
+        where: {
+          key,
+        },
+        select: {
+          key: true,
+          token: true,
+          acquiredAt: true,
+          leaseUntil: true,
+          recoveryRequired: true,
+        },
+      });
+
+      logger.log({
+        message: 'Billing lock details',
+        lock:
+          lock === null
+            ? null
+            : {
+                ...lock,
+                expired: lock.leaseUntil <= now,
+              },
+      });
+
+      return;
+    }
+
     if (action === 'release' && key && token && acknowledgement === '--workers-stopped') {
-      // Operator must stop every API, worker and command process first.
-      // A time threshold alone cannot prove that a remote request finished.
       const result = await prisma.billingMutex.deleteMany({
         where: {
           key,
@@ -145,7 +179,7 @@ async function main(): Promise<void> {
     }
 
     throw new Error(
-      'Usage: list | release KEY TOKEN --workers-stopped | retry-event EVENT_ID | recover-customer ORGANIZATION_ID',
+      'Usage: list | inspect KEY | release KEY TOKEN --workers-stopped | retry-event EVENT_ID | recover-customer ORGANIZATION_ID',
     );
   } finally {
     await app.close();
