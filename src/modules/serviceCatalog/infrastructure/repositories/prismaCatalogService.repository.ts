@@ -88,6 +88,7 @@ export class PrismaCatalogServiceRepository extends CatalogServiceRepository {
         description: state.description,
         unit: state.unit,
         amountInCents: state.amountInCents,
+        estimatedDurationMinutes: state.estimatedDurationMinutes,
         archivedAt: state.archivedAt,
         updatedAt: state.updatedAt,
       },

@@ -21,6 +21,13 @@ export class CatalogServiceResponseDto {
   @ApiProperty({ type: Number, example: 35000 })
   amountInCents!: number;
 
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    example: 150,
+  })
+  estimatedDurationMinutes!: number | null;
+
   @ApiProperty({ example: 'brl' })
   currency!: string;
 

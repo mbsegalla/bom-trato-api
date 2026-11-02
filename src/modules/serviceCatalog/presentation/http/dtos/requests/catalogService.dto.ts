@@ -47,6 +47,19 @@ export class CreateCatalogServiceDto extends CatalogServiceDescriptionDto {
   @Min(0)
   @Max(2147483647)
   amountInCents!: number;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: 1,
+    maximum: 2147483647,
+    example: 150,
+  })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined && value !== null)
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  estimatedDurationMinutes?: number | null;
 }
 
 export class UpdateCatalogServiceDto extends CatalogServiceDescriptionDto {
@@ -75,6 +88,18 @@ export class UpdateCatalogServiceDto extends CatalogServiceDescriptionDto {
   @Min(0)
   @Max(2147483647)
   amountInCents?: number;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: 1,
+    maximum: 2147483647,
+  })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined && value !== null)
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  estimatedDurationMinutes?: number | null;
 }
 
 export class CatalogServicePageDto extends PageDto {

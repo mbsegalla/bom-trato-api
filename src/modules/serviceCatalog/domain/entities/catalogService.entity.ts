@@ -8,6 +8,7 @@ export interface CatalogServiceProps {
   description: string | null;
   unit: ServiceUnit;
   amountInCents: number;
+  estimatedDurationMinutes: number | null;
   currency: string;
   archivedAt: Date | null;
   createdAt: Date;
@@ -19,6 +20,7 @@ export interface CatalogServiceDetails {
   description?: string | null;
   unit: ServiceUnit;
   amountInCents: number;
+  estimatedDurationMinutes?: number | null;
 }
 
 export class CatalogService {
@@ -45,7 +47,13 @@ export class CatalogService {
       throw new CatalogServiceError('CATALOG_SERVICE_ARCHIVED');
     }
 
-    const values = [details.name, details.description, details.unit, details.amountInCents];
+    const values = [
+      details.name,
+      details.description,
+      details.unit,
+      details.amountInCents,
+      details.estimatedDurationMinutes,
+    ];
 
     if (values.every((value) => value === undefined)) {
       throw new CatalogServiceError('EMPTY_CATALOG_SERVICE_UPDATE');
@@ -56,6 +64,10 @@ export class CatalogService {
       description: details.description === undefined ? this.props.description : details.description,
       unit: details.unit === undefined ? this.props.unit : details.unit,
       amountInCents: details.amountInCents === undefined ? this.props.amountInCents : details.amountInCents,
+      estimatedDurationMinutes:
+        details.estimatedDurationMinutes === undefined
+          ? this.props.estimatedDurationMinutes
+          : details.estimatedDurationMinutes,
     });
 
     this.props = {
@@ -112,11 +124,22 @@ export class CatalogService {
       throw new CatalogServiceError('INVALID_CATALOG_SERVICE_AMOUNT');
     }
 
+    if (
+      details.estimatedDurationMinutes !== undefined &&
+      details.estimatedDurationMinutes !== null &&
+      (!Number.isSafeInteger(details.estimatedDurationMinutes) ||
+        details.estimatedDurationMinutes < 1 ||
+        details.estimatedDurationMinutes > 2147483647)
+    ) {
+      throw new CatalogServiceError('INVALID_CATALOG_SERVICE_DURATION');
+    }
+
     return {
       name: details.name.trim(),
       description: details.description?.trim() || null,
       unit: details.unit,
       amountInCents: details.amountInCents,
+      estimatedDurationMinutes: details.estimatedDurationMinutes ?? null,
     };
   }
 }
