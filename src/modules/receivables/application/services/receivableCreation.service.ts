@@ -1,13 +1,16 @@
 import { randomUUID } from 'node:crypto';
 
+import type { ReceivableKind } from '../../../../generated/prisma/enums.js';
 import { Receivable, type ReceivableSource, type ReceivableView } from '../../domain/entities/receivable.entity.js';
 import type { ReceivableRepository } from '../../domain/repositories/receivable.repository.js';
 
 interface EnsureReceivableFromWorkOrderParams {
-  receivables: Pick<ReceivableRepository, 'findByWorkOrderId' | 'create'>;
+  receivables: Pick<ReceivableRepository, 'findByWorkOrderIdAndKind' | 'create'>;
   organizationId: string;
   userId: string;
   source: ReceivableSource;
+  kind: ReceivableKind;
+  amountInCents: number;
   dueAt: Date;
   notes?: string | null;
   now: Date;
@@ -16,9 +19,9 @@ interface EnsureReceivableFromWorkOrderParams {
 export async function ensureReceivableFromWorkOrder(
   params: EnsureReceivableFromWorkOrderParams,
 ): Promise<ReceivableView> {
-  const { receivables, organizationId, userId, source, dueAt, notes, now } = params;
+  const { receivables, organizationId, userId, source, kind, amountInCents, dueAt, notes, now } = params;
 
-  const existing = await receivables.findByWorkOrderId(source.id);
+  const existing = await receivables.findByWorkOrderIdAndKind(source.id, kind);
 
   if (existing !== null) {
     return Receivable.restore(existing).view(now);
@@ -30,6 +33,8 @@ export async function ensureReceivableFromWorkOrder(
       organizationId,
       userId,
       source,
+      kind,
+      amountInCents,
       dueAt,
       notes,
     },

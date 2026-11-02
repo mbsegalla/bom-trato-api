@@ -16,7 +16,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-import { QuoteStatus, ServiceUnit } from '../../../../../../generated/prisma/enums.js';
+import { PaymentCondition, QuoteStatus, ServiceUnit } from '../../../../../../generated/prisma/enums.js';
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 
 class QuoteDetailsDto {
@@ -48,6 +48,26 @@ class QuoteDetailsDto {
   })
   @Matches(/T.*(?:Z|[+-]\d{2}:\d{2})$/)
   validUntil?: string | null;
+
+  @ApiPropertyOptional({
+    enum: PaymentCondition,
+    default: PaymentCondition.AFTER_COMPLETION,
+  })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsEnum(PaymentCondition)
+  paymentCondition?: PaymentCondition;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    minimum: 1,
+    maximum: 99,
+  })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined && value !== null)
+  @IsInt()
+  @Min(1)
+  @Max(99)
+  downPaymentPercentage?: number | null;
 }
 
 export class CreateQuoteDto extends QuoteDetailsDto {

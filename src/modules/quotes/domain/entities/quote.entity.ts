@@ -1,4 +1,4 @@
-import { QuoteStatus } from '../../../../generated/prisma/enums.js';
+import { PaymentCondition, QuoteStatus } from '../../../../generated/prisma/enums.js';
 import { QuoteError } from '../errors/quote.error.js';
 
 import type { QuoteItem, QuoteItemProps } from './quoteItem.entity.js';
@@ -8,6 +8,8 @@ export interface QuoteDetails {
   notes?: string | null;
   validUntil?: Date | null;
   discountInCents?: number;
+  paymentCondition?: PaymentCondition;
+  downPaymentPercentage?: number | null;
 }
 
 export interface QuoteProps {
@@ -24,6 +26,8 @@ export interface QuoteProps {
   discountInCents: number;
   subtotalInCents: number;
   totalInCents: number;
+  paymentCondition: PaymentCondition;
+  downPaymentPercentage: number | null;
   version: number;
   validUntil: Date | null;
   sentAt: Date | null;
@@ -69,6 +73,8 @@ export class Quote {
       discountInCents: 0,
       subtotalInCents: 0,
       totalInCents: 0,
+      paymentCondition: PaymentCondition.AFTER_COMPLETION,
+      downPaymentPercentage: null,
       version: 1,
       sentAt: null,
       decidedAt: null,
@@ -113,7 +119,14 @@ export class Quote {
     this.assertDraft();
 
     if (
-      [details.title, details.notes, details.validUntil, details.discountInCents].every((value) => value === undefined)
+      [
+        details.title,
+        details.notes,
+        details.validUntil,
+        details.discountInCents,
+        details.paymentCondition,
+        details.downPaymentPercentage,
+      ].every((value) => value === undefined)
     ) {
       throw new QuoteError('INVALID_QUOTE_INPUT');
     }
@@ -122,6 +135,12 @@ export class Quote {
     const notes = details.notes === undefined ? this.props.notes : details.notes;
     const validUntil = details.validUntil === undefined ? this.props.validUntil : details.validUntil;
     const discount = details.discountInCents === undefined ? this.props.discountInCents : details.discountInCents;
+    const paymentCondition = details.paymentCondition ?? this.props.paymentCondition;
+
+    const requestedDownPaymentPercentage =
+      details.downPaymentPercentage === undefined ? this.props.downPaymentPercentage : details.downPaymentPercentage;
+
+    const downPaymentPercentage = this.normalizeDownPaymentPercentage(paymentCondition, requestedDownPaymentPercentage);
 
     if (
       typeof title !== 'string' ||
@@ -149,6 +168,8 @@ export class Quote {
       notes: notes?.trim() || null,
       validUntil: validUntil === null ? null : new Date(validUntil),
       discountInCents: discount,
+      paymentCondition,
+      downPaymentPercentage,
     };
   }
 
@@ -190,6 +211,7 @@ export class Quote {
     }
 
     this.assertNotExpired(now);
+    this.assertPaymentCondition();
 
     this.props.status = QuoteStatus.SENT;
     this.props.sentAt = new Date(now);
@@ -221,6 +243,43 @@ export class Quote {
 
     this.props.status = status;
     this.props.decidedAt = new Date(now);
+  }
+
+  private normalizeDownPaymentPercentage(
+    paymentCondition: PaymentCondition,
+    downPaymentPercentage: number | null | undefined,
+  ): number | null {
+    if (paymentCondition !== PaymentCondition.DOWN_PAYMENT_AND_BALANCE) {
+      return null;
+    }
+
+    if (
+      downPaymentPercentage === null ||
+      downPaymentPercentage === undefined ||
+      !Number.isSafeInteger(downPaymentPercentage) ||
+      downPaymentPercentage < 1 ||
+      downPaymentPercentage > 99
+    ) {
+      throw new QuoteError('INVALID_QUOTE_INPUT');
+    }
+
+    return downPaymentPercentage;
+  }
+
+  private assertPaymentCondition(): void {
+    if (this.props.paymentCondition !== PaymentCondition.DOWN_PAYMENT_AND_BALANCE) {
+      return;
+    }
+
+    if (this.props.downPaymentPercentage === null) {
+      throw new QuoteError('INVALID_QUOTE_INPUT');
+    }
+
+    const downPaymentInCents = Math.round((this.props.totalInCents * this.props.downPaymentPercentage) / 100);
+
+    if (downPaymentInCents <= 0 || downPaymentInCents >= this.props.totalInCents) {
+      throw new QuoteError('INVALID_QUOTE_AMOUNT');
+    }
   }
 
   private assertDraft(): void {

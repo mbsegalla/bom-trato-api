@@ -71,7 +71,14 @@ export class QuoteApplicationService {
   }
 
   details(input: UpdateQuoteInput) {
-    const { title, notes, discountInCents, validUntil: inputValidUntil } = input;
+    const {
+      title,
+      notes,
+      discountInCents,
+      paymentCondition,
+      downPaymentPercentage,
+      validUntil: inputValidUntil,
+    } = input;
 
     let validUntil: Date | null | undefined;
 
@@ -83,6 +90,8 @@ export class QuoteApplicationService {
       title,
       notes,
       discountInCents,
+      paymentCondition,
+      downPaymentPercentage,
       validUntil,
     };
   }

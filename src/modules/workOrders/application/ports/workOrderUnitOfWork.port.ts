@@ -21,7 +21,10 @@ export interface WorkOrderReadContext {
 
 export interface WorkOrderTransaction {
   readonly workOrders: WorkOrderRepository;
-  readonly receivables: Pick<ReceivableRepository, 'findByWorkOrderId' | 'create'>;
+  readonly receivables: Pick<
+    ReceivableRepository,
+    'findByWorkOrderId' | 'findByWorkOrderIdAndKind' | 'listByWorkOrderId' | 'create' | 'save'
+  >;
   readonly access: OrganizationAccessContext;
   readonly schedule: WorkOrderScheduleRepository;
   readonly inAppNotifications: Pick<InAppNotificationRepository, 'enqueue'>;

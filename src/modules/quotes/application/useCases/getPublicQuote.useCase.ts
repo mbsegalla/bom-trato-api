@@ -18,6 +18,8 @@ export class GetPublicQuoteUseCase {
       subtotalInCents: quote.subtotalInCents,
       discountInCents: quote.discountInCents,
       totalInCents: quote.totalInCents,
+      paymentCondition: quote.paymentCondition,
+      downPaymentPercentage: quote.downPaymentPercentage,
       notes: quote.notes,
       validUntil: quote.validUntil,
       expiresAt: share.expiresAt,

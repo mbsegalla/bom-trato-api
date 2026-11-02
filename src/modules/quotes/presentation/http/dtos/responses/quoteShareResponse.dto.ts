@@ -38,6 +38,8 @@ export class PublicQuoteResponseDto extends PickType(QuoteResponseDto, [
   'subtotalInCents',
   'discountInCents',
   'totalInCents',
+  'paymentCondition',
+  'downPaymentPercentage',
   'notes',
   'validUntil',
 ] as const) {

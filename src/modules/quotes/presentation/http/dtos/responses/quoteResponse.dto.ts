@@ -1,6 +1,6 @@
 import { ApiProperty, PickType } from '@nestjs/swagger';
 
-import { QuoteStatus, ServiceUnit } from '../../../../../../generated/prisma/enums.js';
+import { PaymentCondition, QuoteStatus, ServiceUnit } from '../../../../../../generated/prisma/enums.js';
 
 export class QuoteItemResponseDto {
   @ApiProperty({ type: String, format: 'uuid' })
@@ -74,6 +74,17 @@ export class QuoteResponseDto {
 
   @ApiProperty({ type: Number })
   totalInCents!: number;
+
+  @ApiProperty({ enum: PaymentCondition })
+  paymentCondition!: PaymentCondition;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    minimum: 1,
+    maximum: 99,
+  })
+  downPaymentPercentage!: number | null;
 
   @ApiProperty({ type: Number })
   version!: number;

@@ -1,3 +1,4 @@
+import type { PaymentCondition } from '../../../../generated/prisma/enums.js';
 import type { QuoteProps } from '../../domain/entities/quote.entity.js';
 import type { QuoteItemDetails } from '../../domain/entities/quoteItem.entity.js';
 import type { QuoteShareProps } from '../../domain/entities/quoteShare.entity.js';
@@ -15,6 +16,8 @@ export interface QuoteDetailsInput {
   title: string;
   notes?: string | null;
   validUntil?: string | null;
+  paymentCondition?: PaymentCondition;
+  downPaymentPercentage?: number | null;
 }
 
 export interface UpdateQuoteInput extends Partial<QuoteDetailsInput> {
@@ -56,6 +59,8 @@ export interface QuotePdfData {
     | 'subtotalInCents'
     | 'discountInCents'
     | 'totalInCents'
+    | 'paymentCondition'
+    | 'downPaymentPercentage'
     | 'createdAt'
     | 'validUntil'
     | 'notes'
