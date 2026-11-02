@@ -1,3 +1,4 @@
+import { ensureInitialReceivableFromQuote } from '../../../receivables/application/services/receivableAutomation.service.js';
 import { ensureWorkOrderFromApprovedQuote } from '../../../workOrders/application/services/workOrderCreation.service.js';
 import type { QuoteApplicationService } from '../services/quoteApplicationService.service.js';
 import type { ChangeQuoteParams } from '../types/quote.types.js';
@@ -16,12 +17,21 @@ export class ApproveQuoteUseCase {
         tx.findCustomerDefaultServiceAddress(state.customerId),
       ]);
 
-      await ensureWorkOrderFromApprovedQuote({
+      const workOrder = await ensureWorkOrderFromApprovedQuote({
         workOrders: tx.workOrders,
         quote: state,
         createdById: params.userId,
         assignedToId,
         serviceAddress,
+        now,
+      });
+
+      await ensureInitialReceivableFromQuote({
+        receivables: tx.receivables,
+        organizationId: state.organizationId,
+        userId: params.userId,
+        source: workOrder,
+        quote: state,
         now,
       });
     });

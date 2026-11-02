@@ -5,6 +5,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import type { OrganizationTransactionMode } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { PrismaReceivableRepository } from '../../../receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import { PrismaWorkOrderRepository } from '../../../workOrders/infrastructure/repositories/prismaWorkOrder.repository.js';
 import type {
   PublicQuoteReadContext,
@@ -104,6 +105,7 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
           quotes: new PrismaQuoteRepository(db, organizationId),
           shares: new PrismaQuoteShareRepository(db, organizationId),
           workOrders: new PrismaWorkOrderRepository(db, organizationId),
+          receivables: new PrismaReceivableRepository(db, organizationId),
           inAppNotifications: new PrismaInAppNotificationRepository(db),
           findSingleAssignableMember: () => this.findSingleAssignableMember(db, organizationId),
           findCustomerDefaultServiceAddress: (customerId) =>

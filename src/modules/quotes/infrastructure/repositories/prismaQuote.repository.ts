@@ -138,6 +138,8 @@ export class PrismaQuoteRepository extends QuoteRepository {
         discountInCents: state.discountInCents,
         subtotalInCents: state.subtotalInCents,
         totalInCents: state.totalInCents,
+        paymentCondition: state.paymentCondition,
+        downPaymentPercentage: state.downPaymentPercentage,
         version: state.version,
         sentAt: state.sentAt,
         decidedAt: state.decidedAt,

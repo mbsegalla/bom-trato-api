@@ -1,4 +1,5 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
+import type { ReceivableKind } from '../../../../generated/prisma/enums.js';
 import { ReceivableStatus } from '../../../../generated/prisma/enums.js';
 import type { Receivable, ReceivableProps } from '../../domain/entities/receivable.entity.js';
 import type { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
@@ -35,6 +36,27 @@ export class PrismaReceivableRepository extends ReceivableRepository {
         workOrderId,
         organizationId: this.organizationId,
       },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+  }
+
+  findByWorkOrderIdAndKind(workOrderId: string, kind: ReceivableKind) {
+    return this.db.receivable.findFirst({
+      where: {
+        workOrderId,
+        kind,
+        organizationId: this.organizationId,
+      },
+    });
+  }
+
+  listByWorkOrderId(workOrderId: string) {
+    return this.db.receivable.findMany({
+      where: {
+        workOrderId,
+        organizationId: this.organizationId,
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
   }
 

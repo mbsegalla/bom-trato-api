@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { ReceivablePaymentMethod, ReceivableStatus } from '../../../../../../generated/prisma/enums.js';
+import { ReceivableKind, ReceivablePaymentMethod, ReceivableStatus } from '../../../../../../generated/prisma/enums.js';
 
 export class ReceivableResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -11,6 +11,9 @@ export class ReceivableResponseDto {
 
   @ApiProperty({ format: 'uuid' })
   workOrderId!: string;
+
+  @ApiProperty({ enum: ReceivableKind })
+  kind!: ReceivableKind;
 
   @ApiProperty({ format: 'uuid' })
   customerId!: string;

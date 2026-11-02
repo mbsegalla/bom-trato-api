@@ -7,6 +7,7 @@ import {
   organizationTransaction,
   OrganizationTransactionMode,
 } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { PrismaReceivableRepository } from '../../../receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import { PrismaWorkOrderRepository } from '../../../workOrders/infrastructure/repositories/prismaWorkOrder.repository.js';
 import type {
   QuoteActorParams,
@@ -100,6 +101,7 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
       shares: new PrismaQuoteShareRepository(db, params.organizationId),
       access: await readOrganizationAccess(db, params),
       workOrders: new PrismaWorkOrderRepository(db, params.organizationId),
+      receivables: new PrismaReceivableRepository(db, params.organizationId),
       findSingleAssignableMember: () => this.findSingleAssignableMember(db, params.organizationId),
       findCustomerDefaultServiceAddress: (customerId) =>
         this.findCustomerDefaultServiceAddress(db, params.organizationId, customerId),

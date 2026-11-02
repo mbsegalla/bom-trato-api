@@ -1,7 +1,7 @@
 import PDFDocument from 'pdfkit';
 
 import type { ServiceUnit } from '../../../../generated/prisma/enums.js';
-import { QuoteStatus } from '../../../../generated/prisma/enums.js';
+import { PaymentCondition, QuoteStatus } from '../../../../generated/prisma/enums.js';
 import { QuotePdfGenerator } from '../../application/ports/quotePdfGenerator.port.js';
 import type { QuotePdfData } from '../../application/types/quote.types.js';
 
@@ -158,6 +158,26 @@ class QuotePdfLayout {
     this.totalLine('Subtotal', amount(quote.subtotalInCents));
     this.totalLine('Desconto', amount(quote.discountInCents));
     this.totalLine('Total', amount(quote.totalInCents), true);
+
+    this.section('Condições de pagamento');
+
+    switch (quote.paymentCondition) {
+      case PaymentCondition.AFTER_COMPLETION:
+        this.text('Pagamento integral após a conclusão do serviço.');
+        break;
+      case PaymentCondition.UPFRONT:
+        this.text('Pagamento integral antecipado.');
+        break;
+      case PaymentCondition.DOWN_PAYMENT_AND_BALANCE: {
+        const percentage = quote.downPaymentPercentage ?? 0;
+        const downPaymentInCents = Math.round((quote.totalInCents * percentage) / 100);
+        const remainingBalanceInCents = quote.totalInCents - downPaymentInCents;
+
+        this.text(`Entrada de ${percentage}%: ${amount(downPaymentInCents)}.`);
+        this.text(`Saldo restante após a conclusão do serviço: ${amount(remainingBalanceInCents)}.`);
+        break;
+      }
+    }
 
     if (quote.notes !== null && quote.notes.trim() !== '') {
       this.section('Observações');

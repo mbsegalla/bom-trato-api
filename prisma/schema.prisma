@@ -166,6 +166,18 @@ enum LeadStatus {
   ARCHIVED
 }
 
+enum PaymentCondition {
+  AFTER_COMPLETION
+  UPFRONT
+  DOWN_PAYMENT_AND_BALANCE
+}
+
+enum ReceivableKind {
+  FULL
+  DOWN_PAYMENT
+  REMAINING_BALANCE
+}
+
 model Plan {
   id                    String    @id @default(uuid()) @db.Uuid
   code                  String    @unique @db.VarChar(50)
@@ -713,28 +725,30 @@ model CatalogService {
 }
 
 model Quote {
-  id              String      @id @default(uuid()) @db.Uuid
-  organizationId  String      @db.Uuid
-  customerId      String      @db.Uuid
-  customerName    String      @db.VarChar(100)
-  customerEmail   String?     @db.VarChar(254)
-  customerPhone   String?     @db.VarChar(30)
-  title           String      @db.VarChar(150)
-  notes           String?     @db.VarChar(5000)
-  status          QuoteStatus @default(DRAFT)
-  currency        String      @default("brl") @db.VarChar(3)
-  discountInCents Int         @default(0)
-  subtotalInCents Int         @default(0)
-  totalInCents    Int         @default(0)
-  version         Int         @default(1)
-  validUntil      DateTime?   @db.Timestamptz(3)
-  sentAt          DateTime?   @db.Timestamptz(3)
-  decidedAt       DateTime?   @db.Timestamptz(3)
-  canceledAt      DateTime?   @db.Timestamptz(3)
-  createdById     String      @db.Uuid
-  updatedById     String?     @db.Uuid
-  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
+  id                    String           @id @default(uuid()) @db.Uuid
+  organizationId        String           @db.Uuid
+  customerId            String           @db.Uuid
+  customerName          String           @db.VarChar(100)
+  customerEmail         String?          @db.VarChar(254)
+  customerPhone         String?          @db.VarChar(30)
+  title                 String           @db.VarChar(150)
+  notes                 String?          @db.VarChar(5000)
+  status                QuoteStatus      @default(DRAFT)
+  currency              String           @default("brl") @db.VarChar(3)
+  discountInCents       Int              @default(0)
+  subtotalInCents       Int              @default(0)
+  totalInCents          Int              @default(0)
+  paymentCondition      PaymentCondition @default(AFTER_COMPLETION)
+  downPaymentPercentage Int?
+  version               Int              @default(1)
+  validUntil            DateTime?        @db.Timestamptz(3)
+  sentAt                DateTime?        @db.Timestamptz(3)
+  decidedAt             DateTime?        @db.Timestamptz(3)
+  canceledAt            DateTime?        @db.Timestamptz(3)
+  createdById           String           @db.Uuid
+  updatedById           String?          @db.Uuid
+  createdAt             DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime         @updatedAt @db.Timestamptz(3)
 
   organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   customer             Customer             @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
@@ -915,7 +929,8 @@ model WorkOrderScheduleHistory {
 model Receivable {
   id                 String           @id @default(uuid()) @db.Uuid
   organizationId     String           @db.Uuid
-  workOrderId        String           @unique @db.Uuid
+  workOrderId        String           @db.Uuid
+  kind               ReceivableKind   @default(FULL)
   customerId         String           @db.Uuid
   customerName       String           @db.VarChar(100)
   title              String           @db.VarChar(150)
@@ -939,6 +954,7 @@ model Receivable {
   customer           Customer            @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
   receivablePayments ReceivablePayment[]
 
+  @@unique([workOrderId, kind])
   @@index([organizationId, status, dueAt, id])
   @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([organizationId, customerId])

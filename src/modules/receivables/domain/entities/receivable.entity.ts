@@ -1,3 +1,4 @@
+import type { ReceivableKind } from '../../../../generated/prisma/enums.js';
 import { ReceivableStatus, WorkOrderStatus } from '../../../../generated/prisma/enums.js';
 import { ReceivableError } from '../errors/receivable.error.js';
 import {
@@ -13,6 +14,7 @@ export interface ReceivableProps {
   id: string;
   organizationId: string;
   workOrderId: string;
+  kind: ReceivableKind;
   customerId: string;
   customerName: string;
   title: string;
@@ -62,6 +64,8 @@ export class Receivable {
       organizationId: string;
       userId: string;
       source: ReceivableSource;
+      kind: ReceivableKind;
+      amountInCents: number;
       dueAt: Date;
       notes?: string | null;
     },
@@ -81,19 +85,24 @@ export class Receivable {
       throw new ReceivableError('INVALID_RECEIVABLE_INPUT');
     }
 
-    assertReceivableAmount(source.totalInCents);
+    assertReceivableAmount(params.amountInCents);
     assertReceivableDate(params.dueAt);
     assertReceivableDate(now);
+
+    if (params.amountInCents > source.totalInCents) {
+      throw new ReceivableError('INVALID_RECEIVABLE_INPUT');
+    }
 
     return new Receivable({
       id: params.id,
       organizationId: params.organizationId,
       workOrderId: source.id,
+      kind: params.kind,
       customerId: source.customerId,
       customerName: source.customerName,
       title: source.title,
       currency: source.currency,
-      amountInCents: source.totalInCents,
+      amountInCents: params.amountInCents,
       receivedInCents: 0,
       status: ReceivableStatus.OPEN,
       dueAt: new Date(params.dueAt),

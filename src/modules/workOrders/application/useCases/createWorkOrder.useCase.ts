@@ -1,3 +1,4 @@
+import { ensureInitialReceivableFromQuote } from '../../../receivables/application/services/receivableAutomation.service.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import type { WorkOrderActorParams } from '../ports/workOrderUnitOfWork.port.js';
 import type { WorkOrderApplicationService } from '../services/workOrderApplicationService.service.js';
@@ -8,16 +9,25 @@ export class CreateWorkOrderUseCase {
 
   execute(params: WorkOrderActorParams, quoteId: string) {
     return this.processor.run(params, async (tx) => {
-      const existing = await tx.workOrders.findByQuoteId(quoteId);
-
-      if (existing !== null) {
-        return existing;
-      }
-
       const quote = await tx.findQuote(quoteId);
 
       if (quote === null) {
         throw new WorkOrderError('QUOTE_NOT_FOUND');
+      }
+
+      const existing = await tx.workOrders.findByQuoteId(quoteId);
+
+      if (existing !== null) {
+        await ensureInitialReceivableFromQuote({
+          receivables: tx.receivables,
+          organizationId: params.organizationId,
+          userId: params.userId,
+          source: existing,
+          quote,
+          now: new Date(),
+        });
+
+        return existing;
       }
 
       const [assignedToId, serviceAddress] = await Promise.all([
@@ -25,14 +35,27 @@ export class CreateWorkOrderUseCase {
         tx.findCustomerDefaultServiceAddress(quote.customerId),
       ]);
 
-      return ensureWorkOrderFromApprovedQuote({
+      const now = new Date();
+
+      const workOrder = await ensureWorkOrderFromApprovedQuote({
         workOrders: tx.workOrders,
         quote,
         createdById: params.userId,
         assignedToId,
         serviceAddress,
-        now: new Date(),
+        now,
       });
+
+      await ensureInitialReceivableFromQuote({
+        receivables: tx.receivables,
+        organizationId: params.organizationId,
+        userId: params.userId,
+        source: workOrder,
+        quote,
+        now,
+      });
+
+      return workOrder;
     });
   }
 }

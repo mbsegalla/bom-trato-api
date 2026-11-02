@@ -1,3 +1,4 @@
+import { ensureInitialReceivableFromQuote } from '../../../receivables/application/services/receivableAutomation.service.js';
 import { ensureWorkOrderFromApprovedQuote } from '../../../workOrders/application/services/workOrderCreation.service.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteShare } from '../../domain/entities/quoteShare.entity.js';
@@ -66,14 +67,26 @@ export class PublicQuoteApplicationService {
             context.findCustomerDefaultServiceAddress(quoteState.customerId),
           ]);
 
+          const now = new Date();
+
           const workOrder = await ensureWorkOrderFromApprovedQuote({
             workOrders: context.workOrders,
             quote: quoteState,
             createdById: organization.ownerId,
             assignedToId,
             serviceAddress,
-            now: new Date(),
+            now,
           });
+
+          await ensureInitialReceivableFromQuote({
+            receivables: context.receivables,
+            organizationId: quoteState.organizationId,
+            userId: organization.ownerId,
+            source: workOrder,
+            quote: quoteState,
+            now,
+          });
+
           href = `/work-orders/${workOrder.id}`;
         }
 
@@ -86,7 +99,6 @@ export class PublicQuoteApplicationService {
           message: approved
             ? `${quoteState.customerName} aprovou o orçamento "${quoteState.title}". A ordem de serviço foi criada automaticamente.`
             : `${quoteState.customerName} recusou o orçamento "${quoteState.title}".`,
-
           href,
         });
       }
