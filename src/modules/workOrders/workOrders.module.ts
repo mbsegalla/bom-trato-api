@@ -79,8 +79,9 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
     },
     {
       provide: CompleteWorkOrderUseCase,
-      useFactory: (processor: WorkOrderApplicationService) => new CompleteWorkOrderUseCase(processor),
-      inject: [WorkOrderApplicationService],
+      useFactory: (processor: WorkOrderApplicationService, reviewSecurity: ReviewSecurity) =>
+        new CompleteWorkOrderUseCase(processor, reviewSecurity),
+      inject: [WorkOrderApplicationService, ReviewSecurity],
     },
     {
       provide: SendWorkOrderReviewInvitationUseCase,

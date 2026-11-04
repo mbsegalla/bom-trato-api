@@ -7,7 +7,13 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 
 import { notificationConfig } from '../../../../config/notification.config.js';
-import { NotificationStatus } from '../../../../generated/prisma/browser.js';
+import {
+  AutomationType,
+  NotificationStatus,
+  QuoteStatus,
+  ReceivableStatus,
+  WorkOrderStatus,
+} from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
@@ -45,7 +51,6 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
 
     this.logger.log('Notification worker started; event-driven processing with recovery every 60 seconds');
 
-    // Startup recovery does not depend on an event listener being ready.
     this.wake();
   }
 
@@ -119,8 +124,6 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       return;
     }
 
-    // Pace processing while work is available.
-    // Scheduling stops after a query finds no available job.
     this.timer = setTimeout(() => {
       this.timer = undefined;
       this.startProcessing();
@@ -176,6 +179,12 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
 
     if (Date.now() >= deadline || job.attempts > 16) {
       await this.finish(job, NotificationStatus.SKIPPED, 'RETRY_WINDOW_EXPIRED');
+
+      return true;
+    }
+
+    if (await this.shouldSkipAutomation(job)) {
+      await this.finish(job, NotificationStatus.SKIPPED, 'AUTOMATION_NO_LONGER_APPLICABLE');
 
       return true;
     }
@@ -241,8 +250,6 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       return true;
     }
 
-    // A persistence failure leaves the job recoverable with the same
-    // idempotency key and the same request body.
     const result = await this.db.notificationOutbox.updateMany({
       where: {
         id: job.id,
@@ -274,6 +281,150 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     }
 
     return true;
+  }
+
+  private async shouldSkipAutomation(job: NotificationJob): Promise<boolean> {
+    if (job.automationType === null) {
+      return false;
+    }
+
+    if (job.organizationId === null || job.automationEntityId === null) {
+      return true;
+    }
+
+    const now = new Date();
+
+    switch (job.automationType) {
+      case AutomationType.QUOTE_FOLLOW_UP: {
+        if (job.automationContextId === null) {
+          return true;
+        }
+
+        const share = await this.db.quoteShare.findFirst({
+          where: {
+            id: job.automationContextId,
+            quoteId: job.automationEntityId,
+            organizationId: job.organizationId,
+            revokedAt: null,
+            decision: null,
+            changeRequestedAt: null,
+            expiresAt: {
+              gt: now,
+            },
+          },
+          select: {
+            quoteVersion: true,
+            quote: {
+              select: {
+                version: true,
+                status: true,
+                validUntil: true,
+              },
+            },
+          },
+        });
+
+        return (
+          share === null ||
+          share.quote.status !== QuoteStatus.SENT ||
+          share.quote.version !== share.quoteVersion ||
+          (share.quote.validUntil !== null && share.quote.validUntil <= now)
+        );
+      }
+
+      case AutomationType.WORK_ORDER_REMINDER: {
+        if (job.automationReferenceAt === null) {
+          return true;
+        }
+
+        const order = await this.db.workOrder.findFirst({
+          where: {
+            id: job.automationEntityId,
+            organizationId: job.organizationId,
+          },
+          select: {
+            status: true,
+            scheduledStartAt: true,
+          },
+        });
+
+        return (
+          order === null ||
+          order.status !== WorkOrderStatus.SCHEDULED ||
+          order.scheduledStartAt === null ||
+          order.scheduledStartAt.getTime() !== job.automationReferenceAt.getTime() ||
+          order.scheduledStartAt <= now
+        );
+      }
+
+      case AutomationType.REVIEW_REQUEST: {
+        if (job.automationContextId === null) {
+          return true;
+        }
+
+        const invitation = await this.db.professionalReviewInvitation.findFirst({
+          where: {
+            id: job.automationContextId,
+            workOrderId: job.automationEntityId,
+            revokedAt: null,
+            usedAt: null,
+            expiresAt: {
+              gt: now,
+            },
+          },
+          select: {
+            workOrder: {
+              select: {
+                status: true,
+                professionalReview: {
+                  select: {
+                    id: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return (
+          invitation === null ||
+          invitation.workOrder.status !== WorkOrderStatus.COMPLETED ||
+          invitation.workOrder.professionalReview !== null
+        );
+      }
+
+      case AutomationType.RECEIVABLE_DUE_SOON:
+      case AutomationType.RECEIVABLE_OVERDUE: {
+        if (job.automationReferenceAt === null) {
+          return true;
+        }
+
+        const receivable = await this.db.receivable.findFirst({
+          where: {
+            id: job.automationEntityId,
+            organizationId: job.organizationId,
+          },
+          select: {
+            status: true,
+            dueAt: true,
+          },
+        });
+
+        if (
+          receivable === null ||
+          (receivable.status !== ReceivableStatus.OPEN && receivable.status !== ReceivableStatus.PARTIALLY_PAID) ||
+          receivable.dueAt.getTime() !== job.automationReferenceAt.getTime()
+        ) {
+          return true;
+        }
+
+        if (job.automationType === AutomationType.RECEIVABLE_DUE_SOON) {
+          return receivable.dueAt <= now;
+        }
+
+        return receivable.dueAt >= now;
+      }
+    }
   }
 
   private async finish(job: NotificationJob, status: NotificationStatus, code: string): Promise<void> {
@@ -317,7 +468,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       WITH candidates AS (
         SELECT "id"
         FROM "NotificationOutbox"
-        WHERE "finishedAt" < CURRENT_TIMESTAMP - INTERVAL '30 days'
+        WHERE "finishedAt" < CURRENT_TIMESTAMP - INTERVAL '90 days'
         ORDER BY "finishedAt", "id"
         LIMIT 1000
         FOR UPDATE SKIP LOCKED

@@ -1,6 +1,9 @@
 import { ApiProperty, PickType } from '@nestjs/swagger';
 
-import type { PublicQuoteDecisionResult } from '../../../../application/types/quote.types.js';
+import type {
+  PublicQuoteChangeRequestResult,
+  PublicQuoteDecisionResult,
+} from '../../../../application/types/quote.types.js';
 
 import { QuoteItemResponseDto, QuoteResponseDto } from './quoteResponse.dto.js';
 
@@ -52,6 +55,15 @@ export class PublicQuoteResponseDto extends PickType(QuoteResponseDto, [
   @ApiProperty()
   canDecide!: boolean;
 
+  @ApiProperty()
+  canRequestChange!: boolean;
+
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+  })
+  changeRequestedAt!: Date | null;
+
   @ApiProperty({ type: [PublicQuoteItemResponseDto] })
   items!: PublicQuoteItemResponseDto[];
 
@@ -68,4 +80,9 @@ export class PublicQuoteDecisionResponseDto implements PublicQuoteDecisionResult
 
   @ApiProperty({ type: Number })
   version!: number;
+}
+
+export class PublicQuoteChangeRequestResponseDto implements PublicQuoteChangeRequestResult {
+  @ApiProperty({ type: Date })
+  requestedAt!: Date;
 }

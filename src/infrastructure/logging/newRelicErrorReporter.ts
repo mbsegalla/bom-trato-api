@@ -37,17 +37,18 @@ function compactAttributes(
   return attributes;
 }
 
-function sanitizedError(error: unknown, errorCode: string): Error {
-  const errorName = error instanceof Error && error.name ? error.name : 'Error';
+function sanitizedError(error: unknown): Error {
+  const details = safeError(error);
 
-  const sanitized = new Error(errorCode);
+  const errorName = details.errorName ?? 'Error';
+  const errorMessage = details.errorMessage ?? details.errorCode;
+
+  const sanitized = new Error(errorMessage);
 
   sanitized.name = errorName;
 
-  if (error instanceof Error && error.stack) {
-    const stackFrames = error.stack.split('\n').filter((line) => line.trimStart().startsWith('at '));
-
-    sanitized.stack = [`${errorName}: ${errorCode}`, ...stackFrames].join('\n');
+  if (details.errorStack !== undefined) {
+    sanitized.stack = details.errorStack;
   }
 
   return sanitized;
@@ -66,10 +67,12 @@ export function reportNewRelicError(
   const errorDetails = safeError(error);
 
   newrelic.noticeError(
-    sanitizedError(error, errorDetails.errorCode),
+    sanitizedError(error),
     compactAttributes({
       ...requestLogContext(),
-      ...errorDetails,
+      errorCode: errorDetails.errorCode,
+      causeCode: errorDetails.causeCode,
+      upstreamStatus: errorDetails.upstreamStatus,
       ...additionalAttributes,
     }),
   );

@@ -2,6 +2,7 @@ import type { PaymentCondition } from '../../../../generated/prisma/enums.js';
 import type { QuoteProps } from '../../domain/entities/quote.entity.js';
 import type { QuoteItemDetails } from '../../domain/entities/quoteItem.entity.js';
 import type { QuoteShareProps } from '../../domain/entities/quoteShare.entity.js';
+import type { QuoteChangeRequest } from '../../domain/repositories/quoteShare.repository.js';
 import type { QuoteActorParams } from '../ports/quoteUnitOfWork.port.js';
 
 export interface QuoteByIdParams extends QuoteActorParams {
@@ -41,6 +42,14 @@ export interface PublicQuoteDecisionResult {
   status: 'APPROVED' | 'DECLINED';
   decidedAt: Date;
   version: number;
+}
+
+export interface PublicQuoteChangeRequestResult {
+  requestedAt: Date;
+}
+
+export interface QuoteDetailsResult extends QuoteProps {
+  changeRequest: QuoteChangeRequest | null;
 }
 
 export interface QuotePdfData {

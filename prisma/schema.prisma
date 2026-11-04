@@ -143,6 +143,7 @@ enum InAppNotificationType {
   LEAD_RECEIVED
   QUOTE_APPROVED
   QUOTE_DECLINED
+  QUOTE_CHANGE_REQUESTED
   QUOTE_FOLLOW_UP
   WORK_ORDER_ASSIGNED
   WORK_ORDER_SCHEDULED
@@ -176,6 +177,20 @@ enum ReceivableKind {
   FULL
   DOWN_PAYMENT
   REMAINING_BALANCE
+}
+
+enum AutomationType {
+  QUOTE_FOLLOW_UP
+  WORK_ORDER_REMINDER
+  REVIEW_REQUEST
+  RECEIVABLE_DUE_SOON
+  RECEIVABLE_OVERDUE
+}
+
+enum AutomationEntityType {
+  QUOTE
+  WORK_ORDER
+  RECEIVABLE
 }
 
 model Plan {
@@ -323,24 +338,28 @@ model AuthRateLimit {
 }
 
 model Organization {
-  id                       String                    @id @default(uuid()) @db.Uuid
-  name                     String                    @db.VarChar(100)
-  email                    String?                   @db.VarChar(254)
-  phone                    String?                   @db.VarChar(30)
-  logoKey                  String?                   @db.VarChar(500)
-  documentType             OrganizationDocumentType?
-  document                 String?                   @db.VarChar(14)
-  addressLine1             String?                   @db.VarChar(150)
-  addressLine2             String?                   @db.VarChar(100)
-  city                     String?                   @db.VarChar(100)
-  state                    String?                   @db.VarChar(2)
-  postalCode               String?                   @db.VarChar(8)
-  defaultReceivableDueDays Int                       @default(7)
-  ownerId                  String                    @db.Uuid
-  creationKey              String?                   @db.Uuid
-  setupCompletedAt         DateTime?                 @db.Timestamptz(3)
-  createdAt                DateTime                  @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime                  @updatedAt @db.Timestamptz(3)
+  id                            String                    @id @default(uuid()) @db.Uuid
+  name                          String                    @db.VarChar(100)
+  email                         String?                   @db.VarChar(254)
+  phone                         String?                   @db.VarChar(30)
+  logoKey                       String?                   @db.VarChar(500)
+  documentType                  OrganizationDocumentType?
+  document                      String?                   @db.VarChar(14)
+  addressLine1                  String?                   @db.VarChar(150)
+  addressLine2                  String?                   @db.VarChar(100)
+  city                          String?                   @db.VarChar(100)
+  state                         String?                   @db.VarChar(2)
+  postalCode                    String?                   @db.VarChar(8)
+  defaultReceivableDueDays      Int                       @default(7)
+  autoQuoteFollowUpEnabled      Boolean                   @default(false)
+  autoWorkOrderReminderEnabled  Boolean                   @default(false)
+  autoReviewRequestEnabled      Boolean                   @default(false)
+  autoReceivableReminderEnabled Boolean                   @default(false)
+  ownerId                       String                    @db.Uuid
+  creationKey                   String?                   @db.Uuid
+  setupCompletedAt              DateTime?                 @db.Timestamptz(3)
+  createdAt                     DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt                     DateTime                  @updatedAt @db.Timestamptz(3)
 
   owner                            User                              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   publicBusinessProfile            PublicBusinessProfile?
@@ -413,6 +432,7 @@ model ProfessionalReviewInvitation {
   workOrderId             String    @db.Uuid
   tokenHash               String    @unique @db.Char(64)
   createdById             String    @db.Uuid
+  automationKey           String?   @unique @db.VarChar(200)
   expiresAt               DateTime  @db.Timestamptz(3)
   revokedAt               DateTime? @db.Timestamptz(3)
   usedAt                  DateTime? @db.Timestamptz(3)
@@ -799,18 +819,20 @@ model QuoteStatusHistory {
 }
 
 model QuoteShare {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @db.Uuid
-  quoteId        String       @db.Uuid
-  quoteVersion   Int
-  tokenHash      String       @unique @db.VarChar(64)
-  createdById    String       @db.Uuid
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  expiresAt      DateTime     @db.Timestamptz(3)
-  revokedAt      DateTime?    @db.Timestamptz(3)
-  decision       QuoteStatus?
-  decidedAt      DateTime?    @db.Timestamptz(3)
-  decidedVersion Int?
+  id                   String       @id @default(uuid()) @db.Uuid
+  organizationId       String       @db.Uuid
+  quoteId              String       @db.Uuid
+  quoteVersion         Int
+  tokenHash            String       @unique @db.VarChar(64)
+  createdById          String       @db.Uuid
+  createdAt            DateTime     @default(now()) @db.Timestamptz(3)
+  expiresAt            DateTime     @db.Timestamptz(3)
+  revokedAt            DateTime?    @db.Timestamptz(3)
+  decision             QuoteStatus?
+  decidedAt            DateTime?    @db.Timestamptz(3)
+  decidedVersion       Int?
+  changeRequestedAt    DateTime?    @db.Timestamptz(3)
+  changeRequestMessage String?      @db.VarChar(2000)
 
   quote Quote @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
@@ -983,25 +1005,34 @@ model ReceivablePayment {
 }
 
 model NotificationOutbox {
-  id               String             @id @default(uuid()) @db.Uuid
-  key              String             @unique @db.VarChar(200)
-  type             String             @db.VarChar(50)
-  encryptedPayload String?            @db.Text
-  status           NotificationStatus @default(PENDING)
-  attempts         Int                @default(0)
-  availableAt      DateTime           @default(now()) @db.Timestamptz(3)
-  expiresAt        DateTime           @db.Timestamptz(3)
-  firstAttemptAt   DateTime?          @db.Timestamptz(3)
-  leaseToken       String?            @db.Uuid
-  leaseUntil       DateTime?          @db.Timestamptz(3)
-  providerId       String?            @db.VarChar(100)
-  lastErrorCode    String?            @db.VarChar(60)
-  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
-  finishedAt       DateTime?          @db.Timestamptz(3)
+  id                    String                @id @default(uuid()) @db.Uuid
+  key                   String                @unique @db.VarChar(200)
+  type                  String                @db.VarChar(50)
+  encryptedPayload      String?               @db.Text
+  status                NotificationStatus    @default(PENDING)
+  attempts              Int                   @default(0)
+  availableAt           DateTime              @default(now()) @db.Timestamptz(3)
+  expiresAt             DateTime              @db.Timestamptz(3)
+  firstAttemptAt        DateTime?             @db.Timestamptz(3)
+  leaseToken            String?               @db.Uuid
+  leaseUntil            DateTime?             @db.Timestamptz(3)
+  providerId            String?               @db.VarChar(100)
+  lastErrorCode         String?               @db.VarChar(60)
+  createdAt             DateTime              @default(now()) @db.Timestamptz(3)
+  finishedAt            DateTime?             @db.Timestamptz(3)
+  organizationId        String?               @db.Uuid
+  automationType        AutomationType?
+  automationEntityType  AutomationEntityType?
+  automationEntityId    String?               @db.Uuid
+  automationContextId   String?               @db.Uuid
+  automationReferenceAt DateTime?             @db.Timestamptz(3)
+  automationDescription String?               @db.VarChar(200)
+  automationHref        String?               @db.VarChar(500)
 
   @@index([status, availableAt, createdAt])
   @@index([status, leaseUntil])
   @@index([finishedAt])
+  @@index([organizationId, automationType, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model InAppNotification {

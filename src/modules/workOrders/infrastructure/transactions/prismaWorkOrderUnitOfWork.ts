@@ -10,6 +10,7 @@ import { PrismaQuoteRepository } from '../../../quotes/infrastructure/repositori
 import { PrismaReceivableRepository } from '../../../receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import type {
   WorkOrderActorParams,
+  WorkOrderAutomationSettings,
   WorkOrderReadContext,
   WorkOrderTransaction,
 } from '../../application/ports/workOrderUnitOfWork.port.js';
@@ -137,6 +138,24 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
     return organization?.defaultReceivableDueDays ?? 7;
   }
 
+  private async findAutomationSettings(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+  ): Promise<WorkOrderAutomationSettings> {
+    const organization = await db.organization.findUnique({
+      where: {
+        id: organizationId,
+      },
+      select: {
+        autoReviewRequestEnabled: true,
+      },
+    });
+
+    return {
+      autoReviewRequestEnabled: organization?.autoReviewRequestEnabled ?? false,
+    };
+  }
+
   private async createTransactionContext(
     db: Prisma.TransactionClient,
     params: WorkOrderActorParams,
@@ -158,6 +177,7 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
       findCustomerDefaultServiceAddress: (customerId) =>
         this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
       findDefaultReceivableDueDays: () => this.findDefaultReceivableDueDays(db, organizationId),
+      findAutomationSettings: () => this.findAutomationSettings(db, organizationId),
       findQuote: (id) => quotes.findById(id),
       isAssignableMember: async (userId) => {
         const member = await db.organizationMember.findFirst({

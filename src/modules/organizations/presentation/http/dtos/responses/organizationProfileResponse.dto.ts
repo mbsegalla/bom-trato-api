@@ -77,4 +77,16 @@ export class OrganizationProfileResponseDto {
     maximum: 365,
   })
   defaultReceivableDueDays!: number;
+
+  @ApiProperty()
+  autoQuoteFollowUpEnabled!: boolean;
+
+  @ApiProperty()
+  autoWorkOrderReminderEnabled!: boolean;
+
+  @ApiProperty()
+  autoReviewRequestEnabled!: boolean;
+
+  @ApiProperty()
+  autoReceivableReminderEnabled!: boolean;
 }

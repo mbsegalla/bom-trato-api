@@ -38,11 +38,13 @@ import {
   QuoteVersionDto,
   UpdateQuoteDto,
 } from '../dtos/requests/quote.dto.js';
-import { QuoteResponseDto, QuotesResponseDto } from '../dtos/responses/quoteResponse.dto.js';
+import { QuoteDetailsResponseDto, QuoteResponseDto, QuotesResponseDto } from '../dtos/responses/quoteResponse.dto.js';
 import { QuoteStatusHistoryResponseDto } from '../dtos/responses/quoteStatusHistoryResponse.dto.js';
 import { quoteOperation } from '../quoteHttpError.js';
 
-const uuid = new ParseUUIDPipe({ version: '4' });
+const uuid = new ParseUUIDPipe({
+  version: '4',
+});
 
 @ApiTags('Quotes')
 @ApiBearerAuth('access-token')
@@ -66,31 +68,55 @@ export class QuotesController {
 
   @Post()
   @HttpCode(201)
-  @ApiOperation({ summary: 'Create a draft quote' })
-  @ApiDataResponse(QuoteResponseDto, { status: 201 })
+  @ApiOperation({
+    summary: 'Create a draft quote',
+  })
+  @ApiDataResponse(QuoteResponseDto, {
+    status: 201,
+  })
   createQuote(
     @CurrentAuth() auth: AuthContext,
     @Param('organizationId', uuid) organizationId: string,
     @Body() dto: CreateQuoteDto,
   ): Promise<QuoteResponseDto> {
-    return quoteOperation(() => this.createQuoteUseCase.execute({ organizationId, userId: auth.user.id }, dto));
+    return quoteOperation(() =>
+      this.createQuoteUseCase.execute(
+        {
+          organizationId,
+          userId: auth.user.id,
+        },
+        dto,
+      ),
+    );
   }
 
   @Get()
-  @ApiOperation({ summary: 'List quotes' })
+  @ApiOperation({
+    summary: 'List quotes',
+  })
   @ApiDataResponse(QuotesResponseDto)
   listQuotes(
     @CurrentAuth() auth: AuthContext,
     @Param('organizationId', uuid) organizationId: string,
     @Query() dto: QuotePageDto,
   ): Promise<QuotesResponseDto> {
-    return quoteOperation(() => this.listQuotesUseCase.execute({ organizationId, userId: auth.user.id }, dto));
+    return quoteOperation(() =>
+      this.listQuotesUseCase.execute(
+        {
+          organizationId,
+          userId: auth.user.id,
+        },
+        dto,
+      ),
+    );
   }
 
   @Get(':quoteId/pdf')
   @Header('Cache-Control', 'private, no-store')
   @Header('X-Content-Type-Options', 'nosniff')
-  @ApiOperation({ summary: 'Download a quote as PDF' })
+  @ApiOperation({
+    summary: 'Download a quote as PDF',
+  })
   @ApiProduces('application/pdf')
   @ApiOkResponse({
     description: 'Quote PDF',
@@ -120,13 +146,15 @@ export class QuotesController {
   }
 
   @Get(':quoteId')
-  @ApiOperation({ summary: 'Get a quote' })
-  @ApiDataResponse(QuoteResponseDto)
+  @ApiOperation({
+    summary: 'Get a quote',
+  })
+  @ApiDataResponse(QuoteDetailsResponseDto)
   getQuote(
     @CurrentAuth() auth: AuthContext,
     @Param('organizationId', uuid) organizationId: string,
     @Param('quoteId', uuid) quoteId: string,
-  ): Promise<QuoteResponseDto> {
+  ): Promise<QuoteDetailsResponseDto> {
     return quoteOperation(() =>
       this.getQuoteUseCase.execute({
         organizationId,
@@ -137,7 +165,9 @@ export class QuotesController {
   }
 
   @Patch(':quoteId')
-  @ApiOperation({ summary: 'Update a draft quote' })
+  @ApiOperation({
+    summary: 'Update a draft quote',
+  })
   @ApiDataResponse(QuoteResponseDto)
   updateQuote(
     @CurrentAuth() auth: AuthContext,
@@ -160,7 +190,9 @@ export class QuotesController {
 
   @Post(':quoteId/items')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Add a quote item' })
+  @ApiOperation({
+    summary: 'Add a quote item',
+  })
   @ApiDataResponse(QuoteResponseDto)
   addQuoteItem(
     @CurrentAuth() auth: AuthContext,
@@ -182,7 +214,9 @@ export class QuotesController {
   }
 
   @Put(':quoteId/items/:itemId')
-  @ApiOperation({ summary: 'Replace a quote item' })
+  @ApiOperation({
+    summary: 'Replace a quote item',
+  })
   @ApiDataResponse(QuoteResponseDto)
   replaceQuoteItem(
     @CurrentAuth() auth: AuthContext,
@@ -207,7 +241,9 @@ export class QuotesController {
 
   @Delete(':quoteId/items/:itemId')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Remove a quote item' })
+  @ApiOperation({
+    summary: 'Remove a quote item',
+  })
   @ApiDataResponse(QuoteResponseDto)
   removeQuoteItem(
     @CurrentAuth() auth: AuthContext,
@@ -295,7 +331,9 @@ export class QuotesController {
 
   @Post(':quoteId/cancel')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Cancel a draft or sent quote' })
+  @ApiOperation({
+    summary: 'Cancel a draft or sent quote',
+  })
   @ApiDataResponse(QuoteResponseDto)
   cancelQuote(
     @CurrentAuth() auth: AuthContext,
@@ -314,7 +352,9 @@ export class QuotesController {
   }
 
   @Get(':quoteId/status-history')
-  @ApiOperation({ summary: 'List quote status history' })
+  @ApiOperation({
+    summary: 'List quote status history',
+  })
   @ApiDataResponse(QuoteStatusHistoryResponseDto, {
     array: true,
   })

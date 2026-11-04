@@ -12,7 +12,7 @@ export interface PublicQuoteReadContext {
 
 export interface PublicQuoteTransaction extends PublicQuoteReadContext {
   readonly quotes: Pick<QuoteRepository, 'findById' | 'save'>;
-  readonly shares: Pick<QuoteShareRepository, 'findByHash' | 'saveDecision'>;
+  readonly shares: Pick<QuoteShareRepository, 'findByHash' | 'saveDecision' | 'saveChangeRequest'>;
   readonly inAppNotifications: Pick<InAppNotificationRepository, 'enqueue'>;
   readonly workOrders: Pick<WorkOrderRepository, 'findByQuoteId' | 'create'>;
   readonly receivables: Pick<ReceivableRepository, 'findByWorkOrderIdAndKind' | 'create'>;

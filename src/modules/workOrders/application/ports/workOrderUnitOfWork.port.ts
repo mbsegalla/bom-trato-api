@@ -13,6 +13,10 @@ export interface WorkOrderActorParams {
   userId: string;
 }
 
+export interface WorkOrderAutomationSettings {
+  autoReviewRequestEnabled: boolean;
+}
+
 export interface WorkOrderReadContext {
   readonly workOrders: Pick<WorkOrderRepository, 'findById' | 'list' | 'listStatusHistory' | 'listScheduleHistory'>;
   readonly access: OrganizationAccessContext;
@@ -35,6 +39,7 @@ export interface WorkOrderTransaction {
   findSingleAssignableMember(): Promise<string | null>;
   findCustomerDefaultServiceAddress(customerId: string): Promise<string | null>;
   findDefaultReceivableDueDays(): Promise<number>;
+  findAutomationSettings(): Promise<WorkOrderAutomationSettings>;
 }
 
 export abstract class WorkOrderUnitOfWork {

@@ -5,6 +5,7 @@ import { appConfig } from '../../config/app.config.js';
 import { quoteShareConfig } from '../../config/quoteShare.config.js';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 import { PublicQuoteUnitOfWork } from './application/ports/publicQuoteUnitOfWork.port.js';
 import { QuotePdfGenerator } from './application/ports/quotePdfGenerator.port.js';
@@ -28,6 +29,7 @@ import { ListQuotesUseCase } from './application/useCases/listQuotes.useCase.js'
 import { ListQuoteStatusHistoryUseCase } from './application/useCases/listQuoteStatusHistory.useCase.js';
 import { RemoveQuoteItemUseCase } from './application/useCases/removeQuoteItem.useCase.js';
 import { ReplaceQuoteItemUseCase } from './application/useCases/replaceQuoteItem.useCase.js';
+import { RequestPublicQuoteChangeUseCase } from './application/useCases/requestPublicQuoteChange.useCase.js';
 import { RevokeQuoteShareUseCase } from './application/useCases/revokeQuoteShare.useCase.js';
 import { SendQuoteUseCase } from './application/useCases/sendQuote.useCase.js';
 import { UpdateQuoteUseCase } from './application/useCases/updateQuote.useCase.js';
@@ -43,7 +45,12 @@ import { QuoteSharesController } from './presentation/http/controllers/quoteShar
 import { QuoteShareRateLimitGuard } from './presentation/http/guards/quoteShareRateLimit.guard.js';
 
 @Module({
-  imports: [DatabaseModule, ConfigModule.forFeature(appConfig), ConfigModule.forFeature(quoteShareConfig)],
+  imports: [
+    DatabaseModule,
+    NotificationsModule,
+    ConfigModule.forFeature(appConfig),
+    ConfigModule.forFeature(quoteShareConfig),
+  ],
   controllers: [QuotesController, QuoteSharesController, PublicQuotesController],
   providers: [
     QuoteShareRateLimitGuard,
@@ -177,6 +184,11 @@ import { QuoteShareRateLimitGuard } from './presentation/http/guards/quoteShareR
     {
       provide: DeclinePublicQuoteUseCase,
       useFactory: (processor: PublicQuoteApplicationService) => new DeclinePublicQuoteUseCase(processor),
+      inject: [PublicQuoteApplicationService],
+    },
+    {
+      provide: RequestPublicQuoteChangeUseCase,
+      useFactory: (processor: PublicQuoteApplicationService) => new RequestPublicQuoteChangeUseCase(processor),
       inject: [PublicQuoteApplicationService],
     },
   ],

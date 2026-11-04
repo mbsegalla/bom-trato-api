@@ -21,6 +21,17 @@ const emailDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   timeStyle: 'short',
 });
 
+function formatBrl(amountInCents: number): string {
+  if (!Number.isSafeInteger(amountInCents) || amountInCents < 0) {
+    throw new Error('INVALID_NOTIFICATION_AMOUNT');
+  }
+
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(amountInCents / 100);
+}
+
 function templateVariables(input: EnqueueNotification, frontendUrl: string): NotificationTemplateVariables {
   const { content, expiresAt } = input;
   const homeUrl = frontendLink(frontendUrl, '/');
@@ -62,14 +73,11 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
     case 'PAYMENT_CONFIRMED': {
       const { amountPaidInCents, currency } = content;
 
-      if (currency.toLowerCase() !== 'brl' || !Number.isSafeInteger(amountPaidInCents) || amountPaidInCents < 0) {
+      if (currency.toLowerCase() !== 'brl') {
         throw new Error('INVALID_NOTIFICATION_AMOUNT');
       }
 
-      const amount = new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(amountPaidInCents / 100);
+      const amount = formatBrl(amountPaidInCents);
 
       return {
         ACTION_URL: homeUrl,
@@ -96,6 +104,33 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
         ORGANIZATION_NAME: content.organizationName,
         WORK_ORDER_TITLE: content.workOrderTitle,
         EXPIRES_AT: emailDateFormatter.format(expiresAt),
+      };
+
+    case 'QUOTE_FOLLOW_UP':
+      return {
+        ACTION_URL: frontendLink(frontendUrl, '/quote-share', content.token),
+        CUSTOMER_NAME: content.customerName,
+        ORGANIZATION_NAME: content.organizationName,
+        QUOTE_TITLE: content.quoteTitle,
+        EXPIRES_AT: emailDateFormatter.format(expiresAt),
+      };
+
+    case 'WORK_ORDER_REMINDER':
+      return {
+        CUSTOMER_NAME: content.customerName,
+        ORGANIZATION_NAME: content.organizationName,
+        WORK_ORDER_TITLE: content.workOrderTitle,
+        SCHEDULED_AT: emailDateFormatter.format(new Date(content.scheduledStartAt)),
+      };
+
+    case 'RECEIVABLE_DUE_SOON':
+    case 'RECEIVABLE_OVERDUE':
+      return {
+        CUSTOMER_NAME: content.customerName,
+        ORGANIZATION_NAME: content.organizationName,
+        RECEIVABLE_TITLE: content.receivableTitle,
+        AMOUNT_DUE: formatBrl(content.amountDueInCents),
+        DUE_AT: emailDateFormatter.format(new Date(content.dueAt)),
       };
   }
 }

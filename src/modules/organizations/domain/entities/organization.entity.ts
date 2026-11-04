@@ -16,6 +16,10 @@ export interface OrganizationBusinessDetails {
   state: string | null;
   postalCode: string | null;
   defaultReceivableDueDays: number;
+  autoQuoteFollowUpEnabled: boolean;
+  autoWorkOrderReminderEnabled: boolean;
+  autoReviewRequestEnabled: boolean;
+  autoReceivableReminderEnabled: boolean;
 }
 
 export interface OrganizationProps extends OrganizationBusinessDetails {
@@ -52,6 +56,10 @@ export class Organization {
         state: null,
         postalCode: null,
         defaultReceivableDueDays: 7,
+        autoQuoteFollowUpEnabled: false,
+        autoWorkOrderReminderEnabled: false,
+        autoReviewRequestEnabled: false,
+        autoReceivableReminderEnabled: false,
       }),
     });
   }
@@ -73,6 +81,10 @@ export class Organization {
       details.state,
       details.postalCode,
       details.defaultReceivableDueDays,
+      details.autoQuoteFollowUpEnabled,
+      details.autoWorkOrderReminderEnabled,
+      details.autoReviewRequestEnabled,
+      details.autoReceivableReminderEnabled,
     ];
 
     if (values.every((value) => value === undefined)) {
@@ -90,7 +102,26 @@ export class Organization {
       city: details.city === undefined ? this.props.city : details.city,
       state: details.state === undefined ? this.props.state : details.state,
       postalCode: details.postalCode === undefined ? this.props.postalCode : details.postalCode,
-      defaultReceivableDueDays: this.props.defaultReceivableDueDays,
+      defaultReceivableDueDays:
+        details.defaultReceivableDueDays === undefined
+          ? this.props.defaultReceivableDueDays
+          : details.defaultReceivableDueDays,
+      autoQuoteFollowUpEnabled:
+        details.autoQuoteFollowUpEnabled === undefined
+          ? this.props.autoQuoteFollowUpEnabled
+          : details.autoQuoteFollowUpEnabled,
+      autoWorkOrderReminderEnabled:
+        details.autoWorkOrderReminderEnabled === undefined
+          ? this.props.autoWorkOrderReminderEnabled
+          : details.autoWorkOrderReminderEnabled,
+      autoReviewRequestEnabled:
+        details.autoReviewRequestEnabled === undefined
+          ? this.props.autoReviewRequestEnabled
+          : details.autoReviewRequestEnabled,
+      autoReceivableReminderEnabled:
+        details.autoReceivableReminderEnabled === undefined
+          ? this.props.autoReceivableReminderEnabled
+          : details.autoReceivableReminderEnabled,
     });
 
     this.props = {
@@ -182,6 +213,15 @@ export class Organization {
       throw new OrganizationError('INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS');
     }
 
+    if (
+      typeof details.autoQuoteFollowUpEnabled !== 'boolean' ||
+      typeof details.autoWorkOrderReminderEnabled !== 'boolean' ||
+      typeof details.autoReviewRequestEnabled !== 'boolean' ||
+      typeof details.autoReceivableReminderEnabled !== 'boolean'
+    ) {
+      throw new OrganizationError('INVALID_ORGANIZATION_AUTOMATION_SETTINGS');
+    }
+
     return {
       name,
       email,
@@ -194,6 +234,10 @@ export class Organization {
       state,
       postalCode,
       defaultReceivableDueDays,
+      autoQuoteFollowUpEnabled: details.autoQuoteFollowUpEnabled,
+      autoWorkOrderReminderEnabled: details.autoWorkOrderReminderEnabled,
+      autoReviewRequestEnabled: details.autoReviewRequestEnabled,
+      autoReceivableReminderEnabled: details.autoReceivableReminderEnabled,
     };
   }
 

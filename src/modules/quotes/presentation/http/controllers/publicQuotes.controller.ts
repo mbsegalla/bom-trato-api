@@ -7,8 +7,17 @@ import { ApprovePublicQuoteUseCase } from '../../../application/useCases/approve
 import { DeclinePublicQuoteUseCase } from '../../../application/useCases/declinePublicQuote.useCase.js';
 import { GeneratePublicQuotePdfUseCase } from '../../../application/useCases/generatePublicQuotePdf.useCase.js';
 import { GetPublicQuoteUseCase } from '../../../application/useCases/getPublicQuote.useCase.js';
-import { PublicQuoteDecisionDto, PublicQuoteTokenDto } from '../dtos/requests/quoteShare.dto.js';
-import { PublicQuoteDecisionResponseDto, PublicQuoteResponseDto } from '../dtos/responses/quoteShareResponse.dto.js';
+import { RequestPublicQuoteChangeUseCase } from '../../../application/useCases/requestPublicQuoteChange.useCase.js';
+import {
+  PublicQuoteChangeRequestDto,
+  PublicQuoteDecisionDto,
+  PublicQuoteTokenDto,
+} from '../dtos/requests/quoteShare.dto.js';
+import {
+  PublicQuoteChangeRequestResponseDto,
+  PublicQuoteDecisionResponseDto,
+  PublicQuoteResponseDto,
+} from '../dtos/responses/quoteShareResponse.dto.js';
 import { QuoteShareRateLimitGuard } from '../guards/quoteShareRateLimit.guard.js';
 import { quoteShareOperation } from '../quoteShareHttpError.js';
 
@@ -22,6 +31,7 @@ export class PublicQuotesController {
     private readonly generatePublicQuotePdfUseCase: GeneratePublicQuotePdfUseCase,
     private readonly approvePublicQuoteUseCase: ApprovePublicQuoteUseCase,
     private readonly declinePublicQuoteUseCase: DeclinePublicQuoteUseCase,
+    private readonly requestPublicQuoteChangeUseCase: RequestPublicQuoteChangeUseCase,
   ) {}
 
   @Post('resolve')
@@ -71,5 +81,14 @@ export class PublicQuotesController {
   @ApiDataResponse(PublicQuoteDecisionResponseDto)
   decline(@Body() dto: PublicQuoteDecisionDto): Promise<PublicQuoteDecisionResponseDto> {
     return quoteShareOperation(() => this.declinePublicQuoteUseCase.execute(dto.token, dto.version));
+  }
+
+  @Post('change-request')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Request a change to a shared quote' })
+  @ApiDataResponse(PublicQuoteChangeRequestResponseDto)
+  requestChange(@Body() dto: PublicQuoteChangeRequestDto): Promise<PublicQuoteChangeRequestResponseDto> {
+    return quoteShareOperation(() => this.requestPublicQuoteChangeUseCase.execute(dto.token, dto.version, dto.message));
   }
 }

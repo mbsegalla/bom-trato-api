@@ -8,12 +8,15 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 import { NotificationOutbox } from './application/ports/notificationOutbox.port.js';
+import { ListAutomationEventsUseCase } from './application/useCases/listAutomationEvents.useCase.js';
 import { ListInAppNotificationsUseCase } from './application/useCases/listInAppNotifications.useCase.js';
 import { MarkAllInAppNotificationsReadUseCase } from './application/useCases/markAllInAppNotificationsRead.useCase.js';
 import { MarkInAppNotificationReadUseCase } from './application/useCases/markInAppNotificationRead.useCase.js';
+import { AutomationEventRepository } from './domain/repositories/automationEvent.repository.js';
 import { InAppNotificationRepository } from './domain/repositories/inAppNotification.repository.js';
 import { NotificationRealtimeService } from './infrastructure/realtime/notificationRealtime.service.js';
 import { NotificationStreamTicketService } from './infrastructure/realtime/notificationStreamTicket.service.js';
+import { PrismaAutomationEventRepository } from './infrastructure/repositories/prismaAutomationEvent.repository.js';
 import { PrismaInAppNotificationRepository } from './infrastructure/repositories/prismaInAppNotification.repository.js';
 import { PrismaNotificationOutbox } from './infrastructure/repositories/prismaNotificationOutbox.repository.js';
 import { ResendEmailGateway } from './infrastructure/resend/resendEmail.gateway.js';
@@ -43,9 +46,18 @@ import { InAppNotificationsController } from './presentation/http/controllers/in
       useExisting: PrismaNotificationOutbox,
     },
     {
+      provide: AutomationEventRepository,
+      useClass: PrismaAutomationEventRepository,
+    },
+    {
       provide: InAppNotificationRepository,
       useFactory: (prisma: PrismaService) => new PrismaInAppNotificationRepository(prisma),
       inject: [PrismaService],
+    },
+    {
+      provide: ListAutomationEventsUseCase,
+      useFactory: (repository: AutomationEventRepository) => new ListAutomationEventsUseCase(repository),
+      inject: [AutomationEventRepository],
     },
     {
       provide: ListInAppNotificationsUseCase,
