@@ -28,6 +28,25 @@ export class PrismaReceivableUnitOfWork extends ReceivableUnitOfWork {
     return this.execute('write', params, operation);
   }
 
+  private findWorkOrder(db: Prisma.TransactionClient, organizationId: string, workOrderId: string) {
+    return db.workOrder.findFirst({
+      where: {
+        id: workOrderId,
+        organizationId,
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        customerName: true,
+        title: true,
+        currency: true,
+        totalInCents: true,
+        status: true,
+      },
+    });
+  }
+
   private execute<T>(
     mode: OrganizationTransactionMode,
     params: ReceivableActorParams,
@@ -54,23 +73,7 @@ export class PrismaReceivableUnitOfWork extends ReceivableUnitOfWork {
     return {
       receivables: new PrismaReceivableRepository(db, organizationId),
       access: await readOrganizationAccess(db, params),
-      findWorkOrder: (id: string) =>
-        db.workOrder.findFirst({
-          where: {
-            id,
-            organizationId,
-          },
-          select: {
-            id: true,
-            organizationId: true,
-            customerId: true,
-            customerName: true,
-            title: true,
-            currency: true,
-            totalInCents: true,
-            status: true,
-          },
-        }),
+      findWorkOrder: (workOrderId) => this.findWorkOrder(db, organizationId, workOrderId),
     };
   }
 }

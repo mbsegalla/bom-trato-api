@@ -156,6 +156,30 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
     };
   }
 
+  private async isAssignableMember(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const member = await db.organizationMember.findFirst({
+      where: {
+        organizationId,
+        userId,
+        user: {
+          disabledAt: null,
+          emailVerifiedAt: {
+            not: null,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return member !== null;
+  }
+
   private async createTransactionContext(
     db: Prisma.TransactionClient,
     params: WorkOrderActorParams,
@@ -178,26 +202,8 @@ export class PrismaWorkOrderUnitOfWork extends WorkOrderUnitOfWork {
         this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
       findDefaultReceivableDueDays: () => this.findDefaultReceivableDueDays(db, organizationId),
       findAutomationSettings: () => this.findAutomationSettings(db, organizationId),
-      findQuote: (id) => quotes.findById(id),
-      isAssignableMember: async (userId) => {
-        const member = await db.organizationMember.findFirst({
-          where: {
-            organizationId,
-            userId,
-            user: {
-              disabledAt: null,
-              emailVerifiedAt: {
-                not: null,
-              },
-            },
-          },
-          select: {
-            id: true,
-          },
-        });
-
-        return member !== null;
-      },
+      findQuote: (quoteId) => quotes.findById(quoteId),
+      isAssignableMember: (userId) => this.isAssignableMember(db, organizationId, userId),
     };
   }
 
