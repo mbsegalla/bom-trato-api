@@ -2,6 +2,7 @@ import type { LoggerService } from '@nestjs/common';
 import pino, { type Logger as PinoLogger } from 'pino';
 
 import { requestLogContext } from './requestLogContext.js';
+import { safeError, safeLogText } from './safeError.js';
 
 type PinoLogLevel = 'debug' | 'error' | 'fatal' | 'info' | 'trace' | 'warn';
 
@@ -12,18 +13,22 @@ const sensitiveFieldPattern =
 
 function getLogMessage(message: unknown): string {
   if (typeof message === 'string') {
-    return message;
+    return safeLogText(message) ?? 'Application log';
   }
 
   if (message instanceof Error) {
-    return `${message.name}: application error`;
+    const details = safeError(message);
+
+    return details.errorMessage
+      ? `${details.errorName ?? 'Error'}: ${details.errorMessage}`
+      : `${details.errorName ?? 'Error'}: application error`;
   }
 
   if (typeof message === 'object' && message !== null) {
     const candidate = (message as { message?: unknown }).message;
 
     if (typeof candidate === 'string') {
-      return candidate;
+      return safeLogText(candidate) ?? 'Application log';
     }
   }
 
@@ -31,18 +36,42 @@ function getLogMessage(message: unknown): string {
 }
 
 function getLogFields(message: unknown): Record<string, LogFieldValue> {
-  if (typeof message !== 'object' || message === null || message instanceof Error) {
-    return {};
+  const fields: Record<string, LogFieldValue> = {};
+
+  if (message instanceof Error) {
+    for (const [key, value] of Object.entries(safeError(message))) {
+      if (typeof value === 'string') {
+        fields[key] = value;
+      }
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        fields[key] = value;
+      }
+    }
+
+    return fields;
   }
 
-  const fields: Record<string, LogFieldValue> = {};
+  if (typeof message !== 'object' || message === null) {
+    return fields;
+  }
 
   for (const [key, value] of Object.entries(message)) {
     if (key === 'message' || sensitiveFieldPattern.test(key)) {
       continue;
     }
 
-    if (typeof value === 'string' || typeof value === 'boolean') {
+    if (typeof value === 'string') {
+      const safeValue = safeLogText(value, key.toLowerCase().includes('stack') ? 12000 : 4000);
+
+      if (safeValue !== undefined) {
+        fields[key] = safeValue;
+      }
+
+      continue;
+    }
+
+    if (typeof value === 'boolean') {
       fields[key] = value;
 
       continue;
@@ -145,19 +174,15 @@ export class StructuredLogger implements LoggerService {
       case 'fatal':
         this.logger.fatal(fields, text);
         break;
-
       case 'error':
         this.logger.error(fields, text);
         break;
-
       case 'warn':
         this.logger.warn(fields, text);
         break;
-
       case 'debug':
         this.logger.debug(fields, text);
         break;
-
       case 'trace':
         this.logger.trace(fields, text);
         break;

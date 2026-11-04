@@ -39,8 +39,6 @@ export class GlobalExceptionFilter implements ExceptionFilter<unknown> {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
-    console.error('REAL API ERROR:', exception);
-
     const http = host.switchToHttp();
 
     const request = http.getRequest<Request>();
