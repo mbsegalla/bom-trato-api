@@ -1,3 +1,5 @@
+import type { AutomationEntityType, AutomationType } from '../../../../generated/prisma/enums.js';
+
 export type NotificationContent =
   | {
       type: 'VERIFY_EMAIL' | 'RESET_PASSWORD';
@@ -27,13 +29,48 @@ export type NotificationContent =
       customerName: string;
       organizationName: string;
       workOrderTitle: string;
+    }
+  | {
+      type: 'QUOTE_FOLLOW_UP';
+      token: string;
+      customerName: string;
+      organizationName: string;
+      quoteTitle: string;
+    }
+  | {
+      type: 'WORK_ORDER_REMINDER';
+      customerName: string;
+      organizationName: string;
+      workOrderTitle: string;
+      scheduledStartAt: string;
+    }
+  | {
+      type: 'RECEIVABLE_DUE_SOON' | 'RECEIVABLE_OVERDUE';
+      customerName: string;
+      organizationName: string;
+      receivableTitle: string;
+      amountDueInCents: number;
+      dueAt: string;
     };
+
+export interface AutomationNotificationMetadata {
+  organizationId: string;
+  type: AutomationType;
+  entityType: AutomationEntityType;
+  entityId: string;
+  contextId?: string;
+  referenceAt?: Date;
+  description: string;
+  href: string;
+}
 
 export interface EnqueueNotification {
   key: string;
   recipient: string;
   content: NotificationContent;
+  availableAt?: Date;
   expiresAt: Date;
+  automation?: AutomationNotificationMetadata;
 }
 
 export type NotificationTemplateVariables = Record<string, string | number>;
@@ -56,6 +93,11 @@ export interface NotificationJob {
   attempts: number;
   expiresAt: Date;
   firstAttemptAt: Date | null;
+  organizationId: string | null;
+  automationType: AutomationType | null;
+  automationEntityId: string | null;
+  automationContextId: string | null;
+  automationReferenceAt: Date | null;
 }
 
 export interface BillingPaymentNotification {

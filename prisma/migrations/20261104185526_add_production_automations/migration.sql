@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "InAppNotificationType" ADD VALUE 'QUOTE_CHANGE_REQUESTED';

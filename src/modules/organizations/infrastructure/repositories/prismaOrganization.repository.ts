@@ -23,6 +23,10 @@ const organizationSelect = {
   postalCode: true,
   ownerId: true,
   defaultReceivableDueDays: true,
+  autoQuoteFollowUpEnabled: true,
+  autoWorkOrderReminderEnabled: true,
+  autoReviewRequestEnabled: true,
+  autoReceivableReminderEnabled: true,
 } as const;
 
 @Injectable()

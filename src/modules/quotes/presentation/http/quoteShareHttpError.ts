@@ -10,6 +10,8 @@ const statuses = {
   QUOTE_SHARE_NOT_FOUND: HttpStatus.NOT_FOUND,
   INVALID_QUOTE_SHARE_EXPIRATION: HttpStatus.BAD_REQUEST,
   QUOTE_SHARE_ALREADY_DECIDED: HttpStatus.CONFLICT,
+  QUOTE_SHARE_CHANGE_ALREADY_REQUESTED: HttpStatus.CONFLICT,
+  INVALID_QUOTE_CHANGE_REQUEST: HttpStatus.BAD_REQUEST,
 } satisfies Record<QuoteShareErrorCode, HttpStatus>;
 
 export function quoteShareOperation<T>(operation: () => Promise<T>): Promise<T> {

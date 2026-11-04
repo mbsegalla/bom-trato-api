@@ -8,6 +8,7 @@ import type { AuthContext } from '../../../../auth/presentation/http/authRequest
 import { AuthEndpoint } from '../../../../auth/presentation/http/decorators/authEndpoint.decorator.js';
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
 import { PublicRoute } from '../../../../auth/presentation/http/decorators/publicRoute.decorator.js';
+import { ListAutomationEventsUseCase } from '../../../application/useCases/listAutomationEvents.useCase.js';
 import { ListInAppNotificationsUseCase } from '../../../application/useCases/listInAppNotifications.useCase.js';
 import { MarkAllInAppNotificationsReadUseCase } from '../../../application/useCases/markAllInAppNotificationsRead.useCase.js';
 import { MarkInAppNotificationReadUseCase } from '../../../application/useCases/markInAppNotificationRead.useCase.js';
@@ -15,6 +16,7 @@ import { NotificationRealtimeService } from '../../../infrastructure/realtime/no
 import { NotificationStreamTicketService } from '../../../infrastructure/realtime/notificationStreamTicket.service.js';
 import { InAppNotificationQueryDto, NotificationStreamQueryDto } from '../dtos/requests/inAppNotification.dto.js';
 import {
+  AutomationEventsResponseDto,
   InAppNotificationsResponseDto,
   NotificationStreamTicketResponseDto,
 } from '../dtos/responses/inAppNotificationResponse.dto.js';
@@ -28,6 +30,7 @@ const uuid = new ParseUUIDPipe({ version: '4' });
 export class InAppNotificationsController {
   constructor(
     private readonly listUseCase: ListInAppNotificationsUseCase,
+    private readonly listAutomationEventsUseCase: ListAutomationEventsUseCase,
     private readonly markReadUseCase: MarkInAppNotificationReadUseCase,
     private readonly markAllReadUseCase: MarkAllInAppNotificationsReadUseCase,
     private readonly streamTickets: NotificationStreamTicketService,
@@ -44,6 +47,23 @@ export class InAppNotificationsController {
   ): Promise<InAppNotificationsResponseDto> {
     return inAppNotificationOperation(() =>
       this.listUseCase.execute({
+        userId: auth.user.id,
+        organizationId,
+        limit: query.limit,
+      }),
+    );
+  }
+
+  @Get('automation-events')
+  @ApiOperation({ summary: 'List organization automation events' })
+  @ApiDataResponse(AutomationEventsResponseDto)
+  automationEvents(
+    @CurrentAuth() auth: AuthContext,
+    @Param('organizationId', uuid) organizationId: string,
+    @Query() query: InAppNotificationQueryDto,
+  ): Promise<AutomationEventsResponseDto> {
+    return inAppNotificationOperation(() =>
+      this.listAutomationEventsUseCase.execute({
         userId: auth.user.id,
         organizationId,
         limit: query.limit,

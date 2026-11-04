@@ -17,6 +17,8 @@ export interface QuoteShareProps {
   decision: QuoteStatus | null;
   decidedAt: Date | null;
   decidedVersion: number | null;
+  changeRequestedAt: Date | null;
+  changeRequestMessage: string | null;
 }
 
 export class QuoteShare {
@@ -64,6 +66,8 @@ export class QuoteShare {
       decision: null,
       decidedAt: null,
       decidedVersion: null,
+      changeRequestedAt: null,
+      changeRequestMessage: null,
     });
   }
 
@@ -105,6 +109,10 @@ export class QuoteShare {
       throw new QuoteError('QUOTE_VERSION_CONFLICT');
     }
 
+    if (this.props.changeRequestedAt !== null) {
+      throw new QuoteShareError('QUOTE_SHARE_CHANGE_ALREADY_REQUESTED');
+    }
+
     if (this.props.decision !== null) {
       if (this.props.decision !== decision) {
         throw new QuoteShareError('QUOTE_SHARE_ALREADY_DECIDED');
@@ -124,6 +132,33 @@ export class QuoteShare {
     this.props.decision = decision;
     this.props.decidedAt = new Date(now);
     this.props.decidedVersion = quote.snapshot().version;
+
+    return true;
+  }
+
+  requestChange(quote: Quote, version: number, message: string, now: Date): boolean {
+    this.assertReadable(quote, now);
+
+    if (version !== this.props.quoteVersion) {
+      throw new QuoteError('QUOTE_VERSION_CONFLICT');
+    }
+
+    if (this.props.decision !== null) {
+      throw new QuoteShareError('QUOTE_SHARE_ALREADY_DECIDED');
+    }
+
+    if (this.props.changeRequestedAt !== null) {
+      return false;
+    }
+
+    const normalizedMessage = message.trim();
+
+    if (normalizedMessage.length < 5 || normalizedMessage.length > 2000) {
+      throw new QuoteShareError('INVALID_QUOTE_CHANGE_REQUEST');
+    }
+
+    this.props.changeRequestedAt = new Date(now);
+    this.props.changeRequestMessage = normalizedMessage;
 
     return true;
   }

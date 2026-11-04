@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { Prisma } from '../../../../generated/prisma/client.js';
+import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
-import {
-  organizationTransaction,
-  OrganizationTransactionMode,
-} from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { PrismaReceivableRepository } from '../../../receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import { PrismaWorkOrderRepository } from '../../../workOrders/infrastructure/repositories/prismaWorkOrder.repository.js';
 import type {
@@ -21,33 +19,44 @@ import { PrismaQuoteShareRepository } from '../repositories/prismaQuoteShare.rep
 
 @Injectable()
 export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly outbox: PrismaNotificationOutbox,
+  ) {
     super();
   }
 
   read<T>(params: QuoteActorParams, operation: (context: QuoteReadContext) => Promise<T>): Promise<T> {
-    return this.execute('read', params, operation);
-  }
-
-  run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
-    return this.execute('write', params, operation);
-  }
-
-  private execute<T>(
-    mode: OrganizationTransactionMode,
-    params: QuoteActorParams,
-    operation: (tx: QuoteTransaction) => Promise<T>,
-  ): Promise<T> {
     return organizationTransaction(
       this.prisma,
       params.organizationId,
-      mode,
-      async (db) => operation(await this.createContext(db, params)),
-      {
-        notFound: () => new QuoteError('ORGANIZATION_NOT_FOUND'),
-        busy: () => new QuoteError('QUOTES_BUSY'),
-      },
+      'read',
+      async (db) => operation(await this.createReadContext(db, params)),
+      this.errors(),
     );
+  }
+
+  async run<T>(params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
+    let notificationInserted = false;
+
+    const result = await organizationTransaction(
+      this.prisma,
+      params.organizationId,
+      'write',
+      async (db) =>
+        operation(
+          await this.createTransactionContext(db, params, () => {
+            notificationInserted = true;
+          }),
+        ),
+      this.errors(),
+    );
+
+    if (notificationInserted) {
+      this.outbox.notifyWorker();
+    }
+
+    return result;
   }
 
   private async findSingleAssignableMember(
@@ -95,16 +104,11 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
     return customer?.defaultServiceAddress ?? null;
   }
 
-  private async createContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteTransaction> {
+  private async createReadContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteReadContext> {
     return {
       quotes: new PrismaQuoteRepository(db, params.organizationId),
       shares: new PrismaQuoteShareRepository(db, params.organizationId),
       access: await readOrganizationAccess(db, params),
-      workOrders: new PrismaWorkOrderRepository(db, params.organizationId),
-      receivables: new PrismaReceivableRepository(db, params.organizationId),
-      findSingleAssignableMember: () => this.findSingleAssignableMember(db, params.organizationId),
-      findCustomerDefaultServiceAddress: (customerId) =>
-        this.findCustomerDefaultServiceAddress(db, params.organizationId, customerId),
       findOrganization: () =>
         db.organization.findUnique({
           where: {
@@ -112,22 +116,50 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
           },
           select: {
             name: true,
+            autoQuoteFollowUpEnabled: true,
           },
         }),
-      findCustomer: (id: string) =>
+    };
+  }
+
+  private async createTransactionContext(
+    db: Prisma.TransactionClient,
+    params: QuoteActorParams,
+    onNotificationInserted: () => void,
+  ): Promise<QuoteTransaction> {
+    const readContext = await this.createReadContext(db, params);
+
+    return {
+      ...readContext,
+      quotes: new PrismaQuoteRepository(db, params.organizationId),
+      shares: new PrismaQuoteShareRepository(db, params.organizationId),
+      notifications: this.outbox.using(db, onNotificationInserted),
+      workOrders: new PrismaWorkOrderRepository(db, params.organizationId),
+      receivables: new PrismaReceivableRepository(db, params.organizationId),
+      findSingleAssignableMember: () => this.findSingleAssignableMember(db, params.organizationId),
+      findCustomerDefaultServiceAddress: (customerId) =>
+        this.findCustomerDefaultServiceAddress(db, params.organizationId, customerId),
+      findCustomer: (id) =>
         db.customer.findFirst({
           where: {
             id,
             organizationId: params.organizationId,
           },
         }),
-      findCatalogService: (id: string) =>
+      findCatalogService: (id) =>
         db.catalogService.findFirst({
           where: {
             id,
             organizationId: params.organizationId,
           },
         }),
+    };
+  }
+
+  private errors() {
+    return {
+      notFound: () => new QuoteError('ORGANIZATION_NOT_FOUND'),
+      busy: () => new QuoteError('QUOTES_BUSY'),
     };
   }
 }

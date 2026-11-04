@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsISO8601, Matches, Max, Min } from 'class-validator';
+import { IsInt, IsISO8601, IsString, Length, Matches, Max, Min } from 'class-validator';
 
 import { QuoteVersionDto } from './quote.dto.js';
 
@@ -22,4 +22,14 @@ export class PublicQuoteDecisionDto extends PublicQuoteTokenDto {
   @Min(1)
   @Max(2147483647)
   version!: number;
+}
+
+export class PublicQuoteChangeRequestDto extends PublicQuoteDecisionDto {
+  @ApiProperty({
+    minLength: 5,
+    maxLength: 2000,
+  })
+  @IsString()
+  @Length(5, 2000)
+  message!: string;
 }

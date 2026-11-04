@@ -6,6 +6,8 @@ export class GetPublicQuoteUseCase {
   async execute(token: string) {
     const { organizationName, quote, share } = await this.processor.read(token);
 
+    const available = share.decision === null && share.changeRequestedAt === null;
+
     return {
       organizationName,
       id: quote.id,
@@ -23,7 +25,9 @@ export class GetPublicQuoteUseCase {
       notes: quote.notes,
       validUntil: quote.validUntil,
       expiresAt: share.expiresAt,
-      canDecide: share.decision === null && (quote.validUntil === null || quote.validUntil > new Date()),
+      changeRequestedAt: share.changeRequestedAt,
+      canDecide: available && (quote.validUntil === null || quote.validUntil > new Date()),
+      canRequestChange: available && (quote.validUntil === null || quote.validUntil > new Date()),
       items: quote.items.map((item) => ({
         name: item.name,
         description: item.description,

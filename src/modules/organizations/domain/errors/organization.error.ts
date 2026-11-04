@@ -14,7 +14,8 @@ export type OrganizationErrorCode =
   | 'EMPTY_ORGANIZATION_UPDATE'
   | 'IDEMPOTENCY_CONFLICT'
   | 'VERIFIED_USER_REQUIRED'
-  | 'INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS';
+  | 'INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS'
+  | 'INVALID_ORGANIZATION_AUTOMATION_SETTINGS';
 
 export class OrganizationError extends Error {
   constructor(readonly code: OrganizationErrorCode) {

@@ -5,7 +5,11 @@ import { QuoteShare } from '../../domain/entities/quoteShare.entity.js';
 import { QuoteShareError } from '../../domain/errors/quoteShare.error.js';
 import type { PublicQuoteReadContext, PublicQuoteUnitOfWork } from '../ports/publicQuoteUnitOfWork.port.js';
 import type { QuoteShareSecurity } from '../ports/quoteShareSecurity.port.js';
-import type { PublicQuoteDecisionResult, PublicQuoteReadResult } from '../types/quote.types.js';
+import type {
+  PublicQuoteChangeRequestResult,
+  PublicQuoteDecisionResult,
+  PublicQuoteReadResult,
+} from '../types/quote.types.js';
 
 export class PublicQuoteApplicationService {
   constructor(
@@ -45,7 +49,6 @@ export class PublicQuoteApplicationService {
 
       if (changed) {
         await context.quotes.save(quote, previousVersion);
-
         await context.shares.saveDecision(share);
 
         const organization = await context.findOrganization();
@@ -56,7 +59,6 @@ export class PublicQuoteApplicationService {
 
         const quoteState = quote.snapshot();
         const shareState = share.snapshot();
-
         const approved = decision === 'APPROVED';
 
         let href = `/quotes/${quoteState.id}`;
@@ -117,6 +119,53 @@ export class PublicQuoteApplicationService {
         status: state.decision,
         decidedAt: state.decidedAt,
         version: state.decidedVersion,
+      };
+    });
+  }
+
+  requestChange(token: string, version: number, message: string): Promise<PublicQuoteChangeRequestResult> {
+    const hash = this.security.hash(token);
+
+    return this.unitOfWork.run(hash, async (context) => {
+      const { quote, share } = await this.load(context, hash);
+      const now = new Date();
+
+      const changed = share.requestChange(quote, version, message, now);
+      const state = share.snapshot();
+
+      if (state.changeRequestedAt === null || state.changeRequestMessage === null) {
+        throw new Error('Quote change request was not recorded');
+      }
+
+      if (changed) {
+        await context.shares.saveChangeRequest(share);
+
+        const organization = await context.findOrganization();
+
+        if (organization === null) {
+          throw new QuoteShareError('QUOTE_SHARE_NOT_FOUND');
+        }
+
+        const quoteState = quote.snapshot();
+
+        const preview =
+          state.changeRequestMessage.length > 280
+            ? `${state.changeRequestMessage.slice(0, 279)}…`
+            : state.changeRequestMessage;
+
+        await context.inAppNotifications.enqueue({
+          key: `quote-change-request/${state.id}/${state.quoteVersion}`,
+          userId: organization.ownerId,
+          organizationId: quoteState.organizationId,
+          type: 'QUOTE_CHANGE_REQUESTED',
+          title: 'Cliente solicitou uma alteração',
+          message: `${quoteState.customerName}: "${preview}"`,
+          href: `/quotes/${quoteState.id}`,
+        });
+      }
+
+      return {
+        requestedAt: state.changeRequestedAt,
       };
     });
   }

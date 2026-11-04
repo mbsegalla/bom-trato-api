@@ -69,6 +69,10 @@ const definitions = {
     status: HttpStatus.BAD_REQUEST,
     message: 'Organization default receivable due days must be an integer between 0 and 365.',
   },
+  INVALID_ORGANIZATION_AUTOMATION_SETTINGS: {
+    status: HttpStatus.BAD_REQUEST,
+    message: 'Organization automation settings are invalid.',
+  },
 } satisfies Record<OrganizationErrorCode, { status: HttpStatus; message: string }>;
 
 export async function organizationOperation<T>(operation: () => Promise<T>): Promise<T> {

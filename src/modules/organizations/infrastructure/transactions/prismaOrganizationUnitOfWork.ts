@@ -121,6 +121,10 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
         postalCode: true,
         ownerId: true,
         defaultReceivableDueDays: true,
+        autoQuoteFollowUpEnabled: true,
+        autoWorkOrderReminderEnabled: true,
+        autoReviewRequestEnabled: true,
+        autoReceivableReminderEnabled: true,
       },
     });
 
@@ -175,6 +179,10 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
         state: organization.state,
         postalCode: organization.postalCode,
         defaultReceivableDueDays: organization.defaultReceivableDueDays,
+        autoQuoteFollowUpEnabled: organization.autoQuoteFollowUpEnabled,
+        autoWorkOrderReminderEnabled: organization.autoWorkOrderReminderEnabled,
+        autoReviewRequestEnabled: organization.autoReviewRequestEnabled,
+        autoReceivableReminderEnabled: organization.autoReceivableReminderEnabled,
       },
     });
 

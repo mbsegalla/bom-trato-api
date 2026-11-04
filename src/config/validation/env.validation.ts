@@ -107,6 +107,10 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   RESEND_TEMPLATE_PAYMENT_CONFIRMED: resendTemplateSchema,
   RESEND_TEMPLATE_PLAN_CHANGE_CONFIRMED: resendTemplateSchema,
   RESEND_TEMPLATE_REVIEW_REQUEST: resendTemplateSchema,
+  RESEND_TEMPLATE_QUOTE_FOLLOW_UP: resendTemplateSchema,
+  RESEND_TEMPLATE_WORK_ORDER_REMINDER: resendTemplateSchema,
+  RESEND_TEMPLATE_RECEIVABLE_DUE_SOON: resendTemplateSchema,
+  RESEND_TEMPLATE_RECEIVABLE_OVERDUE: resendTemplateSchema,
 
   QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()
     .pattern(/^[a-fA-F0-9]{64}$/)

@@ -56,8 +56,6 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
     try {
       this.eventEmitter.emit(NOTIFICATIONS_AVAILABLE_EVENT);
     } catch {
-      // The transaction has already committed.
-      // Recovery can process the persisted notification.
       this.logger.error('Could not notify the notification worker; periodic recovery remains available');
     }
   }
@@ -67,14 +65,25 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
 
     const message = mapNotificationTemplate(input, this.app.frontendUrl, this.config.from, this.config.templates);
 
+    const automation = input.automation;
+
     const result = await db.notificationOutbox.createMany({
       data: [
         {
           id,
           key: input.key,
           type: input.content.type,
+          availableAt: input.availableAt ?? new Date(),
           expiresAt: input.expiresAt,
           encryptedPayload: this.cipher.encrypt(id, message),
+          organizationId: automation?.organizationId,
+          automationType: automation?.type,
+          automationEntityType: automation?.entityType,
+          automationEntityId: automation?.entityId,
+          automationContextId: automation?.contextId,
+          automationReferenceAt: automation?.referenceAt,
+          automationDescription: automation?.description.trim().slice(0, 200),
+          automationHref: automation?.href.trim().slice(0, 500),
         },
       ],
       skipDuplicates: true,

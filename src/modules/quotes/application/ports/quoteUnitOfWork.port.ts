@@ -1,4 +1,5 @@
 import type { ServiceUnit } from '../../../../generated/prisma/enums.js';
+import type { NotificationOutbox } from '../../../notifications/application/ports/notificationOutbox.port.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { ReceivableRepository } from '../../../receivables/domain/repositories/receivable.repository.js';
 import type { WorkOrderRepository } from '../../../workOrders/domain/repositories/workOrder.repository.js';
@@ -12,10 +13,12 @@ export interface QuoteActorParams {
 
 export interface QuoteOrganizationSource {
   name: string;
+  autoQuoteFollowUpEnabled: boolean;
 }
 
 export interface QuoteReadContext {
   readonly quotes: Pick<QuoteRepository, 'findById' | 'list' | 'listStatusHistory'>;
+  readonly shares: Pick<QuoteShareRepository, 'findLatestChangeRequest'>;
   readonly access: OrganizationAccessContext;
   findOrganization(): Promise<QuoteOrganizationSource | null>;
 }
@@ -38,13 +41,12 @@ export interface QuoteCatalogSource {
   archivedAt: Date | null;
 }
 
-export interface QuoteTransaction {
+export interface QuoteTransaction extends QuoteReadContext {
   readonly quotes: QuoteRepository;
-  readonly access: OrganizationAccessContext;
   readonly shares: QuoteShareRepository;
+  readonly notifications: Pick<NotificationOutbox, 'enqueue'>;
   readonly workOrders: Pick<WorkOrderRepository, 'findByQuoteId' | 'create'>;
   readonly receivables: Pick<ReceivableRepository, 'findByWorkOrderIdAndKind' | 'create'>;
-  findOrganization(): Promise<QuoteOrganizationSource | null>;
   findCustomer(id: string): Promise<QuoteCustomerSource | null>;
   findCatalogService(id: string): Promise<QuoteCatalogSource | null>;
   findSingleAssignableMember(): Promise<string | null>;

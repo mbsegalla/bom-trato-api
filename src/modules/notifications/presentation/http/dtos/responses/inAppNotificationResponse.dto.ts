@@ -1,6 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { InAppNotificationType } from '../../../../../../generated/prisma/enums.js';
+import {
+  AutomationEntityType,
+  AutomationType,
+  InAppNotificationType,
+  NotificationStatus,
+} from '../../../../../../generated/prisma/enums.js';
 
 export class NotificationStreamTicketResponseDto {
   @ApiProperty()
@@ -49,4 +54,52 @@ export class InAppNotificationsResponseDto {
     minimum: 0,
   })
   unreadCount!: number;
+}
+
+export class AutomationEventResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: AutomationType })
+  type!: AutomationType;
+
+  @ApiProperty({ enum: AutomationEntityType })
+  entityType!: AutomationEntityType;
+
+  @ApiProperty({ format: 'uuid' })
+  entityId!: string;
+
+  @ApiProperty()
+  description!: string;
+
+  @ApiProperty()
+  href!: string;
+
+  @ApiProperty({ enum: NotificationStatus })
+  status!: NotificationStatus;
+
+  @ApiProperty({ type: Date })
+  availableAt!: Date;
+
+  @ApiProperty({ type: Date })
+  createdAt!: Date;
+
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+  })
+  finishedAt!: Date | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+  })
+  lastErrorCode!: string | null;
+}
+
+export class AutomationEventsResponseDto {
+  @ApiProperty({
+    type: [AutomationEventResponseDto],
+  })
+  items!: AutomationEventResponseDto[];
 }
