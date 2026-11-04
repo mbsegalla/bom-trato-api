@@ -655,7 +655,7 @@ model PlanChange {
 model StripeWebhookEvent {
   id               String    @id
   type             String    @db.VarChar(100)
-  stripeCustomerId String
+  stripeCustomerId String?
   stripeObjectId   String
   attempts         Int       @default(0)
   nextAttemptAt    DateTime  @default(now()) @db.Timestamptz(3)

@@ -37,7 +37,7 @@ export interface BillingSnapshot {
 export interface WebhookNotice {
   id: string;
   type: string;
-  stripeCustomerId: string;
+  stripeCustomerId: string | null;
   stripeObjectId: string;
 }
 

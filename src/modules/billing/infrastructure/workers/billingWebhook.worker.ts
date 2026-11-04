@@ -7,6 +7,8 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Interval, SchedulerRegistry } from '@nestjs/schedule';
 
 import { stripeConfig } from '../../../../config/stripe.config.js';
+import { SyncStripeCatalogUseCase } from '../../../plans/application/useCases/syncStripeCatalog.useCase.js';
+import { isStripeCatalogWebhookType } from '../../../plans/domain/types/stripeCatalog.types.js';
 import { BillingWebhookRepository } from '../../application/ports/billingWebhookRepository.port.js';
 import { HandleDeletedBillingCustomerUseCase } from '../../application/useCases/handleDeletedBillingCustomer.useCase.js';
 import { QueueBillingAlertUseCase } from '../../application/useCases/queueBillingAlert.useCase.js';
@@ -38,6 +40,7 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     @Inject(stripeConfig.KEY)
     private readonly configuration: ConfigType<typeof stripeConfig>,
 
+    private readonly syncStripeCatalogUseCase: SyncStripeCatalogUseCase,
     private readonly reconcilePlanChangeUseCase: ReconcilePlanChangeUseCase,
     private readonly syncBillingUseCase: SyncBillingUseCase,
     private readonly syncPaymentMethodUpdateUseCase: SyncPaymentMethodUpdateUseCase,
@@ -123,7 +126,6 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
       return;
     }
 
-    // Coalesce synchronous events before starting database work.
     this.running = Promise.resolve()
       .then(() => this.drain())
       .catch((error: unknown) => {
@@ -163,13 +165,10 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
           continue;
         }
 
-        // Changes emitted while processing are covered by this fresh read.
         this.scheduleChanges.delete(work);
 
         const nextRunAt = await this.scheduleRepository.nextRunAt(work);
 
-        // A change during the read invalidates its result.
-        // Read again without processing another batch.
         if (this.stopping || this.pending.has(work) || this.scheduleChanges.has(work)) {
           continue;
         }
@@ -365,7 +364,6 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
       }
     }
 
-    // dueCustomers currently returns at most one customer.
     return customers.length > 0;
   }
 
@@ -404,7 +402,15 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
     heartbeat.unref();
 
     try {
-      if (event.type === 'customer.deleted') {
+      if (isStripeCatalogWebhookType(event.type)) {
+        await this.syncStripeCatalogUseCase.executeWebhook(event.type, event.stripeObjectId);
+
+        assertLease();
+      } else if (event.type === 'customer.deleted') {
+        if (event.stripeCustomerId === null) {
+          throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+        }
+
         await this.handleDeletedBillingCustomerUseCase.execute({
           stripeCustomerId: event.stripeCustomerId,
           deletedAt: event.receivedAt,
@@ -412,7 +418,13 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
 
         assertLease();
       } else {
-        const customer = await this.billingRepository.customerByStripeId(event.stripeCustomerId);
+        if (event.stripeCustomerId === null) {
+          throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
+        }
+
+        const stripeCustomerId = event.stripeCustomerId;
+
+        const customer = await this.billingRepository.customerByStripeId(stripeCustomerId);
 
         assertLease();
 
@@ -420,11 +432,11 @@ export class BillingWebhookWorker implements OnApplicationBootstrap, OnModuleDes
           throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
         }
 
-        if (customer.stripeCustomerId !== event.stripeCustomerId) {
+        if (customer.stripeCustomerId !== stripeCustomerId) {
           this.logger.debug({
             message: 'Ignoring webhook for detached Stripe customer',
             webhookEventId: event.id,
-            stripeCustomerId: event.stripeCustomerId,
+            stripeCustomerId,
             organizationId: customer.organizationId,
           });
         } else if (event.type.startsWith('setup_intent.')) {
