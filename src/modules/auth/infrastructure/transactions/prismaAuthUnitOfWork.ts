@@ -18,13 +18,15 @@ export class PrismaAuthUnitOfWork extends AuthUnitOfWork {
   async run<T>(operation: (tx: AuthTransaction) => Promise<T>): Promise<T> {
     let notificationInserted = false;
 
+    const onNotificationInserted = (): void => {
+      notificationInserted = true;
+    };
+
     const result = await this.prisma.$transaction(
       (db) =>
         operation({
           auth: new PrismaAuthRepository(this.prisma, db),
-          notifications: this.outbox.using(db, () => {
-            notificationInserted = true;
-          }),
+          notifications: this.outbox.using(db, onNotificationInserted),
         }),
       {
         maxWait: 5000,

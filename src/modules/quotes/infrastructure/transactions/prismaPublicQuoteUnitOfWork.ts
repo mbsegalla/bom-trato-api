@@ -76,6 +76,32 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
     return customer?.defaultServiceAddress ?? null;
   }
 
+  private findOrganization(db: Prisma.TransactionClient, organizationId: string) {
+    return db.organization.findUnique({
+      where: {
+        id: organizationId,
+      },
+      select: {
+        name: true,
+        ownerId: true,
+      },
+    });
+  }
+
+  private createContext(db: Prisma.TransactionClient, organizationId: string): PublicQuoteTransaction {
+    return {
+      quotes: new PrismaQuoteRepository(db, organizationId),
+      shares: new PrismaQuoteShareRepository(db, organizationId),
+      workOrders: new PrismaWorkOrderRepository(db, organizationId),
+      receivables: new PrismaReceivableRepository(db, organizationId),
+      inAppNotifications: new PrismaInAppNotificationRepository(db),
+      findSingleAssignableMember: () => this.findSingleAssignableMember(db, organizationId),
+      findCustomerDefaultServiceAddress: (customerId) =>
+        this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
+      findOrganization: () => this.findOrganization(db, organizationId),
+    };
+  }
+
   private async execute<T>(
     mode: OrganizationTransactionMode,
     hash: string,
@@ -100,27 +126,7 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
       this.prisma,
       organizationId,
       mode,
-      (db) =>
-        operation({
-          quotes: new PrismaQuoteRepository(db, organizationId),
-          shares: new PrismaQuoteShareRepository(db, organizationId),
-          workOrders: new PrismaWorkOrderRepository(db, organizationId),
-          receivables: new PrismaReceivableRepository(db, organizationId),
-          inAppNotifications: new PrismaInAppNotificationRepository(db),
-          findSingleAssignableMember: () => this.findSingleAssignableMember(db, organizationId),
-          findCustomerDefaultServiceAddress: (customerId) =>
-            this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
-          findOrganization: () =>
-            db.organization.findUnique({
-              where: {
-                id: organizationId,
-              },
-              select: {
-                name: true,
-                ownerId: true,
-              },
-            }),
-        }),
+      (db) => operation(this.createContext(db, organizationId)),
       {
         notFound: () => new QuoteShareError('QUOTE_SHARE_NOT_FOUND'),
         busy: () => new QuoteError('QUOTES_BUSY'),

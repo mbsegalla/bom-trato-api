@@ -104,21 +104,44 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
     return customer?.defaultServiceAddress ?? null;
   }
 
+  private findOrganization(db: Prisma.TransactionClient, organizationId: string) {
+    return db.organization.findUnique({
+      where: {
+        id: organizationId,
+      },
+      select: {
+        name: true,
+        autoQuoteFollowUpEnabled: true,
+      },
+    });
+  }
+
+  private findCustomer(db: Prisma.TransactionClient, organizationId: string, customerId: string) {
+    return db.customer.findFirst({
+      where: {
+        id: customerId,
+        organizationId,
+      },
+    });
+  }
+
+  private findCatalogService(db: Prisma.TransactionClient, organizationId: string, serviceId: string) {
+    return db.catalogService.findFirst({
+      where: {
+        id: serviceId,
+        organizationId,
+      },
+    });
+  }
+
   private async createReadContext(db: Prisma.TransactionClient, params: QuoteActorParams): Promise<QuoteReadContext> {
+    const { organizationId } = params;
+
     return {
-      quotes: new PrismaQuoteRepository(db, params.organizationId),
-      shares: new PrismaQuoteShareRepository(db, params.organizationId),
+      quotes: new PrismaQuoteRepository(db, organizationId),
+      shares: new PrismaQuoteShareRepository(db, organizationId),
       access: await readOrganizationAccess(db, params),
-      findOrganization: () =>
-        db.organization.findUnique({
-          where: {
-            id: params.organizationId,
-          },
-          select: {
-            name: true,
-            autoQuoteFollowUpEnabled: true,
-          },
-        }),
+      findOrganization: () => this.findOrganization(db, organizationId),
     };
   }
 
@@ -127,32 +150,21 @@ export class PrismaQuoteUnitOfWork extends QuoteUnitOfWork {
     params: QuoteActorParams,
     onNotificationInserted: () => void,
   ): Promise<QuoteTransaction> {
+    const { organizationId } = params;
     const readContext = await this.createReadContext(db, params);
 
     return {
       ...readContext,
-      quotes: new PrismaQuoteRepository(db, params.organizationId),
-      shares: new PrismaQuoteShareRepository(db, params.organizationId),
+      quotes: new PrismaQuoteRepository(db, organizationId),
+      shares: new PrismaQuoteShareRepository(db, organizationId),
       notifications: this.outbox.using(db, onNotificationInserted),
-      workOrders: new PrismaWorkOrderRepository(db, params.organizationId),
-      receivables: new PrismaReceivableRepository(db, params.organizationId),
-      findSingleAssignableMember: () => this.findSingleAssignableMember(db, params.organizationId),
+      workOrders: new PrismaWorkOrderRepository(db, organizationId),
+      receivables: new PrismaReceivableRepository(db, organizationId),
+      findSingleAssignableMember: () => this.findSingleAssignableMember(db, organizationId),
       findCustomerDefaultServiceAddress: (customerId) =>
-        this.findCustomerDefaultServiceAddress(db, params.organizationId, customerId),
-      findCustomer: (id) =>
-        db.customer.findFirst({
-          where: {
-            id,
-            organizationId: params.organizationId,
-          },
-        }),
-      findCatalogService: (id) =>
-        db.catalogService.findFirst({
-          where: {
-            id,
-            organizationId: params.organizationId,
-          },
-        }),
+        this.findCustomerDefaultServiceAddress(db, organizationId, customerId),
+      findCustomer: (customerId) => this.findCustomer(db, organizationId, customerId),
+      findCatalogService: (serviceId) => this.findCatalogService(db, organizationId, serviceId),
     };
   }
 

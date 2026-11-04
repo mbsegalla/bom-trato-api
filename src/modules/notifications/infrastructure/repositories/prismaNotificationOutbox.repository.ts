@@ -34,13 +34,7 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
 
   using(db: Prisma.TransactionClient, onInserted: () => void): NotificationOutbox {
     return {
-      enqueue: async (input): Promise<void> => {
-        const inserted = await this.insert(db, input);
-
-        if (inserted) {
-          onInserted();
-        }
-      },
+      enqueue: (input) => this.enqueueUsing(db, onInserted, input),
     };
   }
 
@@ -57,6 +51,18 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
       this.eventEmitter.emit(NOTIFICATIONS_AVAILABLE_EVENT);
     } catch {
       this.logger.error('Could not notify the notification worker; periodic recovery remains available');
+    }
+  }
+
+  private async enqueueUsing(
+    db: Prisma.TransactionClient,
+    onInserted: () => void,
+    input: EnqueueNotification,
+  ): Promise<void> {
+    const inserted = await this.insert(db, input);
+
+    if (inserted) {
+      onInserted();
     }
   }
 

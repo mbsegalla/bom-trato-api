@@ -39,12 +39,8 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
 
         return operation({
           ...identity,
-          members: {
-            list: (input) => members.list(input),
-          },
-          invitations: {
-            list: (input) => invitations.list(input),
-          },
+          members,
+          invitations,
         });
       },
       this.errors(),
@@ -53,6 +49,10 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
 
   async run<T>(params: OrganizationActorParams, operation: (tx: OrganizationTransaction) => Promise<T>): Promise<T> {
     let notificationInserted = false;
+
+    const onNotificationInserted = (): void => {
+      notificationInserted = true;
+    };
 
     const result = await organizationTransaction(
       this.prisma,
@@ -65,9 +65,7 @@ export class PrismaOrganizationUnitOfWork extends OrganizationUnitOfWork {
           invitations: new PrismaOrganizationInvitationRepository(db),
           access: new PrismaOrganizationTeamAccess(db),
           invitationRateLimit: new PrismaOrganizationInvitationRateLimit(db),
-          notifications: this.outbox.using(db, () => {
-            notificationInserted = true;
-          }),
+          notifications: this.outbox.using(db, onNotificationInserted),
           inAppNotifications: new PrismaInAppNotificationRepository(db),
           saveOrganization: (organization) => this.saveOrganization(db, params.organizationId, organization),
         }),

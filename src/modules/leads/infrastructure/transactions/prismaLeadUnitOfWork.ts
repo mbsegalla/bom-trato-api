@@ -92,23 +92,70 @@ export class PrismaLeadUnitOfWork extends LeadUnitOfWork {
           recipientUserIds,
           leads: new PrismaLeadRepository(db, profile.organizationId),
           notifications: new PrismaInAppNotificationRepository(db),
-          findPublicCatalogService: (id) =>
-            db.catalogService.findFirst({
-              where: {
-                id,
-                organizationId: profile.organizationId,
-                archivedAt: null,
-                publicProfileSelections: {
-                  some: {
-                    publicBusinessProfileId: profile.id,
-                  },
-                },
-              },
-            }),
+          findPublicCatalogService: (id) => this.findPublicCatalogService(db, profile.organizationId, profile.id, id),
         });
       },
       () => new LeadError('LEADS_BUSY'),
     );
+  }
+
+  private findCustomersByContact(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    email: string | null,
+    phone: string | null,
+  ) {
+    const conditions: Prisma.CustomerWhereInput[] = [];
+
+    if (email) {
+      conditions.push({ email });
+    }
+
+    if (phone) {
+      conditions.push({ phone });
+    }
+
+    if (conditions.length === 0) {
+      return Promise.resolve([]);
+    }
+
+    return db.customer.findMany({
+      where: {
+        organizationId,
+        OR: conditions,
+      },
+      take: 2,
+    });
+  }
+
+  private findCatalogService(db: Prisma.TransactionClient, organizationId: string, serviceId: string) {
+    return db.catalogService.findFirst({
+      where: {
+        id: serviceId,
+        organizationId,
+        archivedAt: null,
+      },
+    });
+  }
+
+  private findPublicCatalogService(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    publicBusinessProfileId: string,
+    serviceId: string,
+  ) {
+    return db.catalogService.findFirst({
+      where: {
+        id: serviceId,
+        organizationId,
+        archivedAt: null,
+        publicProfileSelections: {
+          some: {
+            publicBusinessProfileId,
+          },
+        },
+      },
+    });
   }
 
   private execute<T>(
@@ -131,46 +178,13 @@ export class PrismaLeadUnitOfWork extends LeadUnitOfWork {
   private async createContext(db: Prisma.TransactionClient, params: LeadActorParams): Promise<LeadTransaction> {
     const { organizationId } = params;
 
-    const findCustomersByContact = (email: string | null, phone: string | null) => {
-      const conditions: Prisma.CustomerWhereInput[] = [];
-
-      if (email) {
-        conditions.push({ email });
-      }
-
-      if (phone) {
-        conditions.push({ phone });
-      }
-
-      if (conditions.length === 0) {
-        return Promise.resolve([]);
-      }
-
-      return db.customer.findMany({
-        where: {
-          organizationId,
-          OR: conditions,
-        },
-        take: 2,
-      });
-    };
-
-    const findCatalogService = (id: string) =>
-      db.catalogService.findFirst({
-        where: {
-          id,
-          organizationId,
-          archivedAt: null,
-        },
-      });
-
     return {
       leads: new PrismaLeadRepository(db, organizationId),
       customers: new PrismaCustomerRepository(db, organizationId),
       quotes: new PrismaQuoteRepository(db, organizationId),
       access: await readOrganizationAccess(db, params),
-      findCustomersByContact,
-      findCatalogService,
+      findCustomersByContact: (email, phone) => this.findCustomersByContact(db, organizationId, email, phone),
+      findCatalogService: (serviceId) => this.findCatalogService(db, organizationId, serviceId),
     };
   }
 }
