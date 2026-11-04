@@ -1,6 +1,10 @@
 import type Stripe from 'stripe';
 
 import type { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
+import {
+  isStripeCatalogWebhookType,
+  stripeCatalogWebhookTypes,
+} from '../../../plans/domain/types/stripeCatalog.types.js';
 import type {
   CheckoutResult,
   CreateCheckoutParams,
@@ -42,6 +46,7 @@ const supportedEvents = new Set([
   'subscription_schedule.released',
   'subscription_schedule.canceled',
   'subscription_schedule.aborted',
+  ...stripeCatalogWebhookTypes,
 ]);
 
 function date(seconds: number): Date {
@@ -462,18 +467,27 @@ export class StripeBillingGateway extends BillingGateway {
       return null;
     }
 
-    if (event.type === 'customer.deleted') {
-      const customerId = objectId(object);
+    const id = objectId(object);
 
-      if (customerId === null) {
-        return null;
-      }
+    if (id === null) {
+      return null;
+    }
 
+    if (isStripeCatalogWebhookType(event.type)) {
       return {
         id: event.id,
         type: event.type,
-        stripeCustomerId: customerId,
-        stripeObjectId: customerId,
+        stripeCustomerId: null,
+        stripeObjectId: id,
+      };
+    }
+
+    if (event.type === 'customer.deleted') {
+      return {
+        id: event.id,
+        type: event.type,
+        stripeCustomerId: id,
+        stripeObjectId: id,
       };
     }
 
@@ -482,9 +496,8 @@ export class StripeBillingGateway extends BillingGateway {
     }
 
     const customerId = objectId(object.customer);
-    const id = objectId(object);
 
-    if (customerId === null || id === null) {
+    if (customerId === null) {
       return null;
     }
 

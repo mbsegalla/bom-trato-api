@@ -5,6 +5,10 @@ import type Stripe from 'stripe';
 import { appConfig } from '../../config/app.config.js';
 import { stripeConfig } from '../../config/stripe.config.js';
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { StripeCatalogSynchronizer } from '../plans/application/ports/stripeCatalogSynchronizer.port.js';
+import { SyncStripeCatalogUseCase } from '../plans/application/useCases/syncStripeCatalog.useCase.js';
+import { StripeCatalogSyncService } from '../plans/infrastructure/stripe/stripeCatalogSync.service.js';
 
 import { BillingGateway } from './application/ports/billingGateway.port.js';
 import { BillingLock } from './application/ports/billingLock.port.js';
@@ -54,6 +58,16 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
   providers: [
     stripeClientProvider,
     BillingWorkerNotifier,
+    {
+      provide: StripeCatalogSynchronizer,
+      useFactory: (stripe: Stripe, prisma: PrismaService) => new StripeCatalogSyncService(stripe, prisma),
+      inject: [STRIPE_CLIENT, PrismaService],
+    },
+    {
+      provide: SyncStripeCatalogUseCase,
+      useFactory: (synchronizer: StripeCatalogSynchronizer) => new SyncStripeCatalogUseCase(synchronizer),
+      inject: [StripeCatalogSynchronizer],
+    },
     {
       provide: PlanChangeRepository,
       useClass: PrismaPlanChangeRepository,
@@ -132,7 +146,6 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
         new ReconcilePlanChangeUseCase(changes, lock, processor),
       inject: [PlanChangeRepository, BillingLock, PlanChangeProcessor],
     },
-
     {
       provide: BillingRepository,
       useClass: PrismaBillingRepository,
@@ -211,7 +224,6 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
         new SyncBillingUseCase(repository, gateway, lock),
       inject: [BillingRepository, BillingGateway, BillingLock],
     },
-
     {
       provide: PaymentMethodUpdateRepository,
       useClass: PrismaPaymentMethodUpdateRepository,
@@ -256,7 +268,7 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
         lock: BillingLock,
         processor: PaymentMethodUpdateProcessor,
       ) => new CompletePaymentMethodUpdateUseCase(billing, updates, lock, processor),
-      inject: [BillingRepository, PaymentMethodUpdateRepository, BillingLock, PaymentMethodUpdateProcessor],
+      inject: [PaymentMethodUpdateRepository, BillingLock, PaymentMethodUpdateProcessor],
     },
     {
       provide: GetPaymentMethodUseCase,
@@ -287,6 +299,7 @@ import { StripePlanChangeGateway } from './infrastructure/stripe/stripePlanChang
     },
   ],
   exports: [
+    SyncStripeCatalogUseCase,
     PlanChangeRepository,
     PreviewPlanChangeUseCase,
     ConfirmPlanChangeUseCase,
