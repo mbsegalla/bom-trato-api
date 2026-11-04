@@ -1024,7 +1024,10 @@ model NotificationOutbox {
   automationType        AutomationType?
   automationEntityType  AutomationEntityType?
   automationEntityId    String?               @db.Uuid
-  automationDescription String?               @db.VarChar(500)
+  automationContextId   String?               @db.Uuid
+  automationReferenceAt DateTime?             @db.Timestamptz(3)
+  automationDescription String?               @db.VarChar(200)
+  automationHref        String?               @db.VarChar(500)
 
   @@index([status, availableAt, createdAt])
   @@index([status, leaseUntil])
