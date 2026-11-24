@@ -1,6 +1,45 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { type OnboardingStep, onboardingSteps } from '../../../../domain/types/onboarding.types.js';
+import type { OrganizationPlatformAccessSource } from '../../../../../organizations/domain/policies/organizationPlatformAccess.policy.js';
+import type { OnboardingStep } from '../../../../domain/types/onboarding.types.js';
+import { onboardingSteps } from '../../../../domain/types/onboarding.types.js';
+
+export class OnboardingTrialResponseDto {
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+  })
+  startsAt: Date;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+  })
+  expiresAt: Date;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+  })
+  convertedAt: Date | null;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+  })
+  revokedAt: Date | null;
+
+  @ApiProperty({
+    example: 14,
+    minimum: 0,
+  })
+  remainingDays: number;
+
+  @ApiProperty()
+  active: boolean;
+}
 
 export class OnboardingResponseDto {
   @ApiProperty({
@@ -21,4 +60,18 @@ export class OnboardingResponseDto {
     nullable: true,
   })
   selectedPlanPriceId: string | null;
+
+  @ApiProperty({
+    enum: ['SUBSCRIPTION', 'TRIAL', 'NONE'],
+  })
+  accessSource: OrganizationPlatformAccessSource;
+
+  @ApiProperty()
+  trialEligible: boolean;
+
+  @ApiProperty({
+    type: OnboardingTrialResponseDto,
+    nullable: true,
+  })
+  trial: OnboardingTrialResponseDto | null;
 }

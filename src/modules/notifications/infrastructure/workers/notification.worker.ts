@@ -7,17 +7,13 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression, Interval } from '@nestjs/schedule';
 
 import { notificationConfig } from '../../../../config/notification.config.js';
-import {
-  AutomationType,
-  NotificationStatus,
-  QuoteStatus,
-  ReceivableStatus,
-  WorkOrderStatus,
-} from '../../../../generated/prisma/enums.js';
+import { NotificationStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { readTransaction } from '../../../../infrastructure/database/prismaTransaction.js';
 import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
 import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
+import { shouldSkipAutomation } from '../policies/prismaAutomationDelivery.policy.js';
 import { NotificationDeliveryError, ResendEmailGateway } from '../resend/resendEmail.gateway.js';
 import { NotificationCipher } from '../security/notificationCipher.js';
 
@@ -131,6 +127,54 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
   }
 
   private async process(onClaim: (notificationId: string) => void): Promise<boolean> {
+    const job = await this.claim();
+
+    if (job === null) {
+      return false;
+    }
+
+    onClaim(job.id);
+
+    const deadline = this.deliveryDeadline(job);
+
+    if (Date.now() >= deadline || job.attempts > 16) {
+      await this.finish(job, NotificationStatus.SKIPPED, 'RETRY_WINDOW_EXPIRED');
+
+      return true;
+    }
+
+    if (await this.isAutomationUnavailable(job)) {
+      await this.finish(job, NotificationStatus.SKIPPED, 'AUTOMATION_NO_LONGER_APPLICABLE');
+
+      return true;
+    }
+
+    let message: NotificationMessage;
+
+    try {
+      if (job.encryptedPayload === null) {
+        throw new Error('MISSING_PAYLOAD');
+      }
+
+      message = this.cipher.decrypt(job.id, job.encryptedPayload);
+    } catch {
+      await this.finish(job, NotificationStatus.FAILED, 'INVALID_ENCRYPTED_PAYLOAD');
+
+      return true;
+    }
+
+    if (Date.now() >= deadline) {
+      await this.finish(job, NotificationStatus.SKIPPED, 'RETRY_WINDOW_EXPIRED');
+
+      return true;
+    }
+
+    await this.deliver(job, message, deadline);
+
+    return true;
+  }
+
+  private async claim(): Promise<NotificationJob | null> {
     const token = randomUUID();
 
     const jobs = await this.db.$queryRaw<NotificationJob[]>`
@@ -164,92 +208,75 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       RETURNING job.*
     `;
 
-    const job = jobs[0];
+    return jobs[0] ?? null;
+  }
 
-    if (job === undefined) {
-      return false;
+  private deliveryDeadline(job: NotificationJob): number {
+    return Math.min(job.expiresAt.getTime(), (job.firstAttemptAt?.getTime() ?? Date.now()) + 23 * 60 * 60 * 1000);
+  }
+
+  private isAutomationUnavailable(job: NotificationJob): Promise<boolean> {
+    if (job.automationType === null) {
+      return Promise.resolve(false);
     }
 
-    onClaim(job.id);
+    return readTransaction(this.db, (db) => shouldSkipAutomation(db, job, new Date()));
+  }
 
-    const deadline = Math.min(
-      job.expiresAt.getTime(),
-      (job.firstAttemptAt?.getTime() ?? Date.now()) + 23 * 60 * 60 * 1000,
-    );
-
-    if (Date.now() >= deadline || job.attempts > 16) {
-      await this.finish(job, NotificationStatus.SKIPPED, 'RETRY_WINDOW_EXPIRED');
-
-      return true;
-    }
-
-    if (await this.shouldSkipAutomation(job)) {
-      await this.finish(job, NotificationStatus.SKIPPED, 'AUTOMATION_NO_LONGER_APPLICABLE');
-
-      return true;
-    }
-
-    let message: NotificationMessage;
-
-    try {
-      if (job.encryptedPayload === null) {
-        throw new Error('MISSING_PAYLOAD');
-      }
-
-      message = this.cipher.decrypt(job.id, job.encryptedPayload);
-    } catch {
-      await this.finish(job, NotificationStatus.FAILED, 'INVALID_ENCRYPTED_PAYLOAD');
-
-      return true;
-    }
-
+  private async deliver(job: NotificationJob, message: NotificationMessage, deadline: number): Promise<void> {
     let providerId: string;
 
     try {
       providerId = await this.sender.send(job.id, message);
     } catch (error: unknown) {
-      const retryable = !(error instanceof NotificationDeliveryError) || error.retryable;
+      await this.handleDeliveryFailure(job, error, deadline);
 
-      const code = error instanceof NotificationDeliveryError ? error.code : 'PROVIDER_UNAVAILABLE';
-
-      const delay = Math.max(
-        Math.min(3600, 30 * 2 ** (job.attempts - 1)),
-        error instanceof NotificationDeliveryError ? error.retryAfterSeconds : 0,
-      );
-
-      const availableAt = new Date(Date.now() + delay * 1000);
-
-      if (!retryable || job.attempts >= 16 || availableAt.getTime() >= deadline) {
-        await this.finish(job, NotificationStatus.FAILED, code);
-
-        return true;
-      }
-
-      await this.db.notificationOutbox.updateMany({
-        where: {
-          id: job.id,
-          status: NotificationStatus.PROCESSING,
-          leaseToken: job.leaseToken,
-        },
-        data: {
-          status: NotificationStatus.PENDING,
-          availableAt,
-          leaseToken: null,
-          leaseUntil: null,
-          lastErrorCode: code,
-        },
-      });
-
-      this.logger.warn({
-        message: 'Notification retry scheduled',
-        notificationId: job.id,
-        attempt: job.attempts,
-        code,
-      });
-
-      return true;
+      return;
     }
 
+    await this.accept(job, providerId);
+  }
+
+  private async handleDeliveryFailure(job: NotificationJob, error: unknown, deadline: number): Promise<void> {
+    const deliveryError = error instanceof NotificationDeliveryError ? error : null;
+
+    const retryable = deliveryError?.retryable ?? true;
+    const code = deliveryError?.code ?? 'PROVIDER_UNAVAILABLE';
+
+    const delay = Math.max(Math.min(3600, 30 * 2 ** (job.attempts - 1)), deliveryError?.retryAfterSeconds ?? 0);
+
+    const availableAt = new Date(Date.now() + delay * 1000);
+
+    if (!retryable || job.attempts >= 16 || availableAt.getTime() >= deadline) {
+      await this.finish(job, NotificationStatus.FAILED, code);
+
+      return;
+    }
+
+    await this.db.notificationOutbox.updateMany({
+      where: {
+        id: job.id,
+        status: NotificationStatus.PROCESSING,
+        leaseToken: job.leaseToken,
+      },
+      data: {
+        status: NotificationStatus.PENDING,
+        availableAt,
+        leaseToken: null,
+        leaseUntil: null,
+        lastErrorCode: code,
+      },
+    });
+
+    this.logger.warn({
+      message: 'Notification retry scheduled',
+      notificationId: job.id,
+      attempt: job.attempts,
+      code,
+    });
+  }
+
+  private async accept(job: NotificationJob, providerId: string): Promise<void> {
     const result = await this.db.notificationOutbox.updateMany({
       where: {
         id: job.id,
@@ -272,159 +299,15 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
         message: 'Notification lease lost after provider acceptance',
         notificationId: job.id,
       });
-    } else {
-      this.logger.log({
-        message: 'Notification accepted by email provider',
-        notificationId: job.id,
-        attempt: job.attempts,
-      });
+
+      return;
     }
 
-    return true;
-  }
-
-  private async shouldSkipAutomation(job: NotificationJob): Promise<boolean> {
-    if (job.automationType === null) {
-      return false;
-    }
-
-    if (job.organizationId === null || job.automationEntityId === null) {
-      return true;
-    }
-
-    const now = new Date();
-
-    switch (job.automationType) {
-      case AutomationType.QUOTE_FOLLOW_UP: {
-        if (job.automationContextId === null) {
-          return true;
-        }
-
-        const share = await this.db.quoteShare.findFirst({
-          where: {
-            id: job.automationContextId,
-            quoteId: job.automationEntityId,
-            organizationId: job.organizationId,
-            revokedAt: null,
-            decision: null,
-            changeRequestedAt: null,
-            expiresAt: {
-              gt: now,
-            },
-          },
-          select: {
-            quoteVersion: true,
-            quote: {
-              select: {
-                version: true,
-                status: true,
-                validUntil: true,
-              },
-            },
-          },
-        });
-
-        return (
-          share === null ||
-          share.quote.status !== QuoteStatus.SENT ||
-          share.quote.version !== share.quoteVersion ||
-          (share.quote.validUntil !== null && share.quote.validUntil <= now)
-        );
-      }
-
-      case AutomationType.WORK_ORDER_REMINDER: {
-        if (job.automationReferenceAt === null) {
-          return true;
-        }
-
-        const order = await this.db.workOrder.findFirst({
-          where: {
-            id: job.automationEntityId,
-            organizationId: job.organizationId,
-          },
-          select: {
-            status: true,
-            scheduledStartAt: true,
-          },
-        });
-
-        return (
-          order === null ||
-          order.status !== WorkOrderStatus.SCHEDULED ||
-          order.scheduledStartAt === null ||
-          order.scheduledStartAt.getTime() !== job.automationReferenceAt.getTime() ||
-          order.scheduledStartAt <= now
-        );
-      }
-
-      case AutomationType.REVIEW_REQUEST: {
-        if (job.automationContextId === null) {
-          return true;
-        }
-
-        const invitation = await this.db.professionalReviewInvitation.findFirst({
-          where: {
-            id: job.automationContextId,
-            workOrderId: job.automationEntityId,
-            revokedAt: null,
-            usedAt: null,
-            expiresAt: {
-              gt: now,
-            },
-          },
-          select: {
-            workOrder: {
-              select: {
-                status: true,
-                professionalReview: {
-                  select: {
-                    id: true,
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        return (
-          invitation === null ||
-          invitation.workOrder.status !== WorkOrderStatus.COMPLETED ||
-          invitation.workOrder.professionalReview !== null
-        );
-      }
-
-      case AutomationType.RECEIVABLE_DUE_SOON:
-      case AutomationType.RECEIVABLE_OVERDUE: {
-        if (job.automationReferenceAt === null) {
-          return true;
-        }
-
-        const receivable = await this.db.receivable.findFirst({
-          where: {
-            id: job.automationEntityId,
-            organizationId: job.organizationId,
-          },
-          select: {
-            status: true,
-            dueAt: true,
-          },
-        });
-
-        if (
-          receivable === null ||
-          (receivable.status !== ReceivableStatus.OPEN && receivable.status !== ReceivableStatus.PARTIALLY_PAID) ||
-          receivable.dueAt.getTime() !== job.automationReferenceAt.getTime()
-        ) {
-          return true;
-        }
-
-        if (job.automationType === AutomationType.RECEIVABLE_DUE_SOON) {
-          return receivable.dueAt <= now;
-        }
-
-        return receivable.dueAt >= now;
-      }
-    }
+    this.logger.log({
+      message: 'Notification accepted by email provider',
+      notificationId: job.id,
+      attempt: job.attempts,
+    });
   }
 
   private async finish(job: NotificationJob, status: NotificationStatus, code: string): Promise<void> {

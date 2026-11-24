@@ -1,13 +1,13 @@
 import type { Prisma } from '../../../../generated/prisma/client.js';
-import { SubscriptionStatus } from '../../../../generated/prisma/enums.js';
-import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
+import type { OrganizationPlatformAccessParams } from '../../application/ports/organizationPlatformAccessReader.port.js';
+import type { OrganizationAccessContext } from '../../domain/policies/organizationAccess.policy.js';
 
-interface OrganizationAccessParams {
-  organizationId: string;
-  userId: string;
-}
+import { readOrganizationPlatformAccess } from './prismaOrganizationPlatformAccess.js';
 
-export async function readOrganizationAccess(db: Prisma.TransactionClient, params: OrganizationAccessParams) {
+export async function readOrganizationAccess(
+  db: Prisma.TransactionClient,
+  params: OrganizationPlatformAccessParams,
+): Promise<OrganizationAccessContext> {
   const { organizationId, userId } = params;
 
   const member = await db.organizationMember.findUnique({
@@ -27,23 +27,23 @@ export async function readOrganizationAccess(db: Prisma.TransactionClient, param
     },
   });
 
-  const subscriptions = await db.subscription.findMany({
-    where: {
-      organizationId,
-      status: {
-        notIn: [SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE_EXPIRED],
-      },
-    },
-    orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
-    take: 2,
-  });
+  if (member === null) {
+    return {
+      isMember: false,
+      verified: false,
+      hasPlatformAccess: false,
+      source: 'NONE',
+      billingNeedsReconciliation: false,
+    };
+  }
 
-  const current = subscriptions[0];
+  const { access } = await readOrganizationPlatformAccess(db, organizationId, new Date());
 
   return {
-    isMember: member !== null,
-    verified: member !== null && member.user.disabledAt === null && member.user.emailVerifiedAt !== null,
-    hasSubscriptionAccess: current !== undefined && Subscription.restore(current).hasAccessAt(new Date()),
-    billingNeedsReconciliation: subscriptions.length > 1,
+    isMember: true,
+    verified: member.user.disabledAt === null && member.user.emailVerifiedAt !== null,
+    hasPlatformAccess: access.hasAccess,
+    source: access.source,
+    billingNeedsReconciliation: access.billingNeedsReconciliation,
   };
 }

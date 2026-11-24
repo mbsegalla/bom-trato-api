@@ -8,9 +8,11 @@ import { appConfig } from '../../../../config/app.config.js';
 import { notificationConfig } from '../../../../config/notification.config.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { writeTransaction } from '../../../../infrastructure/database/prismaTransaction.js';
 import { NotificationOutbox } from '../../application/ports/notificationOutbox.port.js';
 import type { EnqueueNotification } from '../../application/types/notification.types.js';
 import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
+import { canEnqueueAutomation } from '../policies/prismaAutomationEnqueue.policy.js';
 import { mapNotificationTemplate } from '../resend/notificationTemplate.mapper.js';
 import { NotificationCipher } from '../security/notificationCipher.js';
 
@@ -39,7 +41,7 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
   }
 
   async enqueue(input: EnqueueNotification): Promise<void> {
-    const inserted = await this.insert(this.prisma, input);
+    const inserted = await this.insertStandalone(input);
 
     if (inserted) {
       this.notifyWorker();
@@ -52,6 +54,18 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
     } catch {
       this.logger.error('Could not notify the notification worker; periodic recovery remains available');
     }
+  }
+
+  private insertStandalone(input: EnqueueNotification): Promise<boolean> {
+    if (input.automation === undefined) {
+      return this.insert(this.prisma, input);
+    }
+
+    return writeTransaction(
+      this.prisma,
+      (db) => this.insert(db, input),
+      () => new Error('NOTIFICATION_OUTBOX_BUSY'),
+    );
   }
 
   private async enqueueUsing(
@@ -67,11 +81,16 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
   }
 
   private async insert(db: Prisma.TransactionClient, input: EnqueueNotification): Promise<boolean> {
+    const automation = input.automation;
+
+    if (automation !== undefined && !(await canEnqueueAutomation(db, automation.organizationId))) {
+      return false;
+    }
+
     const id = randomUUID();
+    const now = new Date();
 
     const message = mapNotificationTemplate(input, this.app.frontendUrl, this.config.from, this.config.templates);
-
-    const automation = input.automation;
 
     const result = await db.notificationOutbox.createMany({
       data: [
@@ -79,7 +98,8 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
           id,
           key: input.key,
           type: input.content.type,
-          availableAt: input.availableAt ?? new Date(),
+          createdAt: now,
+          availableAt: input.availableAt ?? now,
           expiresAt: input.expiresAt,
           encryptedPayload: this.cipher.encrypt(id, message),
           organizationId: automation?.organizationId,

@@ -1,4 +1,5 @@
 import type { InAppNotificationRepository } from '../../../notifications/domain/repositories/inAppNotification.repository.js';
+import type { OrganizationPlatformAccess } from '../../../organizations/domain/policies/organizationPlatformAccess.policy.js';
 import type { ReceivableRepository } from '../../../receivables/domain/repositories/receivable.repository.js';
 import type { WorkOrderRepository } from '../../../workOrders/domain/repositories/workOrder.repository.js';
 import type { QuoteRepository } from '../../domain/repositories/quote.repository.js';
@@ -7,6 +8,7 @@ import type { QuoteShareRepository } from '../../domain/repositories/quoteShare.
 export interface PublicQuoteReadContext {
   readonly quotes: Pick<QuoteRepository, 'findById'>;
   readonly shares: Pick<QuoteShareRepository, 'findByHash'>;
+  readonly access: OrganizationPlatformAccess;
   findOrganization(): Promise<{ name: string; ownerId: string } | null>;
 }
 

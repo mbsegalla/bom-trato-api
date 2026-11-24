@@ -21,7 +21,7 @@ export class UpdateBillingCustomerNameUseCase {
     return this.billingLock.run(`organization:${organizationId}`, async () => {
       const customer = await this.billingRepository.customer(organizationId);
 
-      if (customer.stripeCustomerId === null) {
+      if (customer.stripeCustomerId === null && customer.creationRequestedAt !== null) {
         throw new BillingError('BILLING_RECONCILIATION_REQUIRED');
       }
 
@@ -30,7 +30,9 @@ export class UpdateBillingCustomerNameUseCase {
       }
 
       try {
-        await this.billingGateway.updateCustomerName(customer.stripeCustomerId, name);
+        if (customer.stripeCustomerId !== null) {
+          await this.billingGateway.updateCustomerName(customer.stripeCustomerId, name);
+        }
 
         await this.billingRepository.setCustomerName(customer.id, name);
       } catch (error: unknown) {

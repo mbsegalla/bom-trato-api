@@ -6,6 +6,8 @@ import { BillingLock } from '../billing/application/ports/billingLock.port.js';
 import { UpdateBillingCustomerNameUseCase } from '../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import { BillingCoreModule } from '../billing/billingCore.module.js';
 import { BillingRepository } from '../billing/domain/repositories/billing.repository.js';
+import { StartOrganizationTrialUseCase } from '../organizations/application/useCases/startOrganizationTrial.useCase.js';
+import { OrganizationTrialModule } from '../organizations/organizationTrial.module.js';
 
 import { OnboardingApplicationService } from './application/services/onboardingApplicationService.service.js';
 import { BootstrapOnboardingUseCase } from './application/useCases/bootstrapOnboarding.useCase.js';
@@ -17,7 +19,7 @@ import { PrismaOnboardingRepository } from './infrastructure/repositories/prisma
 import { OnboardingController } from './presentation/http/controllers/onboarding.controller.js';
 
 @Module({
-  imports: [DatabaseModule, BillingCoreModule],
+  imports: [DatabaseModule, BillingCoreModule, OrganizationTrialModule],
   controllers: [OnboardingController],
   providers: [
     {
@@ -57,8 +59,23 @@ import { OnboardingController } from './presentation/http/controllers/onboarding
         repository: OnboardingRepository,
         service: OnboardingApplicationService,
         updateBillingCustomerNameUseCase: UpdateBillingCustomerNameUseCase,
-      ) => new CompleteOnboardingBusinessUseCase(repository, service, updateBillingCustomerNameUseCase),
-      inject: [OnboardingRepository, OnboardingApplicationService, UpdateBillingCustomerNameUseCase],
+        startOrganizationTrialUseCase: StartOrganizationTrialUseCase,
+        billingRepository: BillingRepository,
+      ) =>
+        new CompleteOnboardingBusinessUseCase(
+          repository,
+          service,
+          updateBillingCustomerNameUseCase,
+          startOrganizationTrialUseCase,
+          billingRepository,
+        ),
+      inject: [
+        OnboardingRepository,
+        OnboardingApplicationService,
+        UpdateBillingCustomerNameUseCase,
+        StartOrganizationTrialUseCase,
+        BillingRepository,
+      ],
     },
   ],
 })

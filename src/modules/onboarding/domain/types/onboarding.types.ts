@@ -1,5 +1,7 @@
 import type { CheckoutAttemptStatus } from '../../../../generated/prisma/enums.js';
 import type { SubscriptionProps } from '../../../billing/domain/entities/subscription.entity.js';
+import type { OrganizationTrialProps } from '../../../organizations/domain/entities/organizationTrial.entity.js';
+import type { OrganizationPlatformAccessSource } from '../../../organizations/domain/policies/organizationPlatformAccess.policy.js';
 
 export const OnboardingStep = {
   Provisioning: 'PROVISIONING',
@@ -25,10 +27,25 @@ export interface OnboardingSnapshot {
   priceAvailable: boolean;
   subscriptions: SubscriptionProps[];
   checkoutStatus: CheckoutAttemptStatus | null;
+  trial: OrganizationTrialProps | null;
+  trialEligible: boolean;
+  hasPaidSubscriptionHistory: boolean;
+}
+
+export interface OnboardingTrialState {
+  startsAt: Date;
+  expiresAt: Date;
+  convertedAt: Date | null;
+  revokedAt: Date | null;
+  remainingDays: number;
+  active: boolean;
 }
 
 export interface OnboardingState {
   step: OnboardingStep;
   organizationId: string | null;
   selectedPlanPriceId: string | null;
+  accessSource: OrganizationPlatformAccessSource;
+  trialEligible: boolean;
+  trial: OnboardingTrialState | null;
 }

@@ -36,6 +36,7 @@ export interface PublicQuoteReadResult {
   quote: QuoteProps;
   share: QuoteShareProps;
   generatedAt: Date;
+  hasPlatformAccess: boolean;
 }
 
 export interface PublicQuoteDecisionResult {
