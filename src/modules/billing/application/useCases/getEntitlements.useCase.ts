@@ -1,4 +1,5 @@
-import { Subscription } from '../../domain/entities/subscription.entity.js';
+import type { OrganizationPlatformAccessReader } from '../../../organizations/application/ports/organizationPlatformAccessReader.port.js';
+import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
 import type { ReadSubscriptionParams } from '../types/billing.types.js';
@@ -7,22 +8,42 @@ export class GetEntitlementsUseCase {
   constructor(
     private readonly billingRepository: BillingRepository,
     private readonly planChangeRepository: PlanChangeRepository,
+    private readonly platformAccessReader: OrganizationPlatformAccessReader,
   ) {}
 
   async execute(params: ReadSubscriptionParams) {
     const { organizationId, userId } = params;
 
-    await this.billingRepository.assertMember(organizationId, userId);
+    const access = await this.platformAccessReader.read({
+      organizationId,
+      userId,
+    });
 
-    const state = await this.billingRepository.currentSubscription(organizationId);
+    if (!access.isMember) {
+      throw new BillingError('ORGANIZATION_NOT_FOUND');
+    }
+
+    if (access.billingNeedsReconciliation) {
+      throw new BillingError('MULTIPLE_SUBSCRIPTIONS');
+    }
 
     const limits = await this.billingRepository.entitlements(organizationId, userId);
 
-    const hasAccess = state !== null && Subscription.restore(state).hasAccessAt(new Date());
+    const hasAccess = access.verified && access.hasPlatformAccess;
 
-    const maxUsers = limits?.maxUsers ?? 0;
-    const memberCount = limits?.memberCount ?? 0;
-    const teamManagementEnabled = limits?.teamManagementEnabled ?? false;
+    if (access.source === 'TRIAL') {
+      return {
+        hasAccess,
+        maxUsers: 1,
+        memberCount: limits.memberCount,
+        teamManagementEnabled: false,
+        canAddMember: false,
+      };
+    }
+
+    const maxUsers = limits.maxUsers;
+    const memberCount = limits.memberCount;
+    const teamManagementEnabled = limits.teamManagementEnabled;
 
     const pending = await this.planChangeRepository.active(organizationId);
 

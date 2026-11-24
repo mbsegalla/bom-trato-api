@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import { writeTransaction } from '../../../../infrastructure/database/prismaTransaction.js';
 import { PrismaCustomerRepository } from '../../../customers/infrastructure/repositories/prismaCustomer.repository.js';
 import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
+import { readOrganizationPlatformAccess } from '../../../organizations/infrastructure/access/prismaOrganizationPlatformAccess.js';
 import {
   organizationTransaction,
   type OrganizationTransactionMode,
@@ -35,68 +35,99 @@ export class PrismaLeadUnitOfWork extends LeadUnitOfWork {
     return this.execute('write', params, operation);
   }
 
-  publicRun<T>(slug: string, operation: (tx: PublicLeadContext) => Promise<T>): Promise<T> {
-    return writeTransaction(
+  async publicRun<T>(slug: string, operation: (tx: PublicLeadContext) => Promise<T>): Promise<T> {
+    const source = await this.prisma.publicBusinessProfile.findUnique({
+      where: {
+        slug,
+      },
+      select: {
+        organizationId: true,
+      },
+    });
+
+    if (source === null) {
+      throw new LeadError('PUBLIC_PROFILE_NOT_FOUND');
+    }
+
+    return organizationTransaction(
       this.prisma,
-      async (db) => {
-        const profile = await db.publicBusinessProfile.findFirst({
-          where: {
-            slug,
-            published: true,
-            organization: {
-              setupCompletedAt: {
-                not: null,
-              },
-            },
+      source.organizationId,
+      'write',
+      async (db) => operation(await this.createPublicContext(db, source.organizationId, slug)),
+      {
+        notFound: () => new LeadError('PUBLIC_PROFILE_NOT_FOUND'),
+        busy: () => new LeadError('LEADS_BUSY'),
+      },
+    );
+  }
+
+  private async createPublicContext(
+    db: Prisma.TransactionClient,
+    organizationId: string,
+    slug: string,
+  ): Promise<PublicLeadContext> {
+    const profile = await db.publicBusinessProfile.findFirst({
+      where: {
+        slug,
+        organizationId,
+        published: true,
+        organization: {
+          setupCompletedAt: {
+            not: null,
           },
+        },
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        organization: {
           select: {
-            id: true,
-            organizationId: true,
-            organization: {
-              select: {
-                name: true,
-                ownerId: true,
-                organizationMembers: {
-                  where: {
-                    user: {
-                      disabledAt: null,
-                      emailVerifiedAt: {
-                        not: null,
-                      },
-                    },
-                  },
-                  select: {
-                    userId: true,
+            name: true,
+            ownerId: true,
+            organizationMembers: {
+              where: {
+                user: {
+                  disabledAt: null,
+                  emailVerifiedAt: {
+                    not: null,
                   },
                 },
               },
+              select: {
+                userId: true,
+              },
             },
           },
-        });
-
-        if (profile === null) {
-          throw new LeadError('PUBLIC_PROFILE_NOT_FOUND');
-        }
-
-        const recipientUserIds = [
-          ...new Set([
-            profile.organization.ownerId,
-            ...profile.organization.organizationMembers.map((member) => member.userId),
-          ]),
-        ];
-
-        return operation({
-          organizationId: profile.organizationId,
-          publicBusinessProfileId: profile.id,
-          organizationName: profile.organization.name,
-          recipientUserIds,
-          leads: new PrismaLeadRepository(db, profile.organizationId),
-          notifications: new PrismaInAppNotificationRepository(db),
-          findPublicCatalogService: (id) => this.findPublicCatalogService(db, profile.organizationId, profile.id, id),
-        });
+        },
       },
-      () => new LeadError('LEADS_BUSY'),
-    );
+    });
+
+    if (profile === null) {
+      throw new LeadError('PUBLIC_PROFILE_NOT_FOUND');
+    }
+
+    const { access } = await readOrganizationPlatformAccess(db, organizationId, new Date());
+
+    if (access.billingNeedsReconciliation || !access.hasAccess) {
+      throw new LeadError('PUBLIC_PROFILE_NOT_FOUND');
+    }
+
+    const recipientUserIds = [
+      ...new Set([
+        profile.organization.ownerId,
+        ...profile.organization.organizationMembers.map((member) => member.userId),
+      ]),
+    ];
+
+    return {
+      organizationId: profile.organizationId,
+      publicBusinessProfileId: profile.id,
+      organizationName: profile.organization.name,
+      recipientUserIds,
+      leads: new PrismaLeadRepository(db, profile.organizationId),
+      notifications: new PrismaInAppNotificationRepository(db),
+      findPublicCatalogService: (id) => this.findPublicCatalogService(db, profile.organizationId, profile.id, id),
+    };
   }
 
   private findCustomersByContact(

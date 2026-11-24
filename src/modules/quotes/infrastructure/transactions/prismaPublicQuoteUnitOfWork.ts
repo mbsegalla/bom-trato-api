@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
+import { readOrganizationPlatformAccess } from '../../../organizations/infrastructure/access/prismaOrganizationPlatformAccess.js';
 import type { OrganizationTransactionMode } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { PrismaReceivableRepository } from '../../../receivables/infrastructure/repositories/prismaReceivable.repository.js';
@@ -88,8 +89,11 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
     });
   }
 
-  private createContext(db: Prisma.TransactionClient, organizationId: string): PublicQuoteTransaction {
+  private async createContext(db: Prisma.TransactionClient, organizationId: string): Promise<PublicQuoteTransaction> {
+    const { access } = await readOrganizationPlatformAccess(db, organizationId, new Date());
+
     return {
+      access,
       quotes: new PrismaQuoteRepository(db, organizationId),
       shares: new PrismaQuoteShareRepository(db, organizationId),
       workOrders: new PrismaWorkOrderRepository(db, organizationId),
@@ -126,7 +130,7 @@ export class PrismaPublicQuoteUnitOfWork extends PublicQuoteUnitOfWork {
       this.prisma,
       organizationId,
       mode,
-      (db) => operation(this.createContext(db, organizationId)),
+      async (db) => operation(await this.createContext(db, organizationId)),
       {
         notFound: () => new QuoteShareError('QUOTE_SHARE_NOT_FOUND'),
         busy: () => new QuoteError('QUOTES_BUSY'),

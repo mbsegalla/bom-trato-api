@@ -255,6 +255,7 @@ model User {
   organizations            Organization[]                 @relation("OrganizationOwner")
   workOrders               WorkOrder[]                    @relation("AssignedWorkOrders")
   createdReviewInvitations ProfessionalReviewInvitation[] @relation("ProfessionalReviewInvitationCreatedBy")
+  organizationTrial        OrganizationTrial?
   authIdentities           AuthIdentity[]
   authSessions             AuthSession[]
   authActionTokens         AuthActionToken[]
@@ -362,6 +363,7 @@ model Organization {
   updatedAt                     DateTime                  @updatedAt @db.Timestamptz(3)
 
   owner                            User                              @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  trial                            OrganizationTrial?
   publicBusinessProfile            PublicBusinessProfile?
   organizationMembers              OrganizationMember[]
   billingCustomer                  BillingCustomer?
@@ -1115,4 +1117,19 @@ model TermsAcceptance {
 
   @@unique([userId, termsVersion])
   @@index([userId, acceptedAt(sort: Desc)])
+}
+
+model OrganizationTrial {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @unique @db.Uuid
+  ownerId        String    @unique @db.Uuid
+  startsAt       DateTime  @db.Timestamptz(3)
+  expiresAt      DateTime  @db.Timestamptz(3)
+  convertedAt    DateTime? @db.Timestamptz(3)
+  revokedAt      DateTime? @db.Timestamptz(3)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }

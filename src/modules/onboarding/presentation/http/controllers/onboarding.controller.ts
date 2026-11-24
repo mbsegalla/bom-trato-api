@@ -7,6 +7,7 @@ import type { AuthContext } from '../../../../auth/presentation/http/authRequest
 import { CurrentAuth } from '../../../../auth/presentation/http/decorators/currentAuth.decorator.js';
 import { billingOperation } from '../../../../billing/presentation/http/billingHttpError.js';
 import { organizationOperation } from '../../../../organizations/presentation/http/organizationHttpError.js';
+import { organizationTrialOperation } from '../../../../organizations/presentation/http/organizationTrialHttpError.js';
 import { BootstrapOnboardingUseCase } from '../../../application/useCases/bootstrapOnboarding.useCase.js';
 import { CompleteOnboardingBusinessUseCase } from '../../../application/useCases/completeOnboardingBusiness.useCase.js';
 import { GetOnboardingStateUseCase } from '../../../application/useCases/getOnboardingState.useCase.js';
@@ -68,7 +69,9 @@ export class OnboardingController {
   ): Promise<OnboardingResponseDto> {
     return organizationOperation(() =>
       billingOperation(() =>
-        this.completeOnboardingBusinessUseCase.execute(auth.user.id, dto.organizationId, dto.name),
+        organizationTrialOperation(() =>
+          this.completeOnboardingBusinessUseCase.execute(auth.user.id, dto.organizationId, dto.name),
+        ),
       ),
     );
   }

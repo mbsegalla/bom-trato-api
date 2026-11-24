@@ -3,9 +3,12 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../generated/prisma/client.js';
 import { CheckoutAttemptStatus, OrganizationRole, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { readTransaction } from '../../../../infrastructure/database/prismaTransaction.js';
 import { AuthError } from '../../../auth/domain/errors/auth.error.js';
 import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
 import { BillingError } from '../../../billing/domain/errors/billing.error.js';
+import { readOrganizationPlatformAccess } from '../../../organizations/infrastructure/access/prismaOrganizationPlatformAccess.js';
+import { readOrganizationTrialEligibility } from '../../../organizations/infrastructure/access/prismaOrganizationTrialEligibility.js';
 import type {
   CompleteBusinessSetupParams,
   EnsureOnboardingOrganizationParams,
@@ -85,19 +88,29 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
     }
   }
 
-  async snapshot(userId: string, organizationId?: string): Promise<OnboardingSnapshot> {
-    const user = await this.prisma.user.findUniqueOrThrow({
+  snapshot(userId: string, organizationId?: string): Promise<OnboardingSnapshot> {
+    return readTransaction(this.prisma, (db) => this.readSnapshot(db, userId, organizationId));
+  }
+
+  private async readSnapshot(
+    db: Prisma.TransactionClient,
+    userId: string,
+    organizationId?: string,
+  ): Promise<OnboardingSnapshot> {
+    const user = await db.user.findUniqueOrThrow({
       where: {
         id: userId,
       },
       select: {
         selectedPlanPriceId: true,
+        emailVerifiedAt: true,
+        disabledAt: true,
       },
     });
 
     const owned =
       organizationId === undefined
-        ? await this.prisma.organization.findFirst({
+        ? await db.organization.findFirst({
             where: {
               ownerId: userId,
             },
@@ -108,7 +121,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
           })
         : null;
 
-    const organization = await this.prisma.organization.findFirst({
+    const organization = await db.organization.findFirst({
       where: {
         id: organizationId ?? owned?.id,
         organizationMembers: {
@@ -117,9 +130,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
           },
         },
       },
-
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-
       include: {
         subscriptions: {
           where: {
@@ -150,19 +161,26 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
         priceAvailable: false,
         subscriptions: [],
         checkoutStatus: null,
+        trial: null,
+        trialEligible: false,
+        hasPaidSubscriptionHistory: false,
       };
     }
 
+    const now = new Date();
+
+    const isOwner = organization.ownerId === userId;
+
     const checkout = organization.checkoutAttempts[0];
 
-    const pending = checkout?.status === CheckoutAttemptStatus.PENDING && checkout.expiresAt > new Date();
+    const pending = checkout?.status === CheckoutAttemptStatus.PENDING && checkout.expiresAt > now;
 
     const planPriceId = pending ? checkout.planPriceId : user.selectedPlanPriceId;
 
     const price =
       planPriceId === null
         ? null
-        : await this.prisma.planPrice.findFirst({
+        : await db.planPrice.findFirst({
             where: {
               id: planPriceId,
               published: true,
@@ -180,7 +198,7 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
     let checkoutStatus: OnboardingSnapshot['checkoutStatus'] = checkout?.status ?? null;
 
     if (checkout?.status === CheckoutAttemptStatus.COMPLETE && organization.subscriptions.length === 0) {
-      const latest = await this.prisma.subscription.findFirst({
+      const latest = await db.subscription.findFirst({
         where: {
           organizationId: organization.id,
         },
@@ -195,14 +213,35 @@ export class PrismaOnboardingRepository extends OnboardingRepository {
       }
     }
 
+    const platform = await readOrganizationPlatformAccess(db, organization.id, now);
+
+    let trialEligible = false;
+
+    if (
+      isOwner &&
+      user.disabledAt === null &&
+      user.emailVerifiedAt !== null &&
+      organization.setupCompletedAt === null &&
+      organization.subscriptions.length === 0 &&
+      organization.checkoutAttempts.length === 0 &&
+      platform.trial === null
+    ) {
+      const { eligibility } = await readOrganizationTrialEligibility(db, organization.id, userId);
+
+      trialEligible = eligibility === 'AVAILABLE';
+    }
+
     return {
       organizationId: organization.id,
-      isOwner: organization.ownerId === userId,
+      isOwner,
       setupCompletedAt: organization.setupCompletedAt,
       planPriceId,
       priceAvailable: price !== null,
       subscriptions: organization.subscriptions,
       checkoutStatus,
+      trial: platform.trial,
+      trialEligible,
+      hasPaidSubscriptionHistory: platform.hasPaidSubscriptionHistory,
     };
   }
 

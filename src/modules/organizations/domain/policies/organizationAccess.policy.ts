@@ -1,7 +1,10 @@
+import type { OrganizationPlatformAccessSource } from './organizationPlatformAccess.policy.js';
+
 export interface OrganizationAccessContext {
   isMember: boolean;
   verified: boolean;
-  hasSubscriptionAccess: boolean;
+  hasPlatformAccess: boolean;
+  source: OrganizationPlatformAccessSource;
   billingNeedsReconciliation: boolean;
 }
 
@@ -29,7 +32,7 @@ export class OrganizationAccessPolicy {
       throw error('BILLING_RECONCILIATION_REQUIRED');
     }
 
-    if (!context.hasSubscriptionAccess) {
+    if (!context.hasPlatformAccess) {
       throw error('SUBSCRIPTION_REQUIRED');
     }
   }

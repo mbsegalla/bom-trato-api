@@ -1,46 +1,133 @@
 import { CheckoutAttemptStatus, SubscriptionStatus } from '../../../../generated/prisma/enums.js';
+import type { SubscriptionProps } from '../../../billing/domain/entities/subscription.entity.js';
 import { Subscription } from '../../../billing/domain/entities/subscription.entity.js';
-import { type OnboardingSnapshot, type OnboardingState, OnboardingStep } from '../types/onboarding.types.js';
+import { OrganizationTrial } from '../../../organizations/domain/entities/organizationTrial.entity.js';
+import type { OrganizationPlatformAccess } from '../../../organizations/domain/policies/organizationPlatformAccess.policy.js';
+import { OrganizationPlatformAccessPolicy } from '../../../organizations/domain/policies/organizationPlatformAccess.policy.js';
+import type { OnboardingSnapshot, OnboardingState, OnboardingTrialState } from '../types/onboarding.types.js';
+import { OnboardingStep } from '../types/onboarding.types.js';
 
 export class OnboardingFlowPolicy {
   static resolve(snapshot: OnboardingSnapshot, now: Date): OnboardingState {
     if (snapshot.organizationId === null) {
-      return {
-        step: OnboardingStep.Provisioning,
-        organizationId: null,
-        selectedPlanPriceId: snapshot.planPriceId,
-      };
+      return this.provisioningState(snapshot);
     }
 
-    const ongoingSubscriptions = snapshot.subscriptions.filter((subscription) =>
+    const access = OrganizationPlatformAccessPolicy.resolve(
+      {
+        organizationId: snapshot.organizationId,
+        subscriptions: snapshot.subscriptions,
+        trial: snapshot.trial,
+        hasPaidSubscriptionHistory: snapshot.hasPaidSubscriptionHistory,
+      },
+      now,
+    );
+
+    const currentSubscription = snapshot.subscriptions.find((subscription) =>
       Subscription.blocksNewCheckout(subscription.status),
     );
 
-    const currentSubscription = ongoingSubscriptions[0];
-
-    let step: OnboardingStep;
-
-    if (ongoingSubscriptions.length > 1) {
-      step = snapshot.isOwner ? OnboardingStep.BillingReview : OnboardingStep.ContactOwner;
-    } else if (currentSubscription && Subscription.restore(currentSubscription).hasAccessAt(now)) {
-      step = snapshot.setupCompletedAt === null ? OnboardingStep.CreateBusiness : OnboardingStep.App;
-    } else if (!snapshot.isOwner) {
-      step = OnboardingStep.ContactOwner;
-    } else if (currentSubscription) {
-      step =
-        currentSubscription.status === SubscriptionStatus.ACTIVE && currentSubscription.paidThrough === null
-          ? OnboardingStep.PaymentPending
-          : OnboardingStep.BillingRequired;
-    } else if (snapshot.checkoutStatus === CheckoutAttemptStatus.COMPLETE && snapshot.subscriptions.length === 0) {
-      step = OnboardingStep.PaymentPending;
-    } else {
-      step = snapshot.priceAvailable ? OnboardingStep.Payment : OnboardingStep.SelectPlan;
-    }
+    const trialEligible = this.canStartTrial(snapshot, access, currentSubscription);
 
     return {
-      step,
+      step: this.resolveStep(snapshot, access, currentSubscription, trialEligible),
       organizationId: snapshot.organizationId,
       selectedPlanPriceId: snapshot.planPriceId,
+      accessSource: access.source,
+      trialEligible,
+      trial: this.resolveTrial(snapshot, access.source === 'TRIAL', now),
+    };
+  }
+
+  private static provisioningState(snapshot: OnboardingSnapshot): OnboardingState {
+    return {
+      step: OnboardingStep.Provisioning,
+      organizationId: null,
+      selectedPlanPriceId: snapshot.planPriceId,
+      accessSource: 'NONE',
+      trialEligible: false,
+      trial: null,
+    };
+  }
+
+  private static canStartTrial(
+    snapshot: OnboardingSnapshot,
+    access: OrganizationPlatformAccess,
+    currentSubscription: SubscriptionProps | undefined,
+  ): boolean {
+    return (
+      snapshot.isOwner &&
+      snapshot.trialEligible &&
+      snapshot.setupCompletedAt === null &&
+      snapshot.trial === null &&
+      !snapshot.hasPaidSubscriptionHistory &&
+      !access.hasAccess &&
+      !access.billingNeedsReconciliation &&
+      currentSubscription === undefined &&
+      snapshot.checkoutStatus === null
+    );
+  }
+
+  private static resolveStep(
+    snapshot: OnboardingSnapshot,
+    access: OrganizationPlatformAccess,
+    currentSubscription: SubscriptionProps | undefined,
+    trialEligible: boolean,
+  ): OnboardingStep {
+    if (access.billingNeedsReconciliation) {
+      return snapshot.isOwner ? OnboardingStep.BillingReview : OnboardingStep.ContactOwner;
+    }
+
+    if (access.hasAccess && snapshot.setupCompletedAt !== null) {
+      return OnboardingStep.App;
+    }
+
+    if (!snapshot.isOwner) {
+      return OnboardingStep.ContactOwner;
+    }
+
+    if (access.hasAccess || trialEligible) {
+      return OnboardingStep.CreateBusiness;
+    }
+
+    return this.resolveBillingStep(snapshot, currentSubscription);
+  }
+
+  private static resolveBillingStep(
+    snapshot: OnboardingSnapshot,
+    currentSubscription: SubscriptionProps | undefined,
+  ): OnboardingStep {
+    if (currentSubscription !== undefined) {
+      return this.isAwaitingPayment(currentSubscription)
+        ? OnboardingStep.PaymentPending
+        : OnboardingStep.BillingRequired;
+    }
+
+    if (snapshot.checkoutStatus === CheckoutAttemptStatus.COMPLETE && snapshot.subscriptions.length === 0) {
+      return OnboardingStep.PaymentPending;
+    }
+
+    return snapshot.priceAvailable ? OnboardingStep.Payment : OnboardingStep.SelectPlan;
+  }
+
+  private static isAwaitingPayment(subscription: SubscriptionProps): boolean {
+    return subscription.status === SubscriptionStatus.ACTIVE && subscription.paidThrough === null;
+  }
+
+  private static resolveTrial(snapshot: OnboardingSnapshot, active: boolean, now: Date): OnboardingTrialState | null {
+    if (snapshot.trial === null) {
+      return null;
+    }
+
+    const trial = OrganizationTrial.restore(snapshot.trial);
+
+    return {
+      startsAt: snapshot.trial.startsAt,
+      expiresAt: snapshot.trial.expiresAt,
+      convertedAt: snapshot.trial.convertedAt,
+      revokedAt: snapshot.trial.revokedAt,
+      remainingDays: active ? trial.remainingDaysAt(now) : 0,
+      active,
     };
   }
 }

@@ -4,9 +4,13 @@ export class GetPublicQuoteUseCase {
   constructor(private readonly processor: PublicQuoteApplicationService) {}
 
   async execute(token: string) {
-    const { organizationName, quote, share } = await this.processor.read(token);
+    const { organizationName, quote, share, hasPlatformAccess, generatedAt } = await this.processor.read(token);
 
-    const available = share.decision === null && share.changeRequestedAt === null;
+    const available =
+      hasPlatformAccess &&
+      share.decision === null &&
+      share.changeRequestedAt === null &&
+      (quote.validUntil === null || quote.validUntil > generatedAt);
 
     return {
       organizationName,
@@ -26,8 +30,8 @@ export class GetPublicQuoteUseCase {
       validUntil: quote.validUntil,
       expiresAt: share.expiresAt,
       changeRequestedAt: share.changeRequestedAt,
-      canDecide: available && (quote.validUntil === null || quote.validUntil > new Date()),
-      canRequestChange: available && (quote.validUntil === null || quote.validUntil > new Date()),
+      canDecide: available,
+      canRequestChange: available,
       items: quote.items.map((item) => ({
         name: item.name,
         description: item.description,

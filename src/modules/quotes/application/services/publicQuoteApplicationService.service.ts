@@ -2,6 +2,7 @@ import { ensureInitialReceivableFromQuote } from '../../../receivables/applicati
 import { ensureWorkOrderFromApprovedQuote } from '../../../workOrders/application/services/workOrderCreation.service.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteShare } from '../../domain/entities/quoteShare.entity.js';
+import { QuoteError } from '../../domain/errors/quote.error.js';
 import { QuoteShareError } from '../../domain/errors/quoteShare.error.js';
 import type { PublicQuoteReadContext, PublicQuoteUnitOfWork } from '../ports/publicQuoteUnitOfWork.port.js';
 import type { QuoteShareSecurity } from '../ports/quoteShareSecurity.port.js';
@@ -33,6 +34,7 @@ export class PublicQuoteApplicationService {
         quote: quote.snapshot(),
         share: share.snapshot(),
         generatedAt: new Date(),
+        hasPlatformAccess: context.access.hasAccess && !context.access.billingNeedsReconciliation,
       };
     });
   }
@@ -42,6 +44,8 @@ export class PublicQuoteApplicationService {
 
     return this.unitOfWork.run(hash, async (context) => {
       const { quote, share } = await this.load(context, hash);
+
+      this.assertCanOperate(context);
 
       const previousVersion = quote.snapshot().version;
 
@@ -128,6 +132,9 @@ export class PublicQuoteApplicationService {
 
     return this.unitOfWork.run(hash, async (context) => {
       const { quote, share } = await this.load(context, hash);
+
+      this.assertCanOperate(context);
+
       const now = new Date();
 
       const changed = share.requestChange(quote, version, message, now);
@@ -168,6 +175,16 @@ export class PublicQuoteApplicationService {
         requestedAt: state.changeRequestedAt,
       };
     });
+  }
+
+  private assertCanOperate(context: PublicQuoteReadContext): void {
+    if (context.access.billingNeedsReconciliation) {
+      throw new QuoteError('BILLING_RECONCILIATION_REQUIRED');
+    }
+
+    if (!context.access.hasAccess) {
+      throw new QuoteError('SUBSCRIPTION_REQUIRED');
+    }
   }
 
   private async load(context: PublicQuoteReadContext, hash: string) {
