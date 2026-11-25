@@ -77,6 +77,13 @@ export class GetPublicWorkOrderUseCase {
       ),
       photos: snapshot.photos.map(toPublicWorkOrderPhoto),
       checklist: toPublicWorkOrderChecklist(snapshot.checklistItems),
+      warranty:
+        snapshot.status === 'COMPLETED' && snapshot.completedAt !== null && snapshot.warranty
+          ? {
+              ...snapshot.warranty,
+              expiresAt: new Date(snapshot.completedAt.getTime() + snapshot.warranty.durationDays * 86_400_000),
+            }
+          : null,
       acceptance,
       generatedAt: now,
       expiresAt,

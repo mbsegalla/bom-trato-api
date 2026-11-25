@@ -133,6 +133,8 @@ const publicWorkOrderSelect = {
     select: { id: true, stage: true, caption: true, width: true, height: true, createdAt: true },
   },
 
+  warranty: { select: { durationDays: true, terms: true } },
+
   workOrderChecklistItems: {
     where: { visibleInPortal: true },
     orderBy: [{ position: 'asc' }, { id: 'asc' }],

@@ -194,6 +194,17 @@ export class PublicWorkOrderResponseDto implements PublicWorkOrderResult {
   @ApiProperty({ type: PublicWorkOrderAcceptanceResponseDto })
   acceptance!: PublicWorkOrderAcceptanceResponseDto;
 
+  @ApiProperty({
+    type: 'object',
+    nullable: true,
+    properties: {
+      durationDays: { type: 'number' },
+      terms: { type: 'string' },
+      expiresAt: { type: 'string', format: 'date-time' },
+    },
+  })
+  warranty!: { durationDays: number; terms: string; expiresAt: Date } | null;
+
   @ApiProperty({ type: Date })
   generatedAt!: Date;
 

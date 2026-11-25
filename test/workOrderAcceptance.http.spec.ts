@@ -18,6 +18,7 @@ import { validationExceptionFactory } from '../src/infrastructure/http/validatio
 import type { AuthRequest } from '../src/modules/auth/presentation/http/authRequest.js';
 import type { WorkOrderAcceptanceReceipt } from '../src/modules/workOrders/application/types/workOrderAcceptance.types.js';
 import { AcceptPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/acceptPublicWorkOrder.useCase.js';
+import { GeneratePublicWorkOrderReportUseCase } from '../src/modules/workOrders/application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { GetWorkOrderAcceptanceUseCase } from '../src/modules/workOrders/application/useCases/getWorkOrderAcceptance.useCase.js';
@@ -74,6 +75,7 @@ describe('work order acceptance HTTP contract', () => {
         { provide: AcceptPublicWorkOrderUseCase, useValue: { execute: accept } },
         { provide: GetWorkOrderAcceptanceUseCase, useValue: { execute: internal } },
         { provide: GetPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
+        { provide: GeneratePublicWorkOrderReportUseCase, useValue: { execute: async () => new Uint8Array() } },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: async () => new Uint8Array() } },
         { provide: PostgresPublicShareRateLimit, useValue: { check: rateLimit } },
       ],

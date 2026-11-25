@@ -18,6 +18,7 @@ import { PUBLIC_ROUTE } from '../src/modules/auth/presentation/http/decorators/p
 import type { WorkOrderPhotoView } from '../src/modules/workOrders/application/types/workOrderPhoto.types.js';
 import { AcceptPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/acceptPublicWorkOrder.useCase.js';
 import { DeleteWorkOrderPhotoUseCase } from '../src/modules/workOrders/application/useCases/deleteWorkOrderPhoto.useCase.js';
+import { GeneratePublicWorkOrderReportUseCase } from '../src/modules/workOrders/application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { GetWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getWorkOrderPhotoContent.useCase.js';
@@ -67,6 +68,7 @@ describe('work order photo HTTP contract', () => {
         { provide: DeleteWorkOrderPhotoUseCase, useValue: { execute: async () => undefined } },
         { provide: GetWorkOrderPhotoContentUseCase, useValue: { execute: content } },
         { provide: GetPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
+        { provide: GeneratePublicWorkOrderReportUseCase, useValue: { execute: async () => new Uint8Array() } },
         { provide: AcceptPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: publicContent } },
         { provide: PostgresPublicShareRateLimit, useValue: { check: rateLimit } },
