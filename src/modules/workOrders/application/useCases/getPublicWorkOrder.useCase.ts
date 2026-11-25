@@ -3,6 +3,7 @@ import { WorkOrderShare } from '../../domain/entities/workOrderShare.entity.js';
 import { WorkOrderShareError } from '../../domain/errors/workOrderShare.error.js';
 import { PublicWorkOrderFinancialPolicy } from '../../domain/policies/publicWorkOrderFinancial.policy.js';
 import { PublicWorkOrderTimelinePolicy } from '../../domain/policies/publicWorkOrderTimeline.policy.js';
+import { toPublicWorkOrderPhoto } from '../mappers/workOrderPhoto.mapper.js';
 import type { PublicWorkOrderUnitOfWork } from '../ports/publicWorkOrderUnitOfWork.port.js';
 import type { WorkOrderShareSecurity } from '../ports/workOrderShareSecurity.port.js';
 import type {
@@ -64,6 +65,7 @@ export class GetPublicWorkOrderUseCase {
         },
         now,
       ),
+      photos: snapshot.photos.map(toPublicWorkOrderPhoto),
       generatedAt: now,
       expiresAt,
     };

@@ -52,6 +52,7 @@ export interface EnvironmentVariables {
   STORAGE_S3_ACCESS_KEY_ID: string;
   STORAGE_S3_SECRET_ACCESS_KEY: string;
   STORAGE_BUCKET: string;
+  STORAGE_PRIVATE_BUCKET?: string;
   STORAGE_PUBLIC_BASE_URL: string;
   AUTH_GOOGLE_CLIENT_ID: string;
 }

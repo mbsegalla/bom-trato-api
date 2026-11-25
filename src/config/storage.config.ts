@@ -11,6 +11,7 @@ export const storageConfig = registerAs('storage', () => {
     accessKeyId: env.STORAGE_S3_ACCESS_KEY_ID,
     secretAccessKey: env.STORAGE_S3_SECRET_ACCESS_KEY,
     bucket: env.STORAGE_BUCKET,
+    privateBucket: env.STORAGE_PRIVATE_BUCKET ?? null,
     publicBaseUrl: env.STORAGE_PUBLIC_BASE_URL.replace(/\/+$/, ''),
   };
 });

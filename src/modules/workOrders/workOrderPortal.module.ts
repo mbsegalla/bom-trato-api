@@ -8,10 +8,12 @@ import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { PostgresPublicShareRateLimit } from '../../infrastructure/http/rateLimits/postgresPublicShareRateLimit.js';
 import { StorageModule } from '../../infrastructure/storage/storage.module.js';
 import { ObjectStorage } from '../../shared/storage/objectStorage.port.js';
+import { PrivateObjectStorage } from '../../shared/storage/privateObjectStorage.port.js';
 
 import { PublicWorkOrderUnitOfWork } from './application/ports/publicWorkOrderUnitOfWork.port.js';
 import { WorkOrderShareSecurity } from './application/ports/workOrderShareSecurity.port.js';
 import { GetPublicWorkOrderUseCase } from './application/useCases/getPublicWorkOrder.useCase.js';
+import { GetPublicWorkOrderPhotoContentUseCase } from './application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { NodeWorkOrderShareSecurity } from './infrastructure/security/nodeWorkOrderShareSecurity.js';
 import { PrismaPublicWorkOrderUnitOfWork } from './infrastructure/transactions/prismaPublicWorkOrderUnitOfWork.js';
 import { PublicWorkOrdersController } from './presentation/http/controllers/publicWorkOrders.controller.js';
@@ -41,6 +43,15 @@ import { WorkOrderShareRateLimitGuard } from './presentation/http/guards/workOrd
       useFactory: (unitOfWork: PublicWorkOrderUnitOfWork, security: WorkOrderShareSecurity, storage: ObjectStorage) =>
         new GetPublicWorkOrderUseCase(unitOfWork, security, storage),
       inject: [PublicWorkOrderUnitOfWork, WorkOrderShareSecurity, ObjectStorage],
+    },
+    {
+      provide: GetPublicWorkOrderPhotoContentUseCase,
+      useFactory: (
+        unitOfWork: PublicWorkOrderUnitOfWork,
+        security: WorkOrderShareSecurity,
+        storage: PrivateObjectStorage,
+      ) => new GetPublicWorkOrderPhotoContentUseCase(unitOfWork, security, storage),
+      inject: [PublicWorkOrderUnitOfWork, WorkOrderShareSecurity, PrivateObjectStorage],
     },
   ],
 })

@@ -135,6 +135,7 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   STORAGE_S3_ACCESS_KEY_ID: Joi.string().trim().min(1).required(),
   STORAGE_S3_SECRET_ACCESS_KEY: Joi.string().trim().min(1).required(),
   STORAGE_BUCKET: Joi.string().trim().min(3).max(63).required(),
+  STORAGE_PRIVATE_BUCKET: Joi.string().trim().min(3).max(63).invalid(Joi.ref('STORAGE_BUCKET')).optional(),
 
   STORAGE_PUBLIC_BASE_URL: Joi.string()
     .uri({
