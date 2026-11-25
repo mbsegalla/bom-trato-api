@@ -2,14 +2,14 @@ import { Injectable } from '@nestjs/common';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
-import { OrganizationAccessPolicy } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { WorkOrderDocumentRepository } from '../../application/ports/workOrderDocumentRepository.port.js';
 import type {
+  InternalWorkOrderDocumentData,
   UpdateWorkOrderWarrantyInput,
   WorkOrderDocumentContext,
-  WorkOrderDocumentData,
   WorkOrderWarranty,
   WorkOrderWarrantyResult,
 } from '../../application/types/workOrderDocument.types.js';
@@ -173,13 +173,14 @@ export class PrismaWorkOrderDocumentRepository extends WorkOrderDocumentReposito
     return new Date(completedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
   }
 
-  private async toData(db: Prisma.TransactionClient, row: DocumentRow): Promise<WorkOrderDocumentData> {
-    const accepted = row.completedAt === null
-      ? null
-      : await db.workOrderAcceptance.findFirst({
-          where: { workOrderId: row.id, organizationId: row.organizationId, completedAt: row.completedAt },
-          select: { signerName: true, acceptedAt: true },
-        });
+  private async toData(db: Prisma.TransactionClient, row: DocumentRow): Promise<InternalWorkOrderDocumentData> {
+    const accepted =
+      row.completedAt === null
+        ? null
+        : await db.workOrderAcceptance.findFirst({
+            where: { workOrderId: row.id, organizationId: row.organizationId, completedAt: row.completedAt },
+            select: { signerName: true, acceptedAt: true },
+          });
 
     return {
       organizationName: row.organization.name,
@@ -197,12 +198,13 @@ export class PrismaWorkOrderDocumentRepository extends WorkOrderDocumentReposito
         version: row.version,
         items: row.workOrderItems,
       },
-      warranty: row.warranty === null
-        ? null
-        : {
-            ...row.warranty,
-            expiresAt: this.expiresAt(row.completedAt, row.warranty.durationDays),
-          },
+      warranty:
+        row.warranty === null
+          ? null
+          : {
+              ...row.warranty,
+              expiresAt: this.expiresAt(row.completedAt, row.warranty.durationDays),
+            },
       acceptedBy: accepted?.signerName ?? null,
       acceptedAt: accepted?.acceptedAt ?? null,
     };

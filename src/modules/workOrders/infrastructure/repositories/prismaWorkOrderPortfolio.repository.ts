@@ -25,7 +25,7 @@ import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderPortfolioError } from '../../domain/errors/workOrderPortfolio.error.js';
 import { WorkOrderShareError } from '../../domain/errors/workOrderShare.error.js';
 
-const portfolioStages = [WorkOrderPhotoStage.BEFORE, WorkOrderPhotoStage.AFTER];
+const portfolioStages: WorkOrderPhotoStage[] = [WorkOrderPhotoStage.BEFORE, WorkOrderPhotoStage.AFTER];
 
 const portfolioPhotoSelect = {
   id: true,

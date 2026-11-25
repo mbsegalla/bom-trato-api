@@ -28,7 +28,14 @@ export class GeneratePublicWorkOrderReportUseCase {
         version: null,
         items: workOrder.items,
       },
-      warranty,
+      warranty:
+        warranty === null
+          ? null
+          : {
+              durationDays: warranty.durationDays,
+              terms: warranty.terms,
+              expiresAt: warranty.expiresAt,
+            },
       acceptedBy: null,
       acceptedAt: acceptance.receipt?.acceptedAt ?? null,
     };

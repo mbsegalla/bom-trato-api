@@ -921,6 +921,7 @@ model WorkOrderWarranty {
 
   workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
+  @@unique([workOrderId, organizationId])
   @@index([organizationId, workOrderId])
 }
 
@@ -960,9 +961,9 @@ model WorkOrderPhoto {
   portfolioRevokedAt      DateTime?           @db.Timestamptz(3)
   portfolioPublishedAt    DateTime?           @db.Timestamptz(3)
   portfolioPublishedById  String?             @db.Uuid
-  width                   Int                
-  height                  Int                
-  sizeInBytes             Int                
+  width                   Int
+  height                  Int
+  sizeInBytes             Int
   version                 Int                 @default(1)
   createdById             String              @db.Uuid
   createdAt               DateTime            @default(now()) @db.Timestamptz(3)

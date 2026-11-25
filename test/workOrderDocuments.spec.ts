@@ -97,6 +97,14 @@ describe('work order warranty and report access', () => {
     expect(result).toEqual({ warranty: fixture.context.data.warranty, locked: true });
   });
 
+  it('returns no warranty when none has been declared', async () => {
+    const fixture = setup();
+    fixture.context.data.warranty = null;
+    const result = await new GetWorkOrderWarrantyUseCase(fixture.repository).execute(params);
+
+    expect(result).toEqual({ warranty: null, locked: false });
+  });
+
   it('validates warranty inputs before touching persistence', async () => {
     const fixture = setup();
     const useCase = new UpdateWorkOrderWarrantyUseCase(fixture.repository);
@@ -109,9 +117,7 @@ describe('work order warranty and report access', () => {
       { durationDays: 90, terms: 'x'.repeat(2001), version: 0 },
       { durationDays: 90, terms: 'Teste', version: -1 },
     ]) {
-      await expect(useCase.execute(params, input)).rejects.toMatchObject({
-        code: 'INVALID_WORK_ORDER_WARRANTY',
-      });
+      expect(() => useCase.execute(params, input)).toThrow('INVALID_WORK_ORDER_WARRANTY');
     }
 
     expect(fixture.saveWarranty).not.toHaveBeenCalled();
@@ -164,7 +170,12 @@ describe('public work order report privacy', () => {
     expect(document.workOrder.customerName).toBeNull();
     expect(document.workOrder.id).toBeNull();
     expect(document.acceptedBy).toBeNull();
-    expect(document.warranty).toEqual(fixture.context.data.warranty);
+    expect(document.warranty).toEqual({
+      durationDays: 90,
+      terms: 'Cobertura declarada pela empresa.',
+      expiresAt: new Date('2027-02-23T15:00:00Z'),
+    });
+    expect(document.warranty).not.toHaveProperty('version');
     expect(JSON.stringify(document)).not.toContain('SEGREDO DO CLIENTE');
     expect(JSON.stringify(document)).not.toContain('NOTAS INTERNAS');
     expect(JSON.stringify(document)).not.toContain('private-token');
