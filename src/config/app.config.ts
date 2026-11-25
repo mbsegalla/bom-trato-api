@@ -13,6 +13,7 @@ export const appConfig = registerAs('app', () => {
       .map((address) => address.trim())
       .filter(Boolean),
     frontendUrl: new URL(env.FRONTEND_URL).origin,
+    workOrderRecurrenceWorkerEnabled: env.WORK_ORDER_RECURRENCE_WORKER_ENABLED,
     isProduction: env.NODE_ENV === NodeEnvironment.PRODUCTION,
     swaggerEnabled: env.NODE_ENV !== NodeEnvironment.PRODUCTION,
   };

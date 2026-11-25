@@ -4,16 +4,14 @@ import { IsBoolean, IsIn, IsInt, IsString, Matches, Max, MaxLength, Min, Validat
 
 import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
 import type {
+  SaveWorkOrderRecurrenceInput,
   WorkOrderRecurrenceListInput,
   WorkOrderRecurrenceListStatus,
 } from '../../../../application/types/workOrderRecurrence.types.js';
-import type {
-  WorkOrderRecurrenceSettings,
-  WorkOrderRecurrenceUnit,
-} from '../../../../domain/policies/workOrderRecurrence.policy.js';
+import type { WorkOrderRecurrenceUnit } from '../../../../domain/policies/workOrderRecurrence.policy.js';
 import type { WorkOrderRecurrenceVisitPeriod } from '../../../../domain/policies/workOrderRecurrenceVisit.policy.js';
 
-export class SaveWorkOrderRecurrenceDto implements WorkOrderRecurrenceSettings {
+export class SaveWorkOrderRecurrenceDto implements SaveWorkOrderRecurrenceInput {
   @ApiProperty({ enum: ['DAY', 'WEEK', 'MONTH'] })
   @IsIn(['DAY', 'WEEK', 'MONTH'])
   intervalUnit!: WorkOrderRecurrenceUnit;
@@ -32,6 +30,11 @@ export class SaveWorkOrderRecurrenceDto implements WorkOrderRecurrenceSettings {
   @ApiProperty()
   @IsBoolean()
   enabled!: boolean;
+
+  @ApiPropertyOptional({ description: 'Enable automatic draft quote generation. Omit to preserve the current setting.' })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsBoolean()
+  autoGenerateEnabled?: boolean;
 
   @ApiProperty({ minimum: 0, maximum: 2147483647, description: 'Use 0 when creating the configuration.' })
   @IsInt()

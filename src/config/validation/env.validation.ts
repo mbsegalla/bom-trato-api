@@ -57,6 +57,7 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .required(),
 
   BILLING_WORKER_ENABLED: Joi.boolean().default(true),
+  WORK_ORDER_RECURRENCE_WORKER_ENABLED: Joi.boolean().default(true),
 
   STRIPE_PORTAL_CONFIGURATION_ID: Joi.string()
     .pattern(/^bpc_[A-Za-z0-9]+$/)
