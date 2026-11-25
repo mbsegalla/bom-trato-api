@@ -4,10 +4,17 @@ import type { Prisma } from '../../../../generated/prisma/client.js';
 import { QuoteStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { readTransaction } from '../../../../infrastructure/database/prismaTransaction.js';
-import type { PublicWorkOrderReadContext } from '../../application/ports/publicWorkOrderUnitOfWork.port.js';
+import { readOrganizationPlatformAccess } from '../../../organizations/infrastructure/access/prismaOrganizationPlatformAccess.js';
+import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
+import type {
+  PublicWorkOrderReadContext,
+  PublicWorkOrderTransaction,
+} from '../../application/ports/publicWorkOrderUnitOfWork.port.js';
 import { PublicWorkOrderUnitOfWork } from '../../application/ports/publicWorkOrderUnitOfWork.port.js';
 import type { PublicWorkOrderSnapshot } from '../../application/types/publicWorkOrder.types.js';
+import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderShareError } from '../../domain/errors/workOrderShare.error.js';
+import { PrismaWorkOrderAcceptanceRepository } from '../repositories/prismaWorkOrderAcceptance.repository.js';
 import { workOrderPhotoSelect } from '../repositories/prismaWorkOrderPhoto.repository.js';
 
 const workOrderShareSelect = {
@@ -25,6 +32,7 @@ const publicWorkOrderSelect = {
   id: true,
   organizationId: true,
   title: true,
+  version: true,
   status: true,
   currency: true,
   subtotalInCents: true,
@@ -139,33 +147,64 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
   }
 
   read<T>(tokenHash: string, operation: (context: PublicWorkOrderReadContext) => Promise<T>): Promise<T> {
-    return readTransaction(this.prisma, async (db) => {
-      const share = await db.workOrderShare.findUnique({
-        where: {
-          tokenHash,
-        },
-        select: workOrderShareSelect,
-      });
+    return readTransaction(this.prisma, async (db) => operation(await this.createContext(db, tokenHash)));
+  }
 
-      if (share === null) {
-        throw new WorkOrderShareError('WORK_ORDER_SHARE_NOT_FOUND');
-      }
-
-      return operation({
-        share,
-        findWorkOrder: () => this.findWorkOrder(db, share.organizationId, share.workOrderId),
-        findPhoto: (photoId) =>
-          db.workOrderPhoto.findFirst({
-            where: {
-              id: photoId,
-              organizationId: share.organizationId,
-              workOrderId: share.workOrderId,
-              visibleInPortal: true,
-            },
-            select: workOrderPhotoSelect,
-          }),
-      });
+  async run<T>(tokenHash: string, operation: (tx: PublicWorkOrderTransaction) => Promise<T>): Promise<T> {
+    const source = await this.prisma.workOrderShare.findUnique({
+      where: { tokenHash },
+      select: { organizationId: true },
     });
+
+    if (source === null) {
+      throw new WorkOrderShareError('WORK_ORDER_SHARE_NOT_FOUND');
+    }
+
+    return organizationTransaction(
+      this.prisma,
+      source.organizationId,
+      'write',
+      async (db) => operation(await this.createContext(db, tokenHash, source.organizationId)),
+      {
+        notFound: () => new WorkOrderShareError('WORK_ORDER_SHARE_NOT_FOUND'),
+        busy: () => new WorkOrderError('WORK_ORDERS_BUSY'),
+      },
+    );
+  }
+
+  private async createContext(
+    db: Prisma.TransactionClient,
+    tokenHash: string,
+    organizationId?: string,
+  ): Promise<PublicWorkOrderTransaction> {
+    const share = await db.workOrderShare.findUnique({
+      where: {
+        tokenHash,
+      },
+      select: workOrderShareSelect,
+    });
+
+    if (share === null || (organizationId !== undefined && share.organizationId !== organizationId)) {
+      throw new WorkOrderShareError('WORK_ORDER_SHARE_NOT_FOUND');
+    }
+
+    return {
+      share,
+      acceptances: new PrismaWorkOrderAcceptanceRepository(db, share.organizationId, share.workOrderId),
+      findPlatformAccess: async () =>
+        (await readOrganizationPlatformAccess(db, share.organizationId, new Date())).access,
+      findWorkOrder: () => this.findWorkOrder(db, share.organizationId, share.workOrderId),
+      findPhoto: (photoId) =>
+        db.workOrderPhoto.findFirst({
+          where: {
+            id: photoId,
+            organizationId: share.organizationId,
+            workOrderId: share.workOrderId,
+            visibleInPortal: true,
+          },
+          select: workOrderPhotoSelect,
+        }),
+    };
   }
 
   private async findWorkOrder(

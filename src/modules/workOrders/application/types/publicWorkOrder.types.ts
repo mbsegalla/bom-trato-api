@@ -8,6 +8,7 @@ import type {
 } from '../../domain/policies/publicWorkOrderTimeline.policy.js';
 import type { WorkOrderItemProps, WorkOrderProps } from '../../domain/types/workOrder.types.js';
 
+import type { PublicWorkOrderAcceptance } from './workOrderAcceptance.types.js';
 import type { PublicWorkOrderChecklist, PublicWorkOrderChecklistItem } from './workOrderChecklist.types.js';
 import type { PublicWorkOrderPhoto } from './workOrderPhoto.types.js';
 
@@ -38,6 +39,7 @@ export interface PublicWorkOrderDetails extends Pick<
 export interface PublicWorkOrderSnapshot extends Omit<PublicWorkOrderDetails, 'responsibleName'> {
   id: string;
   organizationId: string;
+  version: number;
   assignedToName: string | null;
 
   organization: {
@@ -63,6 +65,7 @@ export interface PublicWorkOrderResult {
   timeline: PublicWorkOrderTimelineEvent[];
   photos: PublicWorkOrderPhoto[];
   checklist: PublicWorkOrderChecklist;
+  acceptance: PublicWorkOrderAcceptance;
   generatedAt: Date;
   expiresAt: Date;
 }

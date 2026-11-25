@@ -7,11 +7,13 @@ import { toPublicWorkOrderChecklist } from '../mappers/workOrderChecklist.mapper
 import { toPublicWorkOrderPhoto } from '../mappers/workOrderPhoto.mapper.js';
 import type { PublicWorkOrderUnitOfWork } from '../ports/publicWorkOrderUnitOfWork.port.js';
 import type { WorkOrderShareSecurity } from '../ports/workOrderShareSecurity.port.js';
+import { resolvePublicWorkOrderAcceptance } from '../services/publicWorkOrderAcceptance.service.js';
 import type {
   PublicWorkOrderDetails,
   PublicWorkOrderResult,
   PublicWorkOrderSnapshot,
 } from '../types/publicWorkOrder.types.js';
+import type { PublicWorkOrderAcceptance } from '../types/workOrderAcceptance.types.js';
 
 export class GetPublicWorkOrderUseCase {
   constructor(
@@ -40,11 +42,18 @@ export class GetPublicWorkOrderUseCase {
 
       share.assertReadable(workOrder.organizationId, workOrder.id, now);
 
-      return this.toResult(workOrder, now, share.snapshot().expiresAt);
+      const acceptance = await resolvePublicWorkOrderAcceptance(context, workOrder);
+
+      return this.toResult(workOrder, now, share.snapshot().expiresAt, acceptance);
     });
   }
 
-  private toResult(snapshot: PublicWorkOrderSnapshot, now: Date, expiresAt: Date): PublicWorkOrderResult {
+  private toResult(
+    snapshot: PublicWorkOrderSnapshot,
+    now: Date,
+    expiresAt: Date,
+    acceptance: PublicWorkOrderAcceptance,
+  ): PublicWorkOrderResult {
     const { organization } = snapshot;
 
     return {
@@ -68,6 +77,7 @@ export class GetPublicWorkOrderUseCase {
       ),
       photos: snapshot.photos.map(toPublicWorkOrderPhoto),
       checklist: toPublicWorkOrderChecklist(snapshot.checklistItems),
+      acceptance,
       generatedAt: now,
       expiresAt,
     };

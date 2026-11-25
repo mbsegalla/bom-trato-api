@@ -16,6 +16,7 @@ import { validationExceptionFactory } from '../src/infrastructure/http/validatio
 import type { AuthRequest } from '../src/modules/auth/presentation/http/authRequest.js';
 import { PUBLIC_ROUTE } from '../src/modules/auth/presentation/http/decorators/publicRoute.decorator.js';
 import type { WorkOrderPhotoView } from '../src/modules/workOrders/application/types/workOrderPhoto.types.js';
+import { AcceptPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/acceptPublicWorkOrder.useCase.js';
 import { DeleteWorkOrderPhotoUseCase } from '../src/modules/workOrders/application/useCases/deleteWorkOrderPhoto.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
@@ -66,6 +67,7 @@ describe('work order photo HTTP contract', () => {
         { provide: DeleteWorkOrderPhotoUseCase, useValue: { execute: async () => undefined } },
         { provide: GetWorkOrderPhotoContentUseCase, useValue: { execute: content } },
         { provide: GetPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
+        { provide: AcceptPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: publicContent } },
         { provide: PostgresPublicShareRateLimit, useValue: { check: rateLimit } },
       ],

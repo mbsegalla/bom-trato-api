@@ -42,6 +42,7 @@ function setup() {
   const workOrder = {
     id: share.workOrderId,
     organizationId: share.organizationId,
+    version: 1,
     title: 'Manutenção',
     status: 'IN_PROGRESS' as const,
     currency: 'BRL',

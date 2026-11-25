@@ -32,11 +32,19 @@ import { PrismaWorkOrderShareUnitOfWork } from './infrastructure/transactions/pr
 import { PrismaWorkOrderUnitOfWork } from './infrastructure/transactions/prismaWorkOrderUnitOfWork.js';
 import { WorkOrdersController } from './presentation/http/controllers/workOrders.controller.js';
 import { WorkOrderSharesController } from './presentation/http/controllers/workOrderShares.controller.js';
+import { WorkOrderAcceptanceModule } from './workOrderAcceptance.module.js';
 import { WorkOrderChecklistModule } from './workOrderChecklist.module.js';
 import { WorkOrderPhotosModule } from './workOrderPhotos.module.js';
 
 @Module({
-  imports: [DatabaseModule, NotificationsModule, ReviewsModule, WorkOrderPhotosModule, WorkOrderChecklistModule],
+  imports: [
+    DatabaseModule,
+    NotificationsModule,
+    ReviewsModule,
+    WorkOrderPhotosModule,
+    WorkOrderChecklistModule,
+    WorkOrderAcceptanceModule,
+  ],
   controllers: [WorkOrdersController, WorkOrderSharesController],
   providers: [
     {

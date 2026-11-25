@@ -13,11 +13,15 @@ import { ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagg
 
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import { PublicRoute } from '../../../../auth/presentation/http/decorators/publicRoute.decorator.js';
+import { AcceptPublicWorkOrderUseCase } from '../../../application/useCases/acceptPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../../../application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../../../application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { PublicWorkOrderTokenDto } from '../dtos/requests/publicWorkOrder.dto.js';
+import { AcceptPublicWorkOrderDto } from '../dtos/requests/workOrderAcceptance.dto.js';
 import { PublicWorkOrderResponseDto } from '../dtos/responses/publicWorkOrderResponse.dto.js';
+import { PublicWorkOrderAcceptanceReceiptResponseDto } from '../dtos/responses/workOrderAcceptanceResponse.dto.js';
 import { WorkOrderShareRateLimitGuard } from '../guards/workOrderShareRateLimit.guard.js';
+import { workOrderAcceptanceOperation } from '../workOrderAcceptanceHttpError.js';
 import { workOrderPhotoOperation } from '../workOrderPhotoHttpError.js';
 import { workOrderShareOperation } from '../workOrderShareHttpError.js';
 
@@ -29,6 +33,7 @@ export class PublicWorkOrdersController {
   constructor(
     private readonly getPublicWorkOrderUseCase: GetPublicWorkOrderUseCase,
     private readonly getPublicWorkOrderPhotoContentUseCase: GetPublicWorkOrderPhotoContentUseCase,
+    private readonly acceptPublicWorkOrderUseCase: AcceptPublicWorkOrderUseCase,
   ) {}
 
   @Post('resolve')
@@ -40,6 +45,15 @@ export class PublicWorkOrdersController {
   @ApiDataResponse(PublicWorkOrderResponseDto)
   resolve(@Body() dto: PublicWorkOrderTokenDto): Promise<PublicWorkOrderResponseDto> {
     return workOrderShareOperation(() => this.getPublicWorkOrderUseCase.execute(dto.token));
+  }
+
+  @Post('acceptance')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Record explicit customer acceptance of the completed service snapshot' })
+  @ApiDataResponse(PublicWorkOrderAcceptanceReceiptResponseDto)
+  accept(@Body() dto: AcceptPublicWorkOrderDto): Promise<PublicWorkOrderAcceptanceReceiptResponseDto> {
+    return workOrderAcceptanceOperation(() => this.acceptPublicWorkOrderUseCase.execute(dto.token, dto));
   }
 
   @Post('photos/:photoId/content')
