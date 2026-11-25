@@ -1,4 +1,5 @@
 import type { AutomationEntityType, AutomationType } from '../../../../generated/prisma/enums.js';
+import type { TrialLifecycleStage } from '../../domain/policies/trialLifecycle.policy.js';
 
 export type NotificationContent =
   | {
@@ -51,7 +52,15 @@ export type NotificationContent =
       receivableTitle: string;
       amountDueInCents: number;
       dueAt: string;
-    };
+    }
+  | TrialLifecycleNotification;
+
+export interface TrialLifecycleNotification {
+  type: 'TRIAL_LIFECYCLE';
+  stage: TrialLifecycleStage;
+  organizationId: string;
+  trialExpiresAt: string;
+}
 
 export interface AutomationNotificationMetadata {
   organizationId: string;
@@ -88,6 +97,8 @@ export interface NotificationMessage {
 
 export interface NotificationJob {
   id: string;
+  key: string;
+  type: string;
   encryptedPayload: string | null;
   leaseToken: string | null;
   attempts: number;

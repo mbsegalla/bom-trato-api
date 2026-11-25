@@ -28,7 +28,8 @@
     "stripe:sync": "pnpm run build && node dist/scripts/billing/syncStripeCatalog.js",
     "billing:sync": "pnpm run build && node dist/scripts/billing/syncBilling.js",
     "billing:recover": "pnpm run build && node dist/scripts/billing/recoverBilling.js",
-    "cleanup:auth": "pnpm run build && node dist/scripts/auth/cleanupAuth.js"
+    "cleanup:auth": "pnpm run build && node dist/scripts/auth/cleanupAuth.js",
+    "analytics:trial": "pnpm run build && node dist/scripts/analytics/trialMetrics.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",

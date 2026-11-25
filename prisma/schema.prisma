@@ -889,6 +889,7 @@ model WorkOrder {
   receivables                   Receivable[]
   workOrderScheduleHistories    WorkOrderScheduleHistory[]
   professionalReviewInvitations ProfessionalReviewInvitation[]
+  workOrderShares               WorkOrderShare[]
   professionalReview            ProfessionalReview?
 
   @@unique([id, organizationId])
@@ -1131,5 +1132,22 @@ model OrganizationTrial {
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  @@index([expiresAt])
+}
+
+model WorkOrderShare {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @db.Uuid
+  workOrderId       String    @db.Uuid
+  activeWorkOrderId String?   @unique @db.Uuid
+  tokenHash         String    @unique @db.VarChar(64)
+  createdById       String    @db.Uuid
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt         DateTime  @db.Timestamptz(3)
+  revokedAt         DateTime? @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, workOrderId, revokedAt])
   @@index([expiresAt])
 }

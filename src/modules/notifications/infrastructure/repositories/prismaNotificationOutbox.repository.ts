@@ -83,6 +83,10 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
   private async insert(db: Prisma.TransactionClient, input: EnqueueNotification): Promise<boolean> {
     const automation = input.automation;
 
+    if (input.content.type === 'TRIAL_LIFECYCLE' && !this.config.trialLifecycleEnabled) {
+      return false;
+    }
+
     if (automation !== undefined && !(await canEnqueueAutomation(db, automation.organizationId))) {
       return false;
     }
@@ -102,7 +106,7 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
           availableAt: input.availableAt ?? now,
           expiresAt: input.expiresAt,
           encryptedPayload: this.cipher.encrypt(id, message),
-          organizationId: automation?.organizationId,
+          organizationId: this.resolveOrganizationId(input),
           automationType: automation?.type,
           automationEntityType: automation?.entityType,
           automationEntityId: automation?.entityId,
@@ -116,5 +120,13 @@ export class PrismaNotificationOutbox extends NotificationOutbox {
     });
 
     return result.count > 0;
+  }
+
+  private resolveOrganizationId(input: EnqueueNotification): string | undefined {
+    if (input.content.type === 'TRIAL_LIFECYCLE') {
+      return input.content.organizationId;
+    }
+
+    return input.automation?.organizationId;
   }
 }

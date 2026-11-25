@@ -23,6 +23,7 @@ import { ResendEmailGateway } from './infrastructure/resend/resendEmail.gateway.
 import { NotificationCipher } from './infrastructure/security/notificationCipher.js';
 import { NotificationWorker } from './infrastructure/workers/notification.worker.js';
 import { OperationalReminderWorker } from './infrastructure/workers/operationalReminder.worker.js';
+import { TrialLifecycleWorker } from './infrastructure/workers/trialLifecycle.worker.js';
 import { InAppNotificationsController } from './presentation/http/controllers/inAppNotifications.controller.js';
 
 @Module({
@@ -39,6 +40,7 @@ import { InAppNotificationsController } from './presentation/http/controllers/in
     ResendEmailGateway,
     NotificationWorker,
     OperationalReminderWorker,
+    TrialLifecycleWorker,
     NotificationRealtimeService,
     NotificationStreamTicketService,
     {

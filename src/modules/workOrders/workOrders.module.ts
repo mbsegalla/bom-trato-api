@@ -5,37 +5,59 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
 import { ReviewSecurity } from '../reviews/application/ports/reviewSecurity.port.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 
+import { WorkOrderShareSecurity } from './application/ports/workOrderShareSecurity.port.js';
+import { WorkOrderShareUnitOfWork } from './application/ports/workOrderShareUnitOfWork.port.js';
 import { WorkOrderUnitOfWork } from './application/ports/workOrderUnitOfWork.port.js';
 import { WorkOrderApplicationService } from './application/services/workOrderApplicationService.service.js';
+import { WorkOrderShareApplicationService } from './application/services/workOrderShareApplicationService.service.js';
 import { AssignWorkOrderUseCase } from './application/useCases/assignWorkOrder.useCase.js';
 import { CancelWorkOrderUseCase } from './application/useCases/cancelWorkOrder.useCase.js';
 import { CompleteWorkOrderUseCase } from './application/useCases/completeWorkOrder.useCase.js';
 import { CreateWorkOrderUseCase } from './application/useCases/createWorkOrder.useCase.js';
+import { CreateWorkOrderShareUseCase } from './application/useCases/createWorkOrderShare.useCase.js';
 import { GetWorkOrderUseCase } from './application/useCases/getWorkOrder.useCase.js';
+import { GetWorkOrderShareUseCase } from './application/useCases/getWorkOrderShare.useCase.js';
 import { ListWorkOrdersUseCase } from './application/useCases/listWorkOrders.useCase.js';
 import { ListWorkOrderScheduleUseCase } from './application/useCases/listWorkOrderSchedule.useCase.js';
 import { ListWorkOrderScheduleHistoryUseCase } from './application/useCases/listWorkOrderScheduleHistory.useCase.js';
 import { ListWorkOrderStatusHistoryUseCase } from './application/useCases/listWorkOrderStatusHistory.useCase.js';
+import { RevokeWorkOrderShareUseCase } from './application/useCases/revokeWorkOrderShare.useCase.js';
 import { ScheduleWorkOrderUseCase } from './application/useCases/scheduleWorkOrder.useCase.js';
 import { SendWorkOrderReviewInvitationUseCase } from './application/useCases/sendWorkOrderReviewInvitation.useCase.js';
 import { StartWorkOrderUseCase } from './application/useCases/startWorkOrder.useCase.js';
 import { UpdateWorkOrderUseCase } from './application/useCases/updateWorkOrder.useCase.js';
 import { UpdateWorkOrderExecutionNotesUseCase } from './application/useCases/updateWorkOrderExecutionNotes.useCase.js';
+import { NodeWorkOrderShareSecurity } from './infrastructure/security/nodeWorkOrderShareSecurity.js';
+import { PrismaWorkOrderShareUnitOfWork } from './infrastructure/transactions/prismaWorkOrderShareUnitOfWork.js';
 import { PrismaWorkOrderUnitOfWork } from './infrastructure/transactions/prismaWorkOrderUnitOfWork.js';
 import { WorkOrdersController } from './presentation/http/controllers/workOrders.controller.js';
+import { WorkOrderSharesController } from './presentation/http/controllers/workOrderShares.controller.js';
 
 @Module({
   imports: [DatabaseModule, NotificationsModule, ReviewsModule],
-  controllers: [WorkOrdersController],
+  controllers: [WorkOrdersController, WorkOrderSharesController],
   providers: [
     {
       provide: WorkOrderUnitOfWork,
       useClass: PrismaWorkOrderUnitOfWork,
     },
     {
+      provide: WorkOrderShareUnitOfWork,
+      useClass: PrismaWorkOrderShareUnitOfWork,
+    },
+    {
+      provide: WorkOrderShareSecurity,
+      useClass: NodeWorkOrderShareSecurity,
+    },
+    {
       provide: WorkOrderApplicationService,
       useFactory: (unitOfWork: WorkOrderUnitOfWork) => new WorkOrderApplicationService(unitOfWork),
       inject: [WorkOrderUnitOfWork],
+    },
+    {
+      provide: WorkOrderShareApplicationService,
+      useFactory: (unitOfWork: WorkOrderShareUnitOfWork) => new WorkOrderShareApplicationService(unitOfWork),
+      inject: [WorkOrderShareUnitOfWork],
     },
     {
       provide: CreateWorkOrderUseCase,
@@ -108,6 +130,22 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
       provide: ListWorkOrderScheduleHistoryUseCase,
       useFactory: (processor: WorkOrderApplicationService) => new ListWorkOrderScheduleHistoryUseCase(processor),
       inject: [WorkOrderApplicationService],
+    },
+    {
+      provide: CreateWorkOrderShareUseCase,
+      useFactory: (processor: WorkOrderShareApplicationService, security: WorkOrderShareSecurity) =>
+        new CreateWorkOrderShareUseCase(processor, security),
+      inject: [WorkOrderShareApplicationService, WorkOrderShareSecurity],
+    },
+    {
+      provide: GetWorkOrderShareUseCase,
+      useFactory: (processor: WorkOrderShareApplicationService) => new GetWorkOrderShareUseCase(processor),
+      inject: [WorkOrderShareApplicationService],
+    },
+    {
+      provide: RevokeWorkOrderShareUseCase,
+      useFactory: (processor: WorkOrderShareApplicationService) => new RevokeWorkOrderShareUseCase(processor),
+      inject: [WorkOrderShareApplicationService],
     },
   ],
   exports: [WorkOrderApplicationService],

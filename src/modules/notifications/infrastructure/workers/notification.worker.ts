@@ -14,6 +14,7 @@ import { safeError } from '../../../../infrastructure/logging/safeError.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
 import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
 import { shouldSkipAutomation } from '../policies/prismaAutomationDelivery.policy.js';
+import { shouldSkipTrialLifecycle } from '../policies/prismaTrialLifecycle.policy.js';
 import { NotificationDeliveryError, ResendEmailGateway } from '../resend/resendEmail.gateway.js';
 import { NotificationCipher } from '../security/notificationCipher.js';
 
@@ -163,6 +164,12 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       return true;
     }
 
+    if (await this.isTrialLifecycleUnavailable(job, message)) {
+      await this.finish(job, NotificationStatus.SKIPPED, 'TRIAL_LIFECYCLE_NO_LONGER_APPLICABLE');
+
+      return true;
+    }
+
     if (Date.now() >= deadline) {
       await this.finish(job, NotificationStatus.SKIPPED, 'RETRY_WINDOW_EXPIRED');
 
@@ -182,11 +189,11 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
         SELECT "id"
         FROM "NotificationOutbox"
         WHERE (
-          "status" = ${NotificationStatus.PENDING}
+          "status" = ${NotificationStatus.PENDING}::"NotificationStatus"
           AND "availableAt" <= CURRENT_TIMESTAMP
         )
         OR (
-          "status" = ${NotificationStatus.PROCESSING}
+          "status" = ${NotificationStatus.PROCESSING}::"NotificationStatus"
           AND "leaseUntil" <= CURRENT_TIMESTAMP
         )
         ORDER BY "availableAt", "createdAt", "id"
@@ -195,7 +202,7 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
       )
       UPDATE "NotificationOutbox" job
       SET
-        "status" = ${NotificationStatus.PROCESSING},
+        "status" = ${NotificationStatus.PROCESSING}::"NotificationStatus",
         "leaseToken" = ${token}::uuid,
         "leaseUntil" = CURRENT_TIMESTAMP + INTERVAL '2 minutes',
         "firstAttemptAt" = COALESCE(
@@ -221,6 +228,18 @@ export class NotificationWorker implements OnApplicationBootstrap, OnModuleDestr
     }
 
     return readTransaction(this.db, (db) => shouldSkipAutomation(db, job, new Date()));
+  }
+
+  private isTrialLifecycleUnavailable(job: NotificationJob, message: NotificationMessage): Promise<boolean> {
+    if (job.type !== 'TRIAL_LIFECYCLE') {
+      return Promise.resolve(false);
+    }
+
+    if (!this.config.trialLifecycleEnabled) {
+      return Promise.resolve(true);
+    }
+
+    return readTransaction(this.db, (db) => shouldSkipTrialLifecycle(db, job, message.to, new Date()));
   }
 
   private async deliver(job: NotificationJob, message: NotificationMessage, deadline: number): Promise<void> {
