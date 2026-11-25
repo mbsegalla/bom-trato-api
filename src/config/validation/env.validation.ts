@@ -86,6 +86,8 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   NOTIFICATION_WORKER_ENABLED: Joi.boolean().default(true),
 
+  TRIAL_LIFECYCLE_WORKER_ENABLED: Joi.boolean().default(false),
+
   MAIL_FROM_EMAIL: Joi.string()
     .email({ tlds: { allow: false } })
     .required(),
@@ -111,6 +113,11 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   RESEND_TEMPLATE_WORK_ORDER_REMINDER: resendTemplateSchema,
   RESEND_TEMPLATE_RECEIVABLE_DUE_SOON: resendTemplateSchema,
   RESEND_TEMPLATE_RECEIVABLE_OVERDUE: resendTemplateSchema,
+
+  RESEND_TEMPLATE_TRIAL_LIFECYCLE: resendTemplateSchema.optional().when('TRIAL_LIFECYCLE_WORKER_ENABLED', {
+    is: true,
+    then: Joi.required(),
+  }),
 
   QUOTE_SHARE_RATE_LIMIT_SECRET: Joi.string()
     .pattern(/^[a-fA-F0-9]{64}$/)

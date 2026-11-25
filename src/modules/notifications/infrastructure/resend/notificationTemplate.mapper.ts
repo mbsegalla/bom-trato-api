@@ -5,6 +5,8 @@ import type {
   NotificationTemplateVariables,
 } from '../../application/types/notification.types.js';
 
+import { mapTrialLifecycleTemplate } from './trialLifecycleTemplate.mapper.js';
+
 function frontendLink(frontendUrl: string, path: string, token?: string): string {
   const url = new URL(path, frontendUrl);
 
@@ -132,6 +134,9 @@ function templateVariables(input: EnqueueNotification, frontendUrl: string): Not
         AMOUNT_DUE: formatBrl(content.amountDueInCents),
         DUE_AT: emailDateFormatter.format(new Date(content.dueAt)),
       };
+
+    case 'TRIAL_LIFECYCLE':
+      return mapTrialLifecycleTemplate(content, frontendUrl);
   }
 }
 
@@ -139,13 +144,19 @@ export function mapNotificationTemplate(
   input: EnqueueNotification,
   frontendUrl: string,
   from: string,
-  templates: Record<NotificationContent['type'], string>,
+  templates: Partial<Record<NotificationContent['type'], string>>,
 ): NotificationMessage {
+  const templateId = templates[input.content.type];
+
+  if (!templateId) {
+    throw new Error('NOTIFICATION_TEMPLATE_NOT_CONFIGURED');
+  }
+
   return {
     from,
     to: input.recipient,
     template: {
-      id: templates[input.content.type],
+      id: templateId,
       variables: templateVariables(input, frontendUrl),
     },
   };

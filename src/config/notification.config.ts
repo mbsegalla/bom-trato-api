@@ -9,6 +9,7 @@ export const notificationConfig = registerAs('notification', () => {
     apiKey: env.RESEND_API_KEY,
     encryptionKey: env.NOTIFICATION_ENCRYPTION_KEY,
     workerEnabled: env.NOTIFICATION_WORKER_ENABLED,
+    trialLifecycleEnabled: env.TRIAL_LIFECYCLE_WORKER_ENABLED,
     from: `${env.MAIL_FROM_NAME} <${env.MAIL_FROM_EMAIL}>`,
     templates: {
       VERIFY_EMAIL: env.RESEND_TEMPLATE_VERIFY_EMAIL,
@@ -26,6 +27,7 @@ export const notificationConfig = registerAs('notification', () => {
       WORK_ORDER_REMINDER: env.RESEND_TEMPLATE_WORK_ORDER_REMINDER,
       RECEIVABLE_DUE_SOON: env.RESEND_TEMPLATE_RECEIVABLE_DUE_SOON,
       RECEIVABLE_OVERDUE: env.RESEND_TEMPLATE_RECEIVABLE_OVERDUE,
+      TRIAL_LIFECYCLE: env.RESEND_TEMPLATE_TRIAL_LIFECYCLE,
     },
   };
 });
