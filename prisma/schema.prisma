@@ -897,6 +897,7 @@ model WorkOrder {
   professionalReviewInvitations ProfessionalReviewInvitation[]
   workOrderShares               WorkOrderShare[]
   workOrderPhotos               WorkOrderPhoto[]
+  workOrderChecklistItems       WorkOrderChecklistItem[]
   professionalReview            ProfessionalReview?
 
   @@unique([id, organizationId])
@@ -925,6 +926,27 @@ model WorkOrderPhoto {
   workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@index([organizationId, workOrderId, createdAt, id])
+}
+
+model WorkOrderChecklistItem {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @db.Uuid
+  workOrderId     String    @db.Uuid
+  title           String    @db.VarChar(200)
+  position        Int
+  completed       Boolean   @default(false)
+  completedAt     DateTime? @db.Timestamptz(3)
+  completedById   String?   @db.Uuid
+  visibleInPortal Boolean   @default(false)
+  version         Int       @default(1)
+  createdById     String    @db.Uuid
+  updatedById     String    @db.Uuid
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, workOrderId, position, id])
 }
 
 model WorkOrderItem {
