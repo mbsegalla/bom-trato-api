@@ -1,0 +1,11 @@
+import type { WorkOrderShareProps } from '../../domain/entities/workOrderShare.entity.js';
+import type { PublicWorkOrderSnapshot } from '../types/publicWorkOrder.types.js';
+
+export interface PublicWorkOrderReadContext {
+  readonly share: WorkOrderShareProps;
+  findWorkOrder(): Promise<PublicWorkOrderSnapshot | null>;
+}
+
+export abstract class PublicWorkOrderUnitOfWork {
+  abstract read<T>(tokenHash: string, operation: (context: PublicWorkOrderReadContext) => Promise<T>): Promise<T>;
+}
