@@ -28,6 +28,7 @@ import { GetQuoteUseCase } from './application/useCases/getQuote.useCase.js';
 import { ListQuotesUseCase } from './application/useCases/listQuotes.useCase.js';
 import { ListQuoteStatusHistoryUseCase } from './application/useCases/listQuoteStatusHistory.useCase.js';
 import { RemoveQuoteItemUseCase } from './application/useCases/removeQuoteItem.useCase.js';
+import { RepeatWorkOrderQuoteUseCase } from './application/useCases/repeatWorkOrderQuote.useCase.js';
 import { ReplaceQuoteItemUseCase } from './application/useCases/replaceQuoteItem.useCase.js';
 import { RequestPublicQuoteChangeUseCase } from './application/useCases/requestPublicQuoteChange.useCase.js';
 import { RevokeQuoteShareUseCase } from './application/useCases/revokeQuoteShare.useCase.js';
@@ -42,6 +43,7 @@ import { QuoteShareCleanupWorker } from './infrastructure/workers/quoteShareClea
 import { PublicQuotesController } from './presentation/http/controllers/publicQuotes.controller.js';
 import { QuotesController } from './presentation/http/controllers/quotes.controller.js';
 import { QuoteSharesController } from './presentation/http/controllers/quoteShares.controller.js';
+import { RepeatWorkOrderQuoteController } from './presentation/http/controllers/repeatWorkOrderQuote.controller.js';
 import { QuoteShareRateLimitGuard } from './presentation/http/guards/quoteShareRateLimit.guard.js';
 
 @Module({
@@ -51,7 +53,7 @@ import { QuoteShareRateLimitGuard } from './presentation/http/guards/quoteShareR
     ConfigModule.forFeature(appConfig),
     ConfigModule.forFeature(quoteShareConfig),
   ],
-  controllers: [QuotesController, QuoteSharesController, PublicQuotesController],
+  controllers: [QuotesController, QuoteSharesController, PublicQuotesController, RepeatWorkOrderQuoteController],
   providers: [
     QuoteShareRateLimitGuard,
     QuoteShareCleanupWorker,
@@ -79,6 +81,11 @@ import { QuoteShareRateLimitGuard } from './presentation/http/guards/quoteShareR
     {
       provide: CreateQuoteUseCase,
       useFactory: (processor: QuoteApplicationService) => new CreateQuoteUseCase(processor),
+      inject: [QuoteApplicationService],
+    },
+    {
+      provide: RepeatWorkOrderQuoteUseCase,
+      useFactory: (processor: QuoteApplicationService) => new RepeatWorkOrderQuoteUseCase(processor),
       inject: [QuoteApplicationService],
     },
     {
