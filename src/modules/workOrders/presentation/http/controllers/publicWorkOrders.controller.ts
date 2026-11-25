@@ -15,8 +15,12 @@ import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/a
 import { PublicRoute } from '../../../../auth/presentation/http/decorators/publicRoute.decorator.js';
 import { AcceptPublicWorkOrderUseCase } from '../../../application/useCases/acceptPublicWorkOrder.useCase.js';
 import { GeneratePublicWorkOrderReportUseCase } from '../../../application/useCases/generatePublicWorkOrderReport.useCase.js';
+import { PublicPortfolioConsentUseCase } from '../../../application/useCases/publicPortfolioConsent.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../../../application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../../../application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
+import { PortfolioConsentDto, PortfolioRevokeDto } from '../dtos/requests/workOrderPortfolio.dto.js';
+import { PortalPortfolioStatusDto } from '../dtos/responses/workOrderPortfolio.dto.js';
+import { workOrderPortfolioOperation } from '../workOrderPortfolioHttpError.js';
 import { PublicWorkOrderTokenDto } from '../dtos/requests/publicWorkOrder.dto.js';
 import { AcceptPublicWorkOrderDto } from '../dtos/requests/workOrderAcceptance.dto.js';
 import { PublicWorkOrderResponseDto } from '../dtos/responses/publicWorkOrderResponse.dto.js';
@@ -36,6 +40,7 @@ export class PublicWorkOrdersController {
     private readonly getPublicWorkOrderPhotoContentUseCase: GetPublicWorkOrderPhotoContentUseCase,
     private readonly acceptPublicWorkOrderUseCase: AcceptPublicWorkOrderUseCase,
     private readonly generatePublicWorkOrderReportUseCase: GeneratePublicWorkOrderReportUseCase,
+    private readonly portfolioConsent: PublicPortfolioConsentUseCase,
   ) {}
 
   @Post('resolve')
@@ -73,6 +78,33 @@ export class PublicWorkOrdersController {
       length: bytes.length,
       disposition: 'attachment; filename="relatorio-atendimento.pdf"',
     });
+  }
+
+  @Post('portfolio/status')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Read photo publication consent status using the private share token' })
+  @ApiDataResponse(PortalPortfolioStatusDto)
+  portfolioStatus(@Body() dto: PublicWorkOrderTokenDto): Promise<PortalPortfolioStatusDto> {
+    return workOrderPortfolioOperation(() => this.portfolioConsent.status(dto.token));
+  }
+
+  @Post('portfolio/consent')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Record explicit customer authorization to publish selected service photographs' })
+  @ApiDataResponse(PortalPortfolioStatusDto)
+  authorizePortfolio(@Body() dto: PortfolioConsentDto): Promise<PortalPortfolioStatusDto> {
+    return workOrderPortfolioOperation(() => this.portfolioConsent.consent(dto.token, dto));
+  }
+
+  @Post('portfolio/revoke')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @ApiOperation({ summary: 'Withdraw public portfolio authorization for a selected photograph' })
+  @ApiDataResponse(PortalPortfolioStatusDto)
+  revokePortfolio(@Body() dto: PortfolioRevokeDto): Promise<PortalPortfolioStatusDto> {
+    return workOrderPortfolioOperation(() => this.portfolioConsent.revoke(dto.token, dto.photoId));
   }
 
   @Post('photos/:photoId/content')

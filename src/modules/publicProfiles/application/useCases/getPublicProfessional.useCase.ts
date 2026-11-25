@@ -1,3 +1,4 @@
+import type { WorkOrderPortfolioRepository } from '../../../workOrders/application/ports/workOrderPortfolio.repository.js';
 import type { ObjectStorage } from '../../../../shared/storage/objectStorage.port.js';
 import { PublicProfileError } from '../../domain/errors/publicProfile.error.js';
 import type { PublicProfileRepository } from '../../domain/repositories/publicProfile.repository.js';
@@ -6,6 +7,7 @@ export class GetPublicProfessionalUseCase {
   constructor(
     private readonly repository: PublicProfileRepository,
     private readonly storage: ObjectStorage,
+    private readonly portfolio: WorkOrderPortfolioRepository,
   ) {}
 
   async execute(slug: string) {
@@ -27,6 +29,7 @@ export class GetPublicProfessionalUseCase {
       ratingAverage: profile.ratingAverage,
       ratingCount: profile.ratingCount,
       services: profile.services,
+      portfolio: await this.portfolio.listPublishedForSlug(profile.slug),
       reviews: profile.reviews.map((review) => ({
         ...review,
         verified: true,
