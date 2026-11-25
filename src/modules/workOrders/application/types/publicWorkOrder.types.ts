@@ -8,6 +8,8 @@ import type {
 } from '../../domain/policies/publicWorkOrderTimeline.policy.js';
 import type { WorkOrderItemProps, WorkOrderProps } from '../../domain/types/workOrder.types.js';
 
+import type { PublicWorkOrderPhoto } from './workOrderPhoto.types.js';
+
 export type PublicWorkOrderItem = Pick<
   WorkOrderItemProps,
   'name' | 'description' | 'unit' | 'quantityInThousandths' | 'unitAmountInCents' | 'totalInCents' | 'position'
@@ -44,6 +46,7 @@ export interface PublicWorkOrderSnapshot extends Omit<PublicWorkOrderDetails, 'r
 
   receivables: PublicWorkOrderReceivable[];
   timelineSource: PublicWorkOrderTimelineSource;
+  photos: PublicWorkOrderPhoto[];
 }
 
 export interface PublicWorkOrderOrganization {
@@ -56,6 +59,7 @@ export interface PublicWorkOrderResult {
   workOrder: PublicWorkOrderDetails;
   financial: PublicWorkOrderFinancial | null;
   timeline: PublicWorkOrderTimelineEvent[];
+  photos: PublicWorkOrderPhoto[];
   generatedAt: Date;
   expiresAt: Date;
 }

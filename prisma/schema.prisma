@@ -106,6 +106,12 @@ enum WorkOrderStatus {
   CANCELED
 }
 
+enum WorkOrderPhotoStage {
+  BEFORE
+  DURING
+  AFTER
+}
+
 enum ReceivableStatus {
   OPEN
   PARTIALLY_PAID
@@ -890,6 +896,7 @@ model WorkOrder {
   workOrderScheduleHistories    WorkOrderScheduleHistory[]
   professionalReviewInvitations ProfessionalReviewInvitation[]
   workOrderShares               WorkOrderShare[]
+  workOrderPhotos               WorkOrderPhoto[]
   professionalReview            ProfessionalReview?
 
   @@unique([id, organizationId])
@@ -897,6 +904,27 @@ model WorkOrder {
   @@index([organizationId, customerId])
   @@index([organizationId, assignedToId, scheduledStartAt])
   @@index([organizationId, status, scheduledStartAt, id])
+}
+
+model WorkOrderPhoto {
+  id              String              @id @default(uuid()) @db.Uuid
+  organizationId  String              @db.Uuid
+  workOrderId     String              @db.Uuid
+  objectKey       String              @unique @db.VarChar(500)
+  stage           WorkOrderPhotoStage
+  caption         String?             @db.VarChar(240)
+  visibleInPortal Boolean             @default(false)
+  width           Int
+  height          Int
+  sizeInBytes     Int
+  version         Int                 @default(1)
+  createdById     String              @db.Uuid
+  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, workOrderId, createdAt, id])
 }
 
 model WorkOrderItem {

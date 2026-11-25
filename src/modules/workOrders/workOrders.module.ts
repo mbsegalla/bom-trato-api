@@ -32,9 +32,10 @@ import { PrismaWorkOrderShareUnitOfWork } from './infrastructure/transactions/pr
 import { PrismaWorkOrderUnitOfWork } from './infrastructure/transactions/prismaWorkOrderUnitOfWork.js';
 import { WorkOrdersController } from './presentation/http/controllers/workOrders.controller.js';
 import { WorkOrderSharesController } from './presentation/http/controllers/workOrderShares.controller.js';
+import { WorkOrderPhotosModule } from './workOrderPhotos.module.js';
 
 @Module({
-  imports: [DatabaseModule, NotificationsModule, ReviewsModule],
+  imports: [DatabaseModule, NotificationsModule, ReviewsModule, WorkOrderPhotosModule],
   controllers: [WorkOrdersController, WorkOrderSharesController],
   providers: [
     {

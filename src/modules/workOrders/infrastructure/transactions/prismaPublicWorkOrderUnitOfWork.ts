@@ -8,6 +8,7 @@ import type { PublicWorkOrderReadContext } from '../../application/ports/publicW
 import { PublicWorkOrderUnitOfWork } from '../../application/ports/publicWorkOrderUnitOfWork.port.js';
 import type { PublicWorkOrderSnapshot } from '../../application/types/publicWorkOrder.types.js';
 import { WorkOrderShareError } from '../../domain/errors/workOrderShare.error.js';
+import { workOrderPhotoSelect } from '../repositories/prismaWorkOrderPhoto.repository.js';
 
 const workOrderShareSelect = {
   id: true,
@@ -117,6 +118,12 @@ const publicWorkOrderSelect = {
       status: true,
     },
   },
+
+  workOrderPhotos: {
+    where: { visibleInPortal: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: { id: true, stage: true, caption: true, width: true, height: true, createdAt: true },
+  },
 } satisfies Prisma.WorkOrderSelect;
 
 @Injectable()
@@ -141,6 +148,16 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       return operation({
         share,
         findWorkOrder: () => this.findWorkOrder(db, share.organizationId, share.workOrderId),
+        findPhoto: (photoId) =>
+          db.workOrderPhoto.findFirst({
+            where: {
+              id: photoId,
+              organizationId: share.organizationId,
+              workOrderId: share.workOrderId,
+              visibleInPortal: true,
+            },
+            select: workOrderPhotoSelect,
+          }),
       });
     });
   }
@@ -162,8 +179,15 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       return null;
     }
 
-    const { assignedToId, workOrderItems, workOrderStatusHistory, workOrderScheduleHistories, quote, ...state } =
-      workOrder;
+    const {
+      assignedToId,
+      workOrderItems,
+      workOrderPhotos,
+      workOrderStatusHistory,
+      workOrderScheduleHistories,
+      quote,
+      ...state
+    } = workOrder;
 
     const assignedToName = await this.findResponsibleName(db, organizationId, assignedToId);
 
@@ -171,6 +195,7 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       ...state,
       assignedToName,
       items: workOrderItems,
+      photos: workOrderPhotos,
       timelineSource: {
         quoteApprovedAt: quote.quoteStatusHistories[0]?.createdAt ?? null,
         statusHistory: workOrderStatusHistory,

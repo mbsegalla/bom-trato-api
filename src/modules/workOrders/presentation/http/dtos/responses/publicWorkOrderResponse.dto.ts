@@ -11,6 +11,8 @@ import type { PublicWorkOrderFinancial } from '../../../../domain/policies/publi
 import type { PublicWorkOrderTimelineEvent } from '../../../../domain/policies/publicWorkOrderTimeline.policy.js';
 import { PublicWorkOrderTimelineEventType } from '../../../../domain/policies/publicWorkOrderTimeline.policy.js';
 
+import { PublicWorkOrderPhotoResponseDto } from './workOrderPhotoResponse.dto.js';
+
 export class PublicWorkOrderOrganizationResponseDto implements PublicWorkOrderOrganization {
   @ApiProperty()
   name!: string;
@@ -180,6 +182,9 @@ export class PublicWorkOrderResponseDto implements PublicWorkOrderResult {
     description: 'Public service events in chronological order.',
   })
   timeline!: PublicWorkOrderTimelineEventResponseDto[];
+
+  @ApiProperty({ type: [PublicWorkOrderPhotoResponseDto] })
+  photos!: PublicWorkOrderPhotoResponseDto[];
 
   @ApiProperty({ type: Date })
   generatedAt!: Date;
