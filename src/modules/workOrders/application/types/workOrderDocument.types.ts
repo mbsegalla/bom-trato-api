@@ -37,9 +37,13 @@ export interface WorkOrderDocumentData {
   acceptedAt: Date | null;
 }
 
+export interface InternalWorkOrderDocumentData extends WorkOrderDocumentData {
+  warranty: WorkOrderWarranty | null;
+}
+
 export interface WorkOrderDocumentContext {
   access: OrganizationAccessContext;
-  data: WorkOrderDocumentData;
+  data: InternalWorkOrderDocumentData;
   accepted: boolean;
 }
 
