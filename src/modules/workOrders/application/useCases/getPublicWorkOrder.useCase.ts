@@ -2,6 +2,7 @@ import type { ObjectStorage } from '../../../../shared/storage/objectStorage.por
 import { WorkOrderShare } from '../../domain/entities/workOrderShare.entity.js';
 import { WorkOrderShareError } from '../../domain/errors/workOrderShare.error.js';
 import { PublicWorkOrderFinancialPolicy } from '../../domain/policies/publicWorkOrderFinancial.policy.js';
+import { PublicWorkOrderTimelinePolicy } from '../../domain/policies/publicWorkOrderTimeline.policy.js';
 import type { PublicWorkOrderUnitOfWork } from '../ports/publicWorkOrderUnitOfWork.port.js';
 import type { WorkOrderShareSecurity } from '../ports/workOrderShareSecurity.port.js';
 import type {
@@ -56,6 +57,13 @@ export class GetPublicWorkOrderUseCase {
         totalInCents: snapshot.totalInCents,
         receivables: snapshot.receivables,
       }),
+      timeline: PublicWorkOrderTimelinePolicy.resolve(
+        {
+          ...snapshot.timelineSource,
+          createdAt: snapshot.createdAt,
+        },
+        now,
+      ),
       generatedAt: now,
       expiresAt,
     };

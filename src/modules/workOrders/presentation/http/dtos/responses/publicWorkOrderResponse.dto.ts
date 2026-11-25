@@ -8,6 +8,8 @@ import type {
   PublicWorkOrderResult,
 } from '../../../../application/types/publicWorkOrder.types.js';
 import type { PublicWorkOrderFinancial } from '../../../../domain/policies/publicWorkOrderFinancial.policy.js';
+import type { PublicWorkOrderTimelineEvent } from '../../../../domain/policies/publicWorkOrderTimeline.policy.js';
+import { PublicWorkOrderTimelineEventType } from '../../../../domain/policies/publicWorkOrderTimeline.policy.js';
 
 export class PublicWorkOrderOrganizationResponseDto implements PublicWorkOrderOrganization {
   @ApiProperty()
@@ -128,6 +130,34 @@ export class PublicWorkOrderFinancialResponseDto implements PublicWorkOrderFinan
   outstandingReceivablesInCents!: number;
 }
 
+export class PublicWorkOrderTimelineEventResponseDto implements PublicWorkOrderTimelineEvent {
+  @ApiProperty({
+    enum: PublicWorkOrderTimelineEventType,
+    enumName: 'PublicWorkOrderTimelineEventType',
+  })
+  type!: PublicWorkOrderTimelineEventType;
+
+  @ApiProperty({
+    type: Date,
+    description: 'Date and time when the event occurred.',
+  })
+  occurredAt!: Date;
+
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+    description: 'Scheduled start time associated with a scheduling event.',
+  })
+  scheduledStartAt!: Date | null;
+
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+    description: 'Scheduled end time associated with a scheduling event.',
+  })
+  scheduledEndAt!: Date | null;
+}
+
 export class PublicWorkOrderResponseDto implements PublicWorkOrderResult {
   @ApiProperty({
     type: PublicWorkOrderOrganizationResponseDto,
@@ -144,6 +174,12 @@ export class PublicWorkOrderResponseDto implements PublicWorkOrderResult {
     nullable: true,
   })
   financial!: PublicWorkOrderFinancialResponseDto | null;
+
+  @ApiProperty({
+    type: [PublicWorkOrderTimelineEventResponseDto],
+    description: 'Public service events in chronological order.',
+  })
+  timeline!: PublicWorkOrderTimelineEventResponseDto[];
 
   @ApiProperty({ type: Date })
   generatedAt!: Date;

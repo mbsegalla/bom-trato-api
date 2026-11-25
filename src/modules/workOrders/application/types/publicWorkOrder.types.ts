@@ -2,6 +2,10 @@ import type {
   PublicWorkOrderFinancial,
   PublicWorkOrderReceivable,
 } from '../../domain/policies/publicWorkOrderFinancial.policy.js';
+import type {
+  PublicWorkOrderTimelineEvent,
+  PublicWorkOrderTimelineSource,
+} from '../../domain/policies/publicWorkOrderTimeline.policy.js';
 import type { WorkOrderItemProps, WorkOrderProps } from '../../domain/types/workOrder.types.js';
 
 export type PublicWorkOrderItem = Pick<
@@ -32,11 +36,14 @@ export interface PublicWorkOrderSnapshot extends Omit<PublicWorkOrderDetails, 'r
   id: string;
   organizationId: string;
   assignedToName: string | null;
+
   organization: {
     name: string;
     logoKey: string | null;
   };
+
   receivables: PublicWorkOrderReceivable[];
+  timelineSource: PublicWorkOrderTimelineSource;
 }
 
 export interface PublicWorkOrderOrganization {
@@ -48,6 +55,7 @@ export interface PublicWorkOrderResult {
   organization: PublicWorkOrderOrganization;
   workOrder: PublicWorkOrderDetails;
   financial: PublicWorkOrderFinancial | null;
+  timeline: PublicWorkOrderTimelineEvent[];
   generatedAt: Date;
   expiresAt: Date;
 }

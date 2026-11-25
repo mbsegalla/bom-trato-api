@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+import { QuoteStatus } from '../../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { readTransaction } from '../../../../infrastructure/database/prismaTransaction.js';
 import type { PublicWorkOrderReadContext } from '../../application/ports/publicWorkOrderUnitOfWork.port.js';
@@ -35,12 +36,31 @@ const publicWorkOrderSelect = {
   completedAt: true,
   canceledAt: true,
   createdAt: true,
+
   organization: {
     select: {
       name: true,
       logoKey: true,
     },
   },
+
+  quote: {
+    select: {
+      quoteStatusHistories: {
+        where: {
+          toStatus: QuoteStatus.APPROVED,
+        },
+        orderBy: {
+          version: 'desc',
+        },
+        take: 1,
+        select: {
+          createdAt: true,
+        },
+      },
+    },
+  },
+
   workOrderItems: {
     orderBy: [
       {
@@ -60,6 +80,35 @@ const publicWorkOrderSelect = {
       position: true,
     },
   },
+
+  workOrderStatusHistory: {
+    orderBy: {
+      version: 'asc',
+    },
+    select: {
+      fromStatus: true,
+      toStatus: true,
+      version: true,
+      createdAt: true,
+    },
+  },
+
+  workOrderScheduleHistories: {
+    orderBy: {
+      version: 'asc',
+    },
+    select: {
+      fromStatus: true,
+      toStatus: true,
+      fromStartAt: true,
+      fromEndAt: true,
+      toStartAt: true,
+      toEndAt: true,
+      version: true,
+      createdAt: true,
+    },
+  },
+
   receivables: {
     select: {
       currency: true,
@@ -113,7 +162,8 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       return null;
     }
 
-    const { assignedToId, workOrderItems, ...state } = workOrder;
+    const { assignedToId, workOrderItems, workOrderStatusHistory, workOrderScheduleHistories, quote, ...state } =
+      workOrder;
 
     const assignedToName = await this.findResponsibleName(db, organizationId, assignedToId);
 
@@ -121,6 +171,11 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       ...state,
       assignedToName,
       items: workOrderItems,
+      timelineSource: {
+        quoteApprovedAt: quote.quoteStatusHistories[0]?.createdAt ?? null,
+        statusHistory: workOrderStatusHistory,
+        scheduleHistory: workOrderScheduleHistories,
+      },
     };
   }
 
