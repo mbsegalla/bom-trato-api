@@ -1,10 +1,17 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsString, Matches, Max, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsString, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
+import { PageDto } from '../../../../../../infrastructure/http/dtos/page.dto.js';
+import type {
+  WorkOrderRecurrenceListInput,
+  WorkOrderRecurrenceListStatus,
+} from '../../../../application/types/workOrderRecurrence.types.js';
 import type {
   WorkOrderRecurrenceSettings,
   WorkOrderRecurrenceUnit,
 } from '../../../../domain/policies/workOrderRecurrence.policy.js';
+import type { WorkOrderRecurrenceVisitPeriod } from '../../../../domain/policies/workOrderRecurrenceVisit.policy.js';
 
 export class SaveWorkOrderRecurrenceDto implements WorkOrderRecurrenceSettings {
   @ApiProperty({ enum: ['DAY', 'WEEK', 'MONTH'] })
@@ -31,4 +38,23 @@ export class SaveWorkOrderRecurrenceDto implements WorkOrderRecurrenceSettings {
   @Min(0)
   @Max(2147483647)
   version!: number;
+}
+
+export class WorkOrderRecurrencePageDto extends PageDto implements WorkOrderRecurrenceListInput {
+  @ApiPropertyOptional({ enum: ['ACTIVE', 'PAUSED', 'ARCHIVED'] })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsIn(['ACTIVE', 'PAUSED', 'ARCHIVED'])
+  status?: WorkOrderRecurrenceListStatus;
+
+  @ApiPropertyOptional({ enum: ['OVERDUE', 'TODAY', 'NEXT_SEVEN_DAYS'] })
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsIn(['OVERDUE', 'TODAY', 'NEXT_SEVEN_DAYS'])
+  visit?: WorkOrderRecurrenceVisitPeriod;
+
+  @ApiPropertyOptional({ maxLength: 100 })
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
+  @IsString()
+  @MaxLength(100)
+  customerName?: string;
 }

@@ -7,11 +7,17 @@ import { OrganizationAccessPolicy } from '../../../organizations/domain/policies
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { WorkOrderRecurrenceRepository } from '../../application/ports/workOrderRecurrenceRepository.port.js';
+import type { WorkOrderActorParams } from '../../application/ports/workOrderUnitOfWork.port.js';
 import type { WorkOrderByIdParams } from '../../application/types/workOrder.types.js';
-import type { WorkOrderRecurrenceView } from '../../application/types/workOrderRecurrence.types.js';
+import type {
+  WorkOrderRecurrenceListInput,
+  WorkOrderRecurrenceListView,
+  WorkOrderRecurrenceView,
+} from '../../application/types/workOrderRecurrence.types.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import type { WorkOrderRecurrenceSettings } from '../../domain/policies/workOrderRecurrence.policy.js';
 import { workOrderRecurrenceDate, WorkOrderRecurrencePolicy } from '../../domain/policies/workOrderRecurrence.policy.js';
+import { workOrderRecurrenceVisitFilter } from '../../domain/policies/workOrderRecurrenceVisit.policy.js';
 
 const recurrenceSelect = {
   intervalUnit: true,
@@ -34,6 +40,73 @@ type RecurrenceOrder = Prisma.WorkOrderGetPayload<{ select: typeof orderSelect }
 export class PrismaWorkOrderRecurrenceRepository extends WorkOrderRecurrenceRepository {
   constructor(private readonly prisma: PrismaService) {
     super();
+  }
+
+  list(params: WorkOrderActorParams, input: WorkOrderRecurrenceListInput): Promise<WorkOrderRecurrenceListView> {
+    return organizationTransaction(
+      this.prisma,
+      params.organizationId,
+      'read',
+      async (db) => {
+        const access = await readOrganizationAccess(db, params);
+        OrganizationAccessPolicy.assertVerifiedMember(access, (code) => new WorkOrderError(code));
+
+        const today = workOrderRecurrenceDate(new Date());
+        const { page, limit, status, visit, customerName } = input;
+        const archivedAt = status === 'ARCHIVED' ? { not: null } : status === undefined ? undefined : null;
+        const enabled = status === 'ACTIVE' ? true : status === 'PAUSED' ? false : undefined;
+        const name = customerName?.trim();
+        const customer: Prisma.CustomerWhereInput = { archivedAt };
+
+        if (name) {
+          customer.name = { contains: name.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' };
+        }
+
+        const rows = await db.workOrderRecurrence.findMany({
+          where: {
+            organizationId: params.organizationId,
+            enabled,
+            nextVisitOn: workOrderRecurrenceVisitFilter(today, visit),
+            workOrder: {
+              organizationId: params.organizationId,
+              status: 'COMPLETED',
+              completedAt: { not: null },
+              customer,
+            },
+          },
+          select: {
+            ...recurrenceSelect,
+            workOrderId: true,
+            workOrder: {
+              select: {
+                title: true,
+                customerId: true,
+                customer: { select: { name: true, archivedAt: true } },
+              },
+            },
+          },
+          orderBy: [{ nextVisitOn: 'asc' }, { workOrderId: 'asc' }],
+          skip: (page - 1) * limit,
+          take: limit + 1,
+        });
+
+        return {
+          items: rows.slice(0, limit).map(({ workOrderId, workOrder, nextVisitOn, ...recurrence }) => ({
+            workOrderId,
+            title: workOrder.title,
+            customerId: workOrder.customerId,
+            customerName: workOrder.customer.name,
+            customerArchived: workOrder.customer.archivedAt !== null,
+            recurrence: { ...recurrence, nextVisitOn: nextVisitOn.toISOString().slice(0, 10) },
+          })),
+          page,
+          hasMore: rows.length > limit,
+          today,
+          canConfigure: access.hasPlatformAccess && !access.billingNeedsReconciliation,
+        };
+      },
+      this.errors(),
+    );
   }
 
   read(params: WorkOrderByIdParams): Promise<WorkOrderRecurrenceView> {

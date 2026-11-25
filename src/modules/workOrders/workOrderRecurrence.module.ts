@@ -6,10 +6,11 @@ import { WorkOrderRecurrenceRepository } from './application/ports/workOrderRecu
 import { ManageWorkOrderRecurrenceUseCase } from './application/useCases/manageWorkOrderRecurrence.useCase.js';
 import { PrismaWorkOrderRecurrenceRepository } from './infrastructure/transactions/prismaWorkOrderRecurrenceRepository.js';
 import { WorkOrderRecurrenceController } from './presentation/http/controllers/workOrderRecurrence.controller.js';
+import { WorkOrderRecurrencesController } from './presentation/http/controllers/workOrderRecurrences.controller.js';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [WorkOrderRecurrenceController],
+  controllers: [WorkOrderRecurrenceController, WorkOrderRecurrencesController],
   providers: [
     { provide: WorkOrderRecurrenceRepository, useClass: PrismaWorkOrderRecurrenceRepository },
     {
