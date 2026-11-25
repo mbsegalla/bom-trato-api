@@ -124,6 +124,12 @@ const publicWorkOrderSelect = {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: { id: true, stage: true, caption: true, width: true, height: true, createdAt: true },
   },
+
+  workOrderChecklistItems: {
+    where: { visibleInPortal: true },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    select: { id: true, title: true, completed: true, completedAt: true },
+  },
 } satisfies Prisma.WorkOrderSelect;
 
 @Injectable()
@@ -183,6 +189,7 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       assignedToId,
       workOrderItems,
       workOrderPhotos,
+      workOrderChecklistItems,
       workOrderStatusHistory,
       workOrderScheduleHistories,
       quote,
@@ -196,6 +203,7 @@ export class PrismaPublicWorkOrderUnitOfWork extends PublicWorkOrderUnitOfWork {
       assignedToName,
       items: workOrderItems,
       photos: workOrderPhotos,
+      checklistItems: workOrderChecklistItems,
       timelineSource: {
         quoteApprovedAt: quote.quoteStatusHistories[0]?.createdAt ?? null,
         statusHistory: workOrderStatusHistory,
