@@ -106,6 +106,12 @@ enum WorkOrderStatus {
   CANCELED
 }
 
+enum WorkOrderRecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
+}
+
 enum WorkOrderPhotoStage {
   BEFORE
   DURING
@@ -900,6 +906,7 @@ model WorkOrder {
   workOrderChecklistItems       WorkOrderChecklistItem[]
   workOrderAcceptances          WorkOrderAcceptance[]
   warranty                      WorkOrderWarranty?
+  recurrence                    WorkOrderRecurrence?
   professionalReview            ProfessionalReview?
 
   @@unique([id, organizationId])
@@ -907,6 +914,25 @@ model WorkOrder {
   @@index([organizationId, customerId])
   @@index([organizationId, assignedToId, scheduledStartAt])
   @@index([organizationId, status, scheduledStartAt, id])
+}
+
+model WorkOrderRecurrence {
+  workOrderId    String                  @id @db.Uuid
+  organizationId String                  @db.Uuid
+  intervalUnit   WorkOrderRecurrenceUnit
+  intervalCount  Int
+  nextVisitOn    DateTime                @db.Date
+  enabled        Boolean
+  version        Int                     @default(1)
+  createdById    String                  @db.Uuid
+  updatedById    String                  @db.Uuid
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([workOrderId, organizationId])
+  @@index([organizationId, enabled, nextVisitOn, workOrderId], map: "WorkOrderRecurrence_org_enabled_visit_order_idx")
 }
 
 model WorkOrderWarranty {
