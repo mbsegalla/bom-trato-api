@@ -34,6 +34,7 @@ import { WorkOrdersController } from './presentation/http/controllers/workOrders
 import { WorkOrderSharesController } from './presentation/http/controllers/workOrderShares.controller.js';
 import { WorkOrderAcceptanceModule } from './workOrderAcceptance.module.js';
 import { WorkOrderChecklistModule } from './workOrderChecklist.module.js';
+import { WorkOrderDocumentsModule } from './workOrderDocuments.module.js';
 import { WorkOrderPhotosModule } from './workOrderPhotos.module.js';
 
 @Module({
@@ -41,9 +42,10 @@ import { WorkOrderPhotosModule } from './workOrderPhotos.module.js';
     DatabaseModule,
     NotificationsModule,
     ReviewsModule,
-    WorkOrderPhotosModule,
-    WorkOrderChecklistModule,
     WorkOrderAcceptanceModule,
+    WorkOrderChecklistModule,
+    WorkOrderDocumentsModule,
+    WorkOrderPhotosModule,
   ],
   controllers: [WorkOrdersController, WorkOrderSharesController],
   providers: [

@@ -51,6 +51,7 @@ export interface PublicWorkOrderSnapshot extends Omit<PublicWorkOrderDetails, 'r
   timelineSource: PublicWorkOrderTimelineSource;
   photos: PublicWorkOrderPhoto[];
   checklistItems: PublicWorkOrderChecklistItem[];
+  warranty?: { durationDays: number; terms: string } | null;
 }
 
 export interface PublicWorkOrderOrganization {
@@ -65,6 +66,7 @@ export interface PublicWorkOrderResult {
   timeline: PublicWorkOrderTimelineEvent[];
   photos: PublicWorkOrderPhoto[];
   checklist: PublicWorkOrderChecklist;
+  warranty: { durationDays: number; terms: string; expiresAt: Date } | null;
   acceptance: PublicWorkOrderAcceptance;
   generatedAt: Date;
   expiresAt: Date;

@@ -899,6 +899,7 @@ model WorkOrder {
   workOrderPhotos               WorkOrderPhoto[]
   workOrderChecklistItems       WorkOrderChecklistItem[]
   workOrderAcceptances          WorkOrderAcceptance[]
+  warranty                      WorkOrderWarranty?
   professionalReview            ProfessionalReview?
 
   @@unique([id, organizationId])
@@ -906,6 +907,21 @@ model WorkOrder {
   @@index([organizationId, customerId])
   @@index([organizationId, assignedToId, scheduledStartAt])
   @@index([organizationId, status, scheduledStartAt, id])
+}
+
+model WorkOrderWarranty {
+  workOrderId    String   @id @db.Uuid
+  organizationId String   @db.Uuid
+  durationDays   Int
+  terms          String   @db.VarChar(2000)
+  version        Int      @default(1)
+  updatedById    String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, workOrderId])
 }
 
 model WorkOrderAcceptance {

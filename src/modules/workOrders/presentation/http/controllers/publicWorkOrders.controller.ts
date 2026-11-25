@@ -14,6 +14,7 @@ import { ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagg
 import { ApiDataResponse } from '../../../../../infrastructure/http/decorators/apiDataResponse.decorator.js';
 import { PublicRoute } from '../../../../auth/presentation/http/decorators/publicRoute.decorator.js';
 import { AcceptPublicWorkOrderUseCase } from '../../../application/useCases/acceptPublicWorkOrder.useCase.js';
+import { GeneratePublicWorkOrderReportUseCase } from '../../../application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../../../application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../../../application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { PublicWorkOrderTokenDto } from '../dtos/requests/publicWorkOrder.dto.js';
@@ -34,6 +35,7 @@ export class PublicWorkOrdersController {
     private readonly getPublicWorkOrderUseCase: GetPublicWorkOrderUseCase,
     private readonly getPublicWorkOrderPhotoContentUseCase: GetPublicWorkOrderPhotoContentUseCase,
     private readonly acceptPublicWorkOrderUseCase: AcceptPublicWorkOrderUseCase,
+    private readonly generatePublicWorkOrderReportUseCase: GeneratePublicWorkOrderReportUseCase,
   ) {}
 
   @Post('resolve')
@@ -54,6 +56,23 @@ export class PublicWorkOrdersController {
   @ApiDataResponse(PublicWorkOrderAcceptanceReceiptResponseDto)
   accept(@Body() dto: AcceptPublicWorkOrderDto): Promise<PublicWorkOrderAcceptanceReceiptResponseDto> {
     return workOrderAcceptanceOperation(() => this.acceptPublicWorkOrderUseCase.execute(dto.token, dto));
+  }
+
+  @Post('report.pdf')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiOperation({ summary: 'Download a share-scoped work order report without private customer fields' })
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({ schema: { type: 'string', format: 'binary' } })
+  async report(@Body() dto: PublicWorkOrderTokenDto): Promise<StreamableFile> {
+    const bytes = await workOrderShareOperation(() => this.generatePublicWorkOrderReportUseCase.execute(dto.token));
+
+    return new StreamableFile(bytes, {
+      type: 'application/pdf',
+      length: bytes.length,
+      disposition: 'attachment; filename="relatorio-atendimento.pdf"',
+    });
   }
 
   @Post('photos/:photoId/content')

@@ -11,17 +11,20 @@ import { ObjectStorage } from '../../shared/storage/objectStorage.port.js';
 import { PrivateObjectStorage } from '../../shared/storage/privateObjectStorage.port.js';
 
 import { PublicWorkOrderUnitOfWork } from './application/ports/publicWorkOrderUnitOfWork.port.js';
+import { WorkOrderDocumentPdfGenerator } from './application/ports/workOrderDocumentPdfGenerator.port.js';
 import { WorkOrderShareSecurity } from './application/ports/workOrderShareSecurity.port.js';
 import { AcceptPublicWorkOrderUseCase } from './application/useCases/acceptPublicWorkOrder.useCase.js';
+import { GeneratePublicWorkOrderReportUseCase } from './application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from './application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from './application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { NodeWorkOrderShareSecurity } from './infrastructure/security/nodeWorkOrderShareSecurity.js';
 import { PrismaPublicWorkOrderUnitOfWork } from './infrastructure/transactions/prismaPublicWorkOrderUnitOfWork.js';
 import { PublicWorkOrdersController } from './presentation/http/controllers/publicWorkOrders.controller.js';
+import { WorkOrderDocumentsModule } from './workOrderDocuments.module.js';
 import { WorkOrderShareRateLimitGuard } from './presentation/http/guards/workOrderShareRateLimit.guard.js';
 
 @Module({
-  imports: [DatabaseModule, StorageModule, ConfigModule.forFeature(quoteShareConfig)],
+  imports: [DatabaseModule, StorageModule, WorkOrderDocumentsModule, ConfigModule.forFeature(quoteShareConfig)],
   controllers: [PublicWorkOrdersController],
   providers: [
     WorkOrderShareRateLimitGuard,
@@ -50,6 +53,12 @@ import { WorkOrderShareRateLimitGuard } from './presentation/http/guards/workOrd
       useFactory: (unitOfWork: PublicWorkOrderUnitOfWork, security: WorkOrderShareSecurity, storage: ObjectStorage) =>
         new GetPublicWorkOrderUseCase(unitOfWork, security, storage),
       inject: [PublicWorkOrderUnitOfWork, WorkOrderShareSecurity, ObjectStorage],
+    },
+    {
+      provide: GeneratePublicWorkOrderReportUseCase,
+      useFactory: (getPublicWorkOrder: GetPublicWorkOrderUseCase, generator: WorkOrderDocumentPdfGenerator) =>
+        new GeneratePublicWorkOrderReportUseCase(getPublicWorkOrder, generator),
+      inject: [GetPublicWorkOrderUseCase, WorkOrderDocumentPdfGenerator],
     },
     {
       provide: GetPublicWorkOrderPhotoContentUseCase,
