@@ -947,24 +947,31 @@ model WorkOrderAcceptance {
 }
 
 model WorkOrderPhoto {
-  id              String              @id @default(uuid()) @db.Uuid
-  organizationId  String              @db.Uuid
-  workOrderId     String              @db.Uuid
-  objectKey       String              @unique @db.VarChar(500)
-  stage           WorkOrderPhotoStage
-  caption         String?             @db.VarChar(240)
-  visibleInPortal Boolean             @default(false)
-  width           Int
-  height          Int
-  sizeInBytes     Int
-  version         Int                 @default(1)
-  createdById     String              @db.Uuid
-  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime            @updatedAt @db.Timestamptz(3)
+  id                      String              @id @default(uuid()) @db.Uuid
+  organizationId          String              @db.Uuid
+  workOrderId             String              @db.Uuid
+  objectKey               String              @unique @db.VarChar(500)
+  stage                   WorkOrderPhotoStage
+  caption                 String?             @db.VarChar(240)
+  visibleInPortal         Boolean             @default(false)
+  portfolioConsentedAt    DateTime?           @db.Timestamptz(3)
+  portfolioConsentName    String?             @db.VarChar(100)
+  portfolioConsentShareId String?             @db.Uuid
+  portfolioRevokedAt      DateTime?           @db.Timestamptz(3)
+  portfolioPublishedAt    DateTime?           @db.Timestamptz(3)
+  portfolioPublishedById  String?             @db.Uuid
+  width                   Int                
+  height                  Int                
+  sizeInBytes             Int                
+  version                 Int                 @default(1)
+  createdById             String              @db.Uuid
+  createdAt               DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(3)
 
   workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@index([organizationId, workOrderId, createdAt, id])
+  @@index([organizationId, portfolioPublishedAt])
 }
 
 model WorkOrderChecklistItem {

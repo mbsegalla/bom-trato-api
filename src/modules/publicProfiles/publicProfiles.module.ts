@@ -5,6 +5,8 @@ import { StorageModule } from '../../infrastructure/storage/storage.module.js';
 import { ObjectStorage } from '../../shared/storage/objectStorage.port.js';
 import { OrganizationTeamApplicationService } from '../organizations/application/services/organizationTeamApplicationService.service.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
+import { WorkOrderPortfolioRepository } from '../workOrders/application/ports/workOrderPortfolio.repository.js';
+import { WorkOrderPortfolioModule } from '../workOrders/workOrderPortfolio.module.js';
 
 import { GetPublicProfessionalUseCase } from './application/useCases/getPublicProfessional.useCase.js';
 import { GetPublicProfessionalWhatsappUseCase } from './application/useCases/getPublicProfessionalWhatsapp.useCase.js';
@@ -17,7 +19,7 @@ import { OrganizationPublicProfileController } from './presentation/http/control
 import { PublicProfessionalsController } from './presentation/http/controllers/publicProfessionals.controller.js';
 
 @Module({
-  imports: [DatabaseModule, StorageModule, OrganizationsModule],
+  imports: [DatabaseModule, StorageModule, OrganizationsModule, WorkOrderPortfolioModule],
   controllers: [OrganizationPublicProfileController, PublicProfessionalsController],
   providers: [
     {
@@ -44,9 +46,12 @@ import { PublicProfessionalsController } from './presentation/http/controllers/p
     },
     {
       provide: GetPublicProfessionalUseCase,
-      useFactory: (repository: PublicProfileRepository, storage: ObjectStorage) =>
-        new GetPublicProfessionalUseCase(repository, storage),
-      inject: [PublicProfileRepository, ObjectStorage],
+      useFactory: (
+        repository: PublicProfileRepository,
+        storage: ObjectStorage,
+        portfolio: WorkOrderPortfolioRepository,
+      ) => new GetPublicProfessionalUseCase(repository, storage, portfolio),
+      inject: [PublicProfileRepository, ObjectStorage, WorkOrderPortfolioRepository],
     },
     {
       provide: GetPublicProfessionalWhatsappUseCase,

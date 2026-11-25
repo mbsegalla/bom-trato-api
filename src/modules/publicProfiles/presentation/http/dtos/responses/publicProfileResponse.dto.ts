@@ -164,7 +164,23 @@ export class PublicProfessionalReviewDto {
   verified!: boolean;
 }
 
+export class PublicProfessionalPortfolioPhotoDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: ['BEFORE', 'AFTER'] })
+  stage!: 'BEFORE' | 'AFTER';
+
+  @ApiProperty()
+  width!: number;
+
+  @ApiProperty()
+  height!: number;
+}
+
 export class PublicProfessionalResponseDto extends PublicProfessionalCardDto {
+  @ApiProperty({ type: [PublicProfessionalPortfolioPhotoDto] })
+  portfolio!: PublicProfessionalPortfolioPhotoDto[];
   @ApiProperty({
     type: String,
     nullable: true,
