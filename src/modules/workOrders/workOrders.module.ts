@@ -35,8 +35,9 @@ import { WorkOrderSharesController } from './presentation/http/controllers/workO
 import { WorkOrderAcceptanceModule } from './workOrderAcceptance.module.js';
 import { WorkOrderChecklistModule } from './workOrderChecklist.module.js';
 import { WorkOrderDocumentsModule } from './workOrderDocuments.module.js';
-import { WorkOrderPortfolioModule } from './workOrderPortfolio.module.js';
 import { WorkOrderPhotosModule } from './workOrderPhotos.module.js';
+import { WorkOrderPortfolioModule } from './workOrderPortfolio.module.js';
+import { WorkOrderRecurrenceModule } from './workOrderRecurrence.module.js';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { WorkOrderPhotosModule } from './workOrderPhotos.module.js';
     WorkOrderDocumentsModule,
     WorkOrderPhotosModule,
     WorkOrderPortfolioModule,
+    WorkOrderRecurrenceModule,
   ],
   controllers: [WorkOrdersController, WorkOrderSharesController],
   providers: [
