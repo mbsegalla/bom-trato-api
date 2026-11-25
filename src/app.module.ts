@@ -22,6 +22,7 @@ import { QuotesModule } from './modules/quotes/quotes.module.js';
 import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.module.js';
+import { WorkOrderPortalModule } from './modules/workOrders/workOrderPortal.module.js';
 import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
 
 @Module({
@@ -47,6 +48,7 @@ import { WorkOrdersModule } from './modules/workOrders/workOrders.module.js';
     ServiceCatalogModule,
     QuotesModule,
     WorkOrdersModule,
+    WorkOrderPortalModule,
     ReceivablesModule,
     DashboardModule,
   ],
