@@ -12,6 +12,7 @@ import { PrivateObjectStorage } from '../../shared/storage/privateObjectStorage.
 
 import { PublicWorkOrderUnitOfWork } from './application/ports/publicWorkOrderUnitOfWork.port.js';
 import { WorkOrderShareSecurity } from './application/ports/workOrderShareSecurity.port.js';
+import { AcceptPublicWorkOrderUseCase } from './application/useCases/acceptPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderUseCase } from './application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from './application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { NodeWorkOrderShareSecurity } from './infrastructure/security/nodeWorkOrderShareSecurity.js';
@@ -37,6 +38,12 @@ import { WorkOrderShareRateLimitGuard } from './presentation/http/guards/workOrd
       useFactory: (prisma: PrismaService, config: ConfigType<typeof quoteShareConfig>) =>
         new PostgresPublicShareRateLimit(prisma, config.rateLimitSecret, 'work-order-share'),
       inject: [PrismaService, quoteShareConfig.KEY],
+    },
+    {
+      provide: AcceptPublicWorkOrderUseCase,
+      useFactory: (unitOfWork: PublicWorkOrderUnitOfWork, security: WorkOrderShareSecurity) =>
+        new AcceptPublicWorkOrderUseCase(unitOfWork, security),
+      inject: [PublicWorkOrderUnitOfWork, WorkOrderShareSecurity],
     },
     {
       provide: GetPublicWorkOrderUseCase,

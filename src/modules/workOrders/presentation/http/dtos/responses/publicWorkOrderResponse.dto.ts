@@ -11,6 +11,7 @@ import type { PublicWorkOrderFinancial } from '../../../../domain/policies/publi
 import type { PublicWorkOrderTimelineEvent } from '../../../../domain/policies/publicWorkOrderTimeline.policy.js';
 import { PublicWorkOrderTimelineEventType } from '../../../../domain/policies/publicWorkOrderTimeline.policy.js';
 
+import { PublicWorkOrderAcceptanceResponseDto } from './workOrderAcceptanceResponse.dto.js';
 import { PublicWorkOrderChecklistResponseDto } from './workOrderChecklistResponse.dto.js';
 import { PublicWorkOrderPhotoResponseDto } from './workOrderPhotoResponse.dto.js';
 
@@ -189,6 +190,9 @@ export class PublicWorkOrderResponseDto implements PublicWorkOrderResult {
 
   @ApiProperty({ type: PublicWorkOrderChecklistResponseDto })
   checklist!: PublicWorkOrderChecklistResponseDto;
+
+  @ApiProperty({ type: PublicWorkOrderAcceptanceResponseDto })
+  acceptance!: PublicWorkOrderAcceptanceResponseDto;
 
   @ApiProperty({ type: Date })
   generatedAt!: Date;

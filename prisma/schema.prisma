@@ -898,6 +898,7 @@ model WorkOrder {
   workOrderShares               WorkOrderShare[]
   workOrderPhotos               WorkOrderPhoto[]
   workOrderChecklistItems       WorkOrderChecklistItem[]
+  workOrderAcceptances          WorkOrderAcceptance[]
   professionalReview            ProfessionalReview?
 
   @@unique([id, organizationId])
@@ -905,6 +906,28 @@ model WorkOrder {
   @@index([organizationId, customerId])
   @@index([organizationId, assignedToId, scheduledStartAt])
   @@index([organizationId, status, scheduledStartAt, id])
+}
+
+model WorkOrderAcceptance {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @db.Uuid
+  workOrderId      String   @db.Uuid
+  shareId          String   @db.Uuid
+  signerName       String   @db.VarChar(100)
+  acceptedAt       DateTime @default(now()) @db.Timestamptz(3)
+  completedAt      DateTime @db.Timestamptz(3)
+  workOrderVersion Int
+  consent          Boolean  @default(true)
+  consentVersion   String   @db.VarChar(20)
+  consentText      String   @db.VarChar(500)
+  snapshotHash     String   @db.VarChar(64)
+  snapshot         Json
+
+  workOrder WorkOrder      @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  share     WorkOrderShare @relation(fields: [shareId, workOrderId, organizationId], references: [id, workOrderId, organizationId], onDelete: Restrict)
+
+  @@unique([workOrderId, completedAt])
+  @@index([organizationId, workOrderId, acceptedAt])
 }
 
 model WorkOrderPhoto {
@@ -1196,8 +1219,10 @@ model WorkOrderShare {
   expiresAt         DateTime  @db.Timestamptz(3)
   revokedAt         DateTime? @db.Timestamptz(3)
 
-  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  workOrder            WorkOrder             @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  workOrderAcceptances WorkOrderAcceptance[]
 
+  @@unique([id, workOrderId, organizationId])
   @@index([organizationId, workOrderId, revokedAt])
   @@index([expiresAt])
 }

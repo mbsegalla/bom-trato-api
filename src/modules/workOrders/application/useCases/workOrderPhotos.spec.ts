@@ -360,9 +360,18 @@ function setupPublic() {
     read: async (_hash, operation) =>
       operation({
         share: structuredClone(share),
+        acceptances: { findForCompletion: async () => null },
+        findPlatformAccess: async () => ({
+          hasAccess: true,
+          source: 'SUBSCRIPTION',
+          billingNeedsReconciliation: false,
+        }),
         findWorkOrder: async () => null,
         findPhoto: async (id) => (id === photo.id ? structuredClone(photo) : null),
       }),
+    run: async () => {
+      throw new Error('Photo reads must not start a write transaction');
+    },
   };
   const useCase = new GetPublicWorkOrderPhotoContentUseCase(unitOfWork, new NodeWorkOrderShareSecurity(), storage);
 
