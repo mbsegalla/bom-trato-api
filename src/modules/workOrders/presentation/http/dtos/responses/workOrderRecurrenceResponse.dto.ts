@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import type { WorkOrderRecurrenceView } from '../../../../application/types/workOrderRecurrence.types.js';
+import type {
+  WorkOrderRecurrenceListItem,
+  WorkOrderRecurrenceListView,
+  WorkOrderRecurrenceView,
+} from '../../../../application/types/workOrderRecurrence.types.js';
 import type {
   WorkOrderRecurrenceSettings,
   WorkOrderRecurrenceUnit,
@@ -38,4 +42,41 @@ export class WorkOrderRecurrenceResponseDto implements WorkOrderRecurrenceView {
 
   @ApiProperty({ type: String, format: 'date', nullable: true })
   completedOn!: string | null;
+}
+
+export class WorkOrderRecurrenceListItemDto implements WorkOrderRecurrenceListItem {
+  @ApiProperty({ format: 'uuid' })
+  workOrderId!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  customerId!: string;
+
+  @ApiProperty()
+  customerName!: string;
+
+  @ApiProperty()
+  customerArchived!: boolean;
+
+  @ApiProperty({ type: WorkOrderRecurrenceDto })
+  recurrence!: WorkOrderRecurrenceDto;
+}
+
+export class WorkOrderRecurrencesResponseDto implements WorkOrderRecurrenceListView {
+  @ApiProperty({ type: [WorkOrderRecurrenceListItemDto] })
+  items!: WorkOrderRecurrenceListItemDto[];
+
+  @ApiProperty()
+  page!: number;
+
+  @ApiProperty()
+  hasMore!: boolean;
+
+  @ApiProperty({ type: String, format: 'date' })
+  today!: string;
+
+  @ApiProperty()
+  canConfigure!: boolean;
 }

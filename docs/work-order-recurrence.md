@@ -46,3 +46,13 @@ pnpm typecheck
 ```
 
 No new dependencies or environment variables. The recurrence policy and its error class were compiled with the available TypeScript 5.8.3 compiler from exact source blobs (hashes verified). All 32 isolated cases passed under UTC, America/Sao_Paulo and Pacific/Auckland. This is not a Prisma, NestJS, Vitest or production-build result. Before merge, also run lint, formatting, Vitest and production builds; validate migration on a disposable PostgreSQL database, and exercise the API and UI against it. Existing migrations are not changed.
+
+## Phase 3.3 — recurring service management
+
+`GET /api/organizations/:organizationId/work-order-recurrences` lists completed source orders with a configured recurrence for the active organization. Verified members can read the list after platform access expires, but cannot write. It uses the existing standard data envelope with `{ items, page, hasMore, today, canConfigure }`.
+
+- Optional filters: `status=ACTIVE|PAUSED|ARCHIVED`, `visit=OVERDUE|TODAY|NEXT_SEVEN_DAYS`, and `customerName` (case-insensitive substring of the current customer name, up to 100 characters). Omit a filter to include all values.
+- Archived customers are grouped separately; their stored recurrence configuration is preserved. Active and paused filters include non-archived customers only. Date filters apply to the recorded date regardless of status.
+- `NEXT_SEVEN_DAYS` includes the business day and the following seven calendar days. `OVERDUE` means a recorded date strictly before today. Results are ordered by next visit, then source work order ID, with the standard `page` and `limit` pagination.
+- Each item includes the source work order ID, title, customer ID/name, archived flag and existing recurrence settings. The existing per-order GET/PUT endpoints handle all mutations and retain their optimistic concurrency and access rules.
+- No new migration or environment variables are required beyond phase 3.2. There is no automated quote, scheduling, reminder or billing action.
