@@ -86,6 +86,10 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .pattern(/^[a-fA-F0-9]{64}$/)
     .required(),
 
+  RECEIVING_SETTINGS_ENCRYPTION_KEY: Joi.string()
+    .pattern(/^[a-fA-F0-9]{64}$/)
+    .optional(),
+
   NOTIFICATION_WORKER_ENABLED: Joi.boolean().default(true),
 
   TRIAL_LIFECYCLE_WORKER_ENABLED: Joi.boolean().default(false),
@@ -174,6 +178,15 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
 
   if (env.AUTH_JWT_SECRET.toLowerCase() === env.AUTH_CSRF_SECRET.toLowerCase()) {
     throw new Error('AUTH_JWT_SECRET and AUTH_CSRF_SECRET must be different');
+  }
+
+  if (
+    env.RECEIVING_SETTINGS_ENCRYPTION_KEY !== undefined &&
+    [env.AUTH_JWT_SECRET, env.AUTH_CSRF_SECRET, env.NOTIFICATION_ENCRYPTION_KEY, env.QUOTE_SHARE_RATE_LIMIT_SECRET].some(
+      (key) => key.toLowerCase() === env.RECEIVING_SETTINGS_ENCRYPTION_KEY?.toLowerCase(),
+    )
+  ) {
+    throw new Error('RECEIVING_SETTINGS_ENCRYPTION_KEY must be independent of other application secrets');
   }
 
   const frontend = new URL(env.FRONTEND_URL);

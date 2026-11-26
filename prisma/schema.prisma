@@ -393,6 +393,7 @@ model Organization {
   quotes                           Quote[]
   workOrders                       WorkOrder[]
   receivables                      Receivable[]
+  receivingSettings                OrganizationReceivingSettings?
   inAppNotifications               InAppNotification[]
   notificationStreamTickets        NotificationStreamTicket[]
   leads                            Lead[]
@@ -400,6 +401,29 @@ model Organization {
   @@unique([ownerId, creationKey])
   @@index([ownerId, setupCompletedAt, createdAt])
   @@index([state, city])
+}
+
+enum PixKeyType {
+  CPF
+  CNPJ
+  PHONE
+  EMAIL
+  EVP
+}
+
+model OrganizationReceivingSettings {
+  organizationId   String      @id @db.Uuid
+  pixEnabled       Boolean     @default(false)
+  pixKeyType       PixKeyType?
+  pixKeyCiphertext String?
+  merchantName     String?     @db.VarChar(25)
+  merchantCity     String?     @db.VarChar(15)
+  version          Int         @default(1)
+  updatedById      String      @db.Uuid
+  createdAt        DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 }
 
 model PublicBusinessProfile {
