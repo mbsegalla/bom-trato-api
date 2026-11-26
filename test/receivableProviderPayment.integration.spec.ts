@@ -765,7 +765,15 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
     const unmatched = await f.claim();
     expect(await f.processor.execute(unmatched)).toBe(true);
     expect(await f.stored(unmatched)).toMatchObject({ resultCode: 'UNMATCHED_PAYMENT' });
-    await prisma.mercadoPagoConnection.update({ where: key, data: { expiresAt: new Date(Date.now() - 1000) } });
+    // An expired credential must still have been issued before its expiry.
+    const expiredAt = new Date(Date.now() - 1000);
+    await prisma.mercadoPagoConnection.update({
+      where: key,
+      data: {
+        connectedAt: new Date(expiredAt.getTime() - 3_600_000),
+        expiresAt: expiredAt,
+      },
+    });
     const bound = await f.delivery();
     expect(await f.processor.execute(bound)).toBe(true);
     expect(await f.stored(bound)).toMatchObject({ resultCode: 'CREDENTIAL_UNAVAILABLE' });
