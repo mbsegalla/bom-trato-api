@@ -33,6 +33,8 @@ databaseSuite('billing persistence (disposable PostgreSQL)', () => {
     } });
     db.cleanup(() => db.prisma.billingCustomer.deleteMany({ where: { id: customer.id } }));
     db.cleanup(() => db.prisma.checkoutAttempt.deleteMany({ where: { organizationId } }));
+    db.cleanup(() => db.prisma.paymentMethodUpdate.deleteMany({ where: { organizationId } }));
+    db.cleanup(() => db.prisma.planChange.deleteMany({ where: { organizationId } }));
     db.cleanup(() => db.prisma.subscription.deleteMany({ where: { organizationId } }));
     db.cleanup(() => db.prisma.billingInvoice.deleteMany({ where: { organizationId } }));
     const notify = vi.fn();
@@ -279,5 +281,130 @@ databaseSuite('billing persistence (disposable PostgreSQL)', () => {
     expect(await first.repository.invoices({ organizationId: first.organizationId, limit: 10 })).toMatchObject({
       items: [{ id: invoice.id }], nextCursor: null,
     });
+  });
+  it('reconstructs missing customer reference history when receiving a deletion', async () => {
+    const f = await fixture();
+    await db.prisma.billingCustomer.update({
+      where: { id: f.customer.id }, data: { stripeCustomerId: f.stripeCustomerId },
+    });
+    await f.repository.handleDeletedCustomer({
+      organizationId: f.organizationId, stripeCustomerId: f.stripeCustomerId, deletedAt: f.now,
+    });
+    expect(await db.prisma.billingCustomerReference.findUniqueOrThrow({ where: { stripeCustomerId: f.stripeCustomerId } }))
+      .toMatchObject({ billingCustomerId: f.customer.id, detachedAt: f.now });
+    expect(await f.readCustomer()).toMatchObject({ stripeCustomerId: null });
+  });
+
+  it('rejects a deletion with customer reference history belonging to a different organization', async () => {
+    const first = await fixture();
+    const second = await fixture();
+    await db.prisma.billingCustomer.update({
+      where: { id: first.customer.id }, data: { stripeCustomerId: first.stripeCustomerId },
+    });
+    await db.prisma.billingCustomerReference.create({ data: {
+      billingCustomerId: second.customer.id, stripeCustomerId: first.stripeCustomerId,
+    } });
+    await expect(first.repository.handleDeletedCustomer({
+      organizationId: first.organizationId, stripeCustomerId: first.stripeCustomerId, deletedAt: first.now,
+    })).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');
+    expect(await first.readCustomer()).toMatchObject({ stripeCustomerId: first.stripeCustomerId });
+  });
+
+  it('keeps terminal subscription history and the original cancellation timestamp', async () => {
+    const f = await fixture();
+    await f.repository.setCustomerId(f.customer.id, f.stripeCustomerId);
+    const canceledAt = new Date(f.now.getTime() - 1000);
+    const historical = { ...f.subscription, stripeSubscriptionId: 'sub_history_' + randomUUID(), status: 'CANCELED' as const,
+      canceledAt, endedAt: canceledAt };
+    await f.repository.saveSnapshot({ organizationId: f.organizationId, snapshot: {
+      subscriptions: [{ ...f.subscription, canceledAt, cancelAtPeriodEnd: true }, historical], invoices: [],
+    } });
+    await f.repository.handleDeletedCustomer({
+      organizationId: f.organizationId, stripeCustomerId: f.stripeCustomerId, deletedAt: f.now,
+    });
+    expect(await f.readSubscription()).toMatchObject({
+      status: 'CANCELED', canceledAt, endedAt: f.now, cancelAtPeriodEnd: false,
+    });
+    expect(await db.prisma.subscription.findUniqueOrThrow({ where: { stripeSubscriptionId: historical.stripeSubscriptionId } }))
+      .toMatchObject({ status: 'CANCELED', canceledAt, endedAt: canceledAt });
+  });
+
+  it.each(['QUOTED', 'PROCESSING', 'PENDING_PAYMENT', 'SCHEDULED'] as const)(
+    'cancels %s plan changes and pending payment method updates when the customer is deleted', async (status) => {
+      const f = await fixture();
+      await f.repository.setCustomerId(f.customer.id, f.stripeCustomerId);
+      const periodStart = Math.floor(f.now.getTime() / 1000);
+      const common = {
+        organizationId: f.organizationId, requestedById: f.userId, stripeCustomerId: f.stripeCustomerId,
+        stripeSubscriptionId: f.subscription.stripeSubscriptionId, expiresAt: f.end,
+      };
+      const change = await db.prisma.planChange.create({ data: {
+        ...common, activeOrganizationId: f.organizationId, status, sourcePlanPriceId: f.price.id,
+        targetPlanPriceId: f.price.id, targetMaxUsers: 5, stripeItemId: 'si_fixture',
+        sourceStripePriceId: f.price.stripePriceId, targetStripePriceId: f.price.stripePriceId,
+        mode: 'IMMEDIATE', currency: 'brl', amountDueNow: 0, targetAmountInCents: 5990,
+        targetInterval: 'MONTH', targetIntervalCount: 1, periodStart, periodEnd: periodStart + 86400,
+        prorationDate: periodStart,
+      } });
+      const update = await db.prisma.paymentMethodUpdate.create({ data: {
+        ...common, activeOrganizationId: f.organizationId, consentVersion: '1.0', consentAcceptedAt: f.now,
+      } });
+      const completed = await db.prisma.paymentMethodUpdate.create({ data: {
+        ...common, status: 'APPLIED', activeOrganizationId: null, consentVersion: '1.0',
+        consentAcceptedAt: f.now, completedAt: f.now,
+      } });
+
+      await f.repository.handleDeletedCustomer({
+        organizationId: f.organizationId, stripeCustomerId: f.stripeCustomerId, deletedAt: f.now,
+      });
+
+      expect(await db.prisma.planChange.findUniqueOrThrow({ where: { id: change.id } }))
+        .toMatchObject({ status: 'CANCELED', activeOrganizationId: null });
+      expect(await db.prisma.paymentMethodUpdate.findUniqueOrThrow({ where: { id: update.id } }))
+        .toMatchObject({ status: 'CANCELED', activeOrganizationId: null, completedAt: f.now });
+      expect(await db.prisma.paymentMethodUpdate.findUniqueOrThrow({ where: { id: completed.id } }))
+        .toMatchObject({ status: 'APPLIED', completedAt: f.now });
+    },
+  );
+
+  it('does not detach a customer if the organization or customer is absent', async () => {
+    const f = await fixture();
+    await f.repository.handleDeletedCustomer({
+      organizationId: randomUUID(), stripeCustomerId: f.stripeCustomerId, deletedAt: f.now,
+    });
+    expect(await f.readCustomer()).toMatchObject({ stripeCustomerId: null });
+    expect(await db.prisma.billingCustomerReference.findUnique({ where: { stripeCustomerId: f.stripeCustomerId } })).toBeNull();
+  });
+
+  it('does not advance paid-through when the paid invoice has no paid period', async () => {
+    const f = await fixture();
+    await f.repository.saveSnapshot({ organizationId: f.organizationId, snapshot: {
+      subscriptions: [f.subscription], invoices: [{ ...f.invoice, paidThrough: null }],
+    } });
+    expect(await f.readSubscription()).toMatchObject({ paidThrough: null });
+    expect(await f.readInvoice()).toMatchObject({ status: 'paid' });
+  });
+
+  it('persists invoice-history synchronization without scheduling reconciliation', async () => {
+    const f = await fixture();
+    await f.repository.saveSnapshot({
+      organizationId: f.organizationId, snapshot: { subscriptions: [], invoices: [] }, invoiceHistorySyncedAt: f.now,
+    });
+    expect(await f.readCustomer()).toMatchObject({ invoiceHistorySyncedAt: f.now, nextReconcileAt: f.end });
+    expect(f.scheduleChanged).not.toHaveBeenCalled();
+    expect(f.notify).not.toHaveBeenCalled();
+  });
+
+  it('uses historical customer references without treating a detached customer as current', async () => {
+    const f = await fixture();
+    await f.repository.setCustomerId(f.customer.id, f.stripeCustomerId);
+    await f.repository.handleDeletedCustomer({
+      organizationId: f.organizationId, stripeCustomerId: f.stripeCustomerId, deletedAt: f.now,
+    });
+    const replacement = 'cus_new_' + randomUUID();
+    await f.repository.setCustomerId(f.customer.id, replacement);
+    expect(await f.repository.customerByStripeId(f.stripeCustomerId)).toMatchObject({ stripeCustomerId: replacement });
+    expect(await f.repository.customerByStripeId(replacement)).toMatchObject({ id: f.customer.id });
+    expect(await db.prisma.billingCustomerReference.count({ where: { billingCustomerId: f.customer.id } })).toBe(2);
   });
 });
