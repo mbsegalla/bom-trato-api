@@ -1152,6 +1152,7 @@ model Receivable {
   receivablePayments ReceivablePayment[]
   paymentLink        ReceivablePaymentLink?
   providerCharges    ReceivableProviderCharge[]
+  mercadoPagoSandboxPix MercadoPagoSandboxPix?
 
   @@unique([workOrderId, kind])
   @@unique([id, organizationId])
@@ -1416,4 +1417,33 @@ model MercadoPagoOAuthAttempt {
   consumedAt         DateTime? @db.Timestamptz(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+}
+
+enum MercadoPagoSandboxPixStatus {
+  RESERVED
+  PENDING
+  REVIEW_REQUIRED
+}
+
+model MercadoPagoSandboxPix {
+  id                     String                      @id @default(uuid()) @db.Uuid
+  organizationId         String                      @db.Uuid
+  receivableId           String                      @db.Uuid
+  receivableVersion      Int
+  accountId              String                      @db.VarChar(30)
+  clientId               String                      @db.VarChar(30)
+  issuedById             String                      @db.Uuid
+  amountInCents          Int
+  status                 MercadoPagoSandboxPixStatus @default(RESERVED)
+  externalPaymentId      String?                     @db.VarChar(30)
+  copyAndPasteCiphertext String?
+  requestedExpiresAt     DateTime                    @db.Timestamptz(3)
+  expiresAt              DateTime?                   @db.Timestamptz(3)
+  createdAt              DateTime                    @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                    @updatedAt @db.Timestamptz(3)
+
+  receivable Receivable @relation(fields: [receivableId, organizationId], references: [id, organizationId], onDelete: Restrict, map: "MercadoPagoSandboxPix_receivable_fkey")
+
+  @@unique([receivableId, organizationId], map: "MercadoPagoSandboxPix_receivable_key")
+  @@unique([accountId, externalPaymentId], map: "MercadoPagoSandboxPix_external_key")
 }

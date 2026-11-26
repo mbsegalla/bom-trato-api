@@ -27,6 +27,10 @@ export class MercadoPagoConnectionRuntime {
     return this.config.liveMode;
   }
 
+  get sandboxPixAvailable(): boolean {
+    return this.config.sandboxPixEnabled && !this.liveMode && this.client !== null;
+  }
+
   get clientId(): string | undefined {
     return this.config.clientId;
   }

@@ -15,7 +15,9 @@ export type ReceivingSettingsErrorCode =
   | 'PAYMENT_LINK_VERSION_CONFLICT'
   | 'MERCADO_PAGO_UNAVAILABLE'
   | 'MERCADO_PAGO_OAUTH_INVALID'
-  | 'MERCADO_PAGO_ACCOUNT_CONFLICT';
+  | 'MERCADO_PAGO_ACCOUNT_CONFLICT'
+  | 'MERCADO_PAGO_PIX_INVALID'
+  | 'MERCADO_PAGO_PIX_CONFLICT';
 
 export class ReceivingSettingsError extends Error {
   constructor(readonly code: ReceivingSettingsErrorCode) {

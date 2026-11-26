@@ -30,6 +30,7 @@ export interface EnvironmentVariables {
   RECEIVING_SETTINGS_ENCRYPTION_KEY?: string;
   MERCADO_PAGO_ENABLED: boolean;
   MERCADO_PAGO_LIVE_MODE: boolean;
+  MERCADO_PAGO_SANDBOX_PIX_ENABLED: boolean;
   MERCADO_PAGO_CLIENT_ID?: string;
   MERCADO_PAGO_CLIENT_SECRET?: string;
   MERCADO_PAGO_ENCRYPTION_KEY?: string;
