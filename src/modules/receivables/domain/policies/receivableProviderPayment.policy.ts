@@ -37,6 +37,10 @@ export function assertProviderChargeRegistration(input: RegisterProviderChargeIn
   assertProviderPaymentReference(input);
   assertReceivableAmount(input.expectedAmountInCents);
 
+  if (input.liveMode !== true) {
+    throw new ReceivableError('INVALID_RECEIVABLE_INPUT');
+  }
+
   if (
     !Number.isSafeInteger(input.receivableVersion) ||
     input.receivableVersion < 1 ||

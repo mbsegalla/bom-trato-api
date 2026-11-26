@@ -38,6 +38,8 @@ export interface MercadoPagoCredentials {
 }
 
 interface PaymentLookup {
+  // Original immutable issuance reference, never read from a webhook body.
+  issuanceId: string;
   accountId: string;
   paymentId: string;
   eventId: string;
@@ -454,7 +456,11 @@ export class MercadoPagoClient {
     assertInputId(input.accountId);
     assertInputId(input.paymentId);
 
-    if (!isToken(input.accessToken) || !/^[\x21-\x7E]{1,200}$/.test(input.eventId)) {
+    if (
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(input.issuanceId) ||
+      !isToken(input.accessToken) ||
+      !/^[\x21-\x7E]{1,200}$/.test(input.eventId)
+    ) {
       throw new MercadoPagoError('INVALID_INPUT');
     }
 
@@ -471,6 +477,10 @@ export class MercadoPagoClient {
 
     if (payload.live_mode !== this.config.liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
+    }
+
+    if (payload.external_reference !== input.issuanceId) {
+      return invalidResponse();
     }
 
     if (

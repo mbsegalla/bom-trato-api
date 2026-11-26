@@ -20,6 +20,7 @@ const tokenResponse = {
   live_mode: false,
 };
 const lookup = {
+  issuanceId: '4586a4c1-924c-4a48-9949-a837e7540c2c',
   accountId: '123456',
   paymentId: '456789',
   eventId: 'event-1',
@@ -28,6 +29,7 @@ const lookup = {
 const paymentResponse = {
   id: 456789,
   collector_id: 123456,
+  external_reference: lookup.issuanceId,
   live_mode: false,
   status: 'approved',
   status_detail: 'accredited',
@@ -158,6 +160,8 @@ describe('Mercado Pago client', () => {
   it.each([
     { collector_id: 987654 },
     { id: 111111 },
+    { external_reference: 'different-issuance' },
+    { external_reference: undefined },
     { live_mode: true },
     { transaction_amount: '350.001' },
     { transaction_amount: 0 },
@@ -168,6 +172,25 @@ describe('Mercado Pago client', () => {
     const { client } = fixture({ ...paymentResponse, ...patch });
 
     await expect(client.readApprovedPixPayment(lookup)).rejects.toThrow();
+  });
+
+  it('requires the reserved reference before any payment lookup', async () => {
+    const { client, transport } = fixture(paymentResponse);
+
+    await expect(client.readApprovedPixPayment({ ...lookup, issuanceId: 'unbound' })).rejects.toThrow('INVALID_INPUT');
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a bound live approval only when provider mode and reference agree', async () => {
+    const transport = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      Response.json({ ...paymentResponse, live_mode: true }),
+    ).mockResolvedValueOnce(Response.json(paymentResponse));
+    const client = new MercadoPagoClient({ ...config, liveMode: true }, transport);
+
+    await expect(client.readApprovedPixPayment(lookup)).resolves.toMatchObject({
+      liveMode: true, externalPaymentId: lookup.paymentId, amountInCents: 35001, currency: 'brl',
+    });
+    await expect(client.readApprovedPixPayment(lookup)).rejects.toThrow('MODE_MISMATCH');
   });
 
   it('does not allow payment IDs to change the request destination', async () => {

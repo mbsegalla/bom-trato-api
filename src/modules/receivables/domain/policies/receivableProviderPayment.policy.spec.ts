@@ -117,6 +117,7 @@ describe('provider payment confirmation policy', () => {
     const registration = { ...payment, expectedAmountInCents: 35000, receivableVersion: 2 };
 
     expect(() => assertProviderChargeRegistration(registration)).not.toThrow();
+    expect(() => assertProviderChargeRegistration({ ...registration, liveMode: false })).toThrow();
     expect(() => assertProviderChargeRegistration({ ...registration, receivableVersion: 0 })).toThrow();
     expect(() => assertProviderChargeRegistration({ ...registration, provider: 'BAD' })).toThrow();
   });
