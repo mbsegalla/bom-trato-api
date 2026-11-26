@@ -1,6 +1,7 @@
 import type Stripe from 'stripe';
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaClient } from '../../../../generated/prisma/client.js';
 
 import { StripeCatalogSyncService } from './stripeCatalogSync.service.js';
@@ -94,15 +95,15 @@ describe('StripeCatalogSyncService', () => {
     expect(await f.service.syncAll()).toEqual({ plans: 1, prices: 1 });
     expect(f.plan.upsert).toHaveBeenCalledWith({
       where: { stripeProductId: product.id },
-      create: expect.objectContaining({ published: false, code: 'PRO', maxUsers: 5 }),
-      update: expect.not.objectContaining({ published: expect.anything() }),
+      create: asymmetric.objectContaining({ published: false, code: 'PRO', maxUsers: 5 }),
+      update: asymmetric.not.objectContaining({ published: asymmetric.anything() }),
     });
     expect(f.planPrice.upsert).toHaveBeenCalledWith({
       where: { stripePriceId: price.id },
-      create: expect.objectContaining({ published: false, planId: 'local-plan', amountInCents: 1299 }),
-      update: expect.not.objectContaining({ published: expect.anything() }),
+      create: asymmetric.objectContaining({ published: false, planId: 'local-plan', amountInCents: 1299 }),
+      update: asymmetric.not.objectContaining({ published: asymmetric.anything() }),
     });
-    expect(f.transaction).toHaveBeenCalledWith(expect.any(Function), { maxWait: 5000, timeout: 30000 });
+    expect(f.transaction).toHaveBeenCalledWith(asymmetric.any(Function), { maxWait: 5000, timeout: 30000 });
   });
 
   it('deactivates stale plans and prices only during a full synchronization', async () => {
@@ -113,11 +114,11 @@ describe('StripeCatalogSyncService', () => {
 
     expect(f.plan.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['stale-plan'] } },
-      data: { stripeActive: false, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lastSyncedAt: asymmetric.any(Date) },
     });
     expect(f.planPrice.updateMany).toHaveBeenCalledWith({
       where: { planId: { in: ['stale-plan'] } },
-      data: { stripeActive: false, lookupKey: null, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lookupKey: null, lastSyncedAt: asymmetric.any(Date) },
     });
   });
 
@@ -131,7 +132,7 @@ describe('StripeCatalogSyncService', () => {
     });
     expect(f.planPrice.updateMany).toHaveBeenCalledWith({
       where: { planId: 'local-plan', stripePriceId: { notIn: [price.id] } },
-      data: { stripeActive: false, lookupKey: null, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lookupKey: null, lastSyncedAt: asymmetric.any(Date) },
     });
   });
 
@@ -141,7 +142,7 @@ describe('StripeCatalogSyncService', () => {
     expect(await f.service.syncAll()).toEqual({ plans: 1, prices: 0 });
     expect(f.planPrice.updateMany).toHaveBeenCalledExactlyOnceWith({
       where: { planId: 'local-plan' },
-      data: { stripeActive: false, lookupKey: null, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lookupKey: null, lastSyncedAt: asymmetric.any(Date) },
     });
     expect(f.planPrice.upsert).not.toHaveBeenCalled();
   });
@@ -178,7 +179,7 @@ describe('StripeCatalogSyncService', () => {
     expect(f.prices.retrieve).not.toHaveBeenCalled();
     expect(f.planPrice.updateMany).toHaveBeenCalledWith({
       where: { stripePriceId: price.id },
-      data: { stripeActive: false, lookupKey: null, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lookupKey: null, lastSyncedAt: asymmetric.any(Date) },
     });
   });
 
@@ -196,11 +197,11 @@ describe('StripeCatalogSyncService', () => {
     await f.service.syncWebhook('product.deleted', product.id);
     expect(f.plan.update).toHaveBeenCalledWith({
       where: { id: 'local-plan' },
-      data: { stripeActive: false, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lastSyncedAt: asymmetric.any(Date) },
     });
     expect(f.planPrice.updateMany).toHaveBeenCalledWith({
       where: { planId: 'local-plan' },
-      data: { stripeActive: false, lookupKey: null, lastSyncedAt: expect.any(Date) },
+      data: { stripeActive: false, lookupKey: null, lastSyncedAt: asymmetric.any(Date) },
     });
   });
 

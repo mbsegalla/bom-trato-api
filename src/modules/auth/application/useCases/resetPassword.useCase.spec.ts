@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthTransaction, AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
@@ -38,11 +39,11 @@ describe('ResetPasswordUseCase', () => {
     expect(f.consumeAction).toHaveBeenCalledWith({
       tokenHash: 'token-hash',
       purpose: 'RESET_PASSWORD',
-      now: expect.any(Date),
+      now: asymmetric.any(Date),
       passwordHash: 'password-hash',
     });
     expect(f.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         key: 'password-changed/token-hash',
         recipient: 'user@example.invalid',
         content: { type: 'PASSWORD_CHANGED' },

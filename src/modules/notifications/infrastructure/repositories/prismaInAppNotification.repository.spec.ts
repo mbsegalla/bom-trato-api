@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { IN_APP_NOTIFICATION_CHANNEL } from '../realtime/notificationRealtime.constants.js';
 
@@ -22,7 +23,9 @@ function fixture() {
   const count = vi.fn().mockResolvedValue(0);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const findUnique = vi.fn().mockResolvedValue(null);
-  const execute = vi.fn().mockResolvedValue(1);
+  const execute = vi
+    .fn<(parts: TemplateStringsArray, channel: string, payload: string) => Promise<number>>()
+    .mockResolvedValue(1);
   const repository = new PrismaInAppNotificationRepository({
     inAppNotification: { createMany, findMany, count, updateMany },
     organizationMember: { findUnique },
@@ -39,7 +42,7 @@ describe('PrismaInAppNotificationRepository', () => {
     await f.repository.enqueue({ ...input, title: '  Fixture notification  ' });
 
     expect(f.createMany).toHaveBeenCalledWith({
-      data: [{ ...input, id: expect.any(String), readAt: null, createdAt: expect.any(Date) }],
+      data: [{ ...input, id: asymmetric.any(String), readAt: null, createdAt: asymmetric.any(Date) }],
       skipDuplicates: true,
     });
     const [parts, channel, payload] = f.execute.mock.calls[0];

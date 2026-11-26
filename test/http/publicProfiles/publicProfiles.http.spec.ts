@@ -10,6 +10,7 @@ import { UpdatePublicProfileUseCase } from '../../../src/modules/publicProfiles/
 import { PublicProfileError } from '../../../src/modules/publicProfiles/domain/errors/publicProfile.error.js';
 import { OrganizationPublicProfileController } from '../../../src/modules/publicProfiles/presentation/http/controllers/organizationPublicProfile.controller.js';
 import { PublicProfessionalsController } from '../../../src/modules/publicProfiles/presentation/http/controllers/publicProfessionals.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 describe('publicProfiles HTTP contracts', () => {
@@ -109,7 +110,7 @@ describe('publicProfiles HTTP contracts', () => {
 
     const response = await request(fixture.server).patch(route).set('Authorization', auth).send(input).expect(status);
 
-    expect(response.body.error.code).toBe(code);
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe(code);
   });
 
   it('preserves organization permission errors through the composed HTTP error boundary', async () => {
@@ -117,7 +118,7 @@ describe('publicProfiles HTTP contracts', () => {
 
     const response = await request(fixture.server).patch(route).set('Authorization', auth).send(input).expect(403);
 
-    expect(response.body.error.code).toBe('OWNER_REQUIRED');
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe('OWNER_REQUIRED');
   });
 
   it('allows anonymous directory reads, normalizes filters and rejects invalid pagination', async () => {
@@ -157,7 +158,7 @@ describe('publicProfiles HTTP contracts', () => {
       .expect(404);
 
     expect(response.headers.location).toBeUndefined();
-    expect(response.body.error.code).toBe('PUBLIC_PROFILE_CONTACT_UNAVAILABLE');
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe('PUBLIC_PROFILE_CONTACT_UNAVAILABLE');
 
     await request(fixture.server)
       .get(publicRoute + '/fixture-professional')

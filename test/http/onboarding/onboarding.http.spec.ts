@@ -7,6 +7,7 @@ import { CompleteOnboardingBusinessUseCase } from '../../../src/modules/onboardi
 import { GetOnboardingStateUseCase } from '../../../src/modules/onboarding/application/useCases/getOnboardingState.useCase.js';
 import { SelectOnboardingPlanUseCase } from '../../../src/modules/onboarding/application/useCases/selectOnboardingPlan.useCase.js';
 import { OnboardingController } from '../../../src/modules/onboarding/presentation/http/controllers/onboarding.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 describe('onboarding HTTP contracts', () => {
@@ -135,6 +136,6 @@ describe('onboarding HTTP contracts', () => {
       .send({ organizationId, name: 'Fixture business' })
       .expect(status);
 
-    expect(response.body.error.code).toBe(code);
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe(code);
   });
 });

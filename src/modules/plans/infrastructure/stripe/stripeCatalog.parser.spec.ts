@@ -1,5 +1,5 @@
 import type Stripe from 'stripe';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { parseStripePrice, parseStripeProduct } from './stripeCatalog.parser.js';
 

@@ -10,6 +10,7 @@ import { PrismaMercadoPagoSandboxPixRecoveryRepository } from '../../../src/modu
 import { PrismaMercadoPagoSandboxPixRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRepository.js';
 import { PrismaMercadoPagoWebhookRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
 import { ProcessMercadoPagoWebhookService } from '../../../src/modules/receivables/infrastructure/workers/processMercadoPagoWebhook.service.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
@@ -163,12 +164,12 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     expect(await f.recovery.read(f.actor)).toMatchObject({ canRecover: true });
     expect(await f.recovery.recover(f.actor, input)).toMatchObject({
       canRecover: false,
-      nextRecoveryAt: expect.any(Date),
-      lastAttempt: { status: 'VERIFIED_PENDING', paymentId: f.paymentId, completedAt: expect.any(Date) },
+      nextRecoveryAt: asymmetric.any(Date),
+      lastAttempt: { status: 'VERIFIED_PENDING', paymentId: f.paymentId, completedAt: asymmetric.any(Date) },
     });
     expect(await f.issuance(input.issuanceId)).toMatchObject({
       status: 'PENDING',
-      copyAndPasteCiphertext: expect.any(String),
+      copyAndPasteCiphertext: asymmetric.any(String),
     });
     expect((await f.issuer.read(f.actor)).copyAndPaste).toBe(context.fixtureQr());
     await expect(f.recovery.recover(f.actor, input)).rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
@@ -296,7 +297,7 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     expect(await f.recovery.recover(f.actor, input)).toMatchObject({ lastAttempt: { status: 'VERIFIED_PENDING' } });
     expect(
       await context.prisma.mercadoPagoSandboxPixRecovery.findUniqueOrThrow({ where: { id: expired.id } }),
-    ).toMatchObject({ status: 'ABANDONED', completedAt: expect.any(Date) });
+    ).toMatchObject({ status: 'ABANDONED', completedAt: asymmetric.any(Date) });
     expect(await f.attempts(input.issuanceId)).toHaveLength(2);
   });
 
@@ -338,13 +339,13 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     expect(await f.stored(job)).toMatchObject({
       resultCode: 'VERIFIED_PENDING',
       matchedIssuanceId: input.issuanceId,
-      processedAt: expect.any(Date),
+      processedAt: asymmetric.any(Date),
       reviewRequiredAt: null,
       leaseToken: null,
     });
     expect(await f.issuer.read(f.actor)).toMatchObject({ status: 'PENDING', copyAndPaste: context.fixtureQr() });
     expect(await f.recovery.read(f.actor)).toMatchObject({
-      lastWebhook: { status: 'VERIFIED_PENDING', receivedAt: expect.any(Date) },
+      lastWebhook: { status: 'VERIFIED_PENDING', receivedAt: asymmetric.any(Date) },
     });
     expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
   });
@@ -356,7 +357,10 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     f.read.mockResolvedValueOnce('APPROVED');
 
     expect(await f.processor.execute(approved)).toBe(true);
-    expect(await f.stored(approved)).toMatchObject({ resultCode: 'VERIFIED_APPROVED', processedAt: expect.any(Date) });
+    expect(await f.stored(approved)).toMatchObject({
+      resultCode: 'VERIFIED_APPROVED',
+      processedAt: asymmetric.any(Date),
+    });
     const pending = await f.delivery();
     expect(await f.processor.execute(pending)).toBe(true);
     expect(await f.stored(pending)).toMatchObject({ resultCode: 'VERIFIED_PENDING' });
@@ -380,7 +384,7 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     expect(await f.stored(job)).toMatchObject({
       resultCode: 'VERIFIED_' + status,
       matchedIssuanceId: input.issuanceId,
-      reviewRequiredAt: expect.any(Date),
+      reviewRequiredAt: asymmetric.any(Date),
       processedAt: null,
     });
     expect(await f.issuance(input.issuanceId)).toMatchObject({
@@ -450,7 +454,7 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     expect(await f.stored(job)).toMatchObject({ processedAt: null, attempts: 0 });
     expect(await f.issuance(input.issuanceId)).toMatchObject({
       status: 'PENDING',
-      copyAndPasteCiphertext: expect.any(String),
+      copyAndPasteCiphertext: asymmetric.any(String),
     });
     const replacement = await f.inbox.claim(f.clientId, randomUUID());
     expect(replacement).toMatchObject({ deliveryKey: job.deliveryKey });
@@ -492,7 +496,7 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     ).toBe(true);
     expect(await f.stored(job)).toMatchObject({
       resultCode: 'INVALID_PROVIDER_PAYMENT',
-      reviewRequiredAt: expect.any(Date),
+      reviewRequiredAt: asymmetric.any(Date),
     });
     expect(await f.issuance(input.issuanceId)).toMatchObject({ status: 'PENDING' });
   });

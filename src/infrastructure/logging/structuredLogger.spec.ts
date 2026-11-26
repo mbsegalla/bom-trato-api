@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../test/support/asymmetricMatchers.js';
+
 const sink = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -28,7 +30,7 @@ describe('StructuredLogger', () => {
   it('uses production logging without pretty transport and defaults to info', () => {
     new StructuredLogger();
     expect(createLogger).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         level: 'info',
         transport: undefined,
         base: { service: 'bom-trato-api', environment: 'production' },
@@ -41,9 +43,9 @@ describe('StructuredLogger', () => {
     vi.stubEnv('LOG_LEVEL', ' warn ');
     new StructuredLogger();
     expect(createLogger).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         level: 'warn',
-        transport: expect.objectContaining({ target: 'pino-pretty' }),
+        transport: asymmetric.objectContaining({ target: 'pino-pretty' }),
       }),
     );
   });
@@ -51,7 +53,7 @@ describe('StructuredLogger', () => {
   it('defaults to debug outside production', () => {
     vi.stubEnv('NODE_ENV', 'test');
     new StructuredLogger();
-    expect(createLogger).toHaveBeenCalledWith(expect.objectContaining({ level: 'debug' }));
+    expect(createLogger).toHaveBeenCalledWith(asymmetric.objectContaining({ level: 'debug' }));
   });
 
   it.each([
@@ -108,7 +110,7 @@ describe('StructuredLogger', () => {
     });
     new StructuredLogger().error(error);
     expect(sink.error).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         errorCode: 'ETIMEDOUT',
         errorMessage: 'password=[REDACTED]',
         causeMessage: 'token=[REDACTED]',

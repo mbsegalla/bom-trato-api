@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthPolicy } from '../types/auth.types.js';
@@ -50,7 +51,7 @@ describe('RefreshSessionUseCase', () => {
     expect(f.rotate).toHaveBeenCalledWith({
       tokenHash: 'hash:' + f.token,
       nextHash: 'hash:' + f.nextToken,
-      now: expect.any(Date),
+      now: asymmetric.any(Date),
       idleSeconds: 3600,
     });
     expect(f.signAccess).toHaveBeenCalledWith({ sub: 'user', sid: 'session' });

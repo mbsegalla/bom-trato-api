@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { Quote } from '../../../quotes/domain/entities/quote.entity.js';
 import { QuoteItem } from '../../../quotes/domain/entities/quoteItem.entity.js';
@@ -150,7 +151,7 @@ describe('work order lifecycle use cases', () => {
     expect(f.notify).not.toHaveBeenCalled();
     expect(await useCase.execute(params, 'other-worker')).toMatchObject({ assignedToId: 'other-worker', version: 2 });
     expect(f.notify).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         userId: 'other-worker',
         organizationId: 'org',
         type: 'WORK_ORDER_ASSIGNED',
@@ -174,7 +175,7 @@ describe('work order lifecycle use cases', () => {
       status: 'SCHEDULED',
       version: 2,
     });
-    expect(f.workOrders.save).toHaveBeenCalledWith(expect.any(WorkOrder), 1);
+    expect(f.workOrders.save).toHaveBeenCalledWith(asymmetric.any(WorkOrder), 1);
   });
 
   it('rechecks membership when starting a previously assigned work order', async () => {
@@ -205,17 +206,17 @@ describe('work order lifecycle use cases', () => {
     });
     expect(payment.dueAt.getTime() - result.completedAt!.getTime()).toBe(7 * 86400000);
     expect(f.createInvitation).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         workOrderId: 'order',
         tokenHash: 'fixture-hash',
         organizationId: 'org',
       }),
     );
     expect(f.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         key: 'automation/review-request/invitation',
         recipient: 'customer@example.invalid',
-        content: expect.objectContaining({
+        content: asymmetric.objectContaining({
           type: 'REVIEW_REQUEST',
           token: 'fixture-token',
         }),

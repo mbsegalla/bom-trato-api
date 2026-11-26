@@ -12,6 +12,7 @@ import { OrganizationError } from '../../../src/modules/organizations/domain/err
 import { OrganizationTeamError } from '../../../src/modules/organizations/domain/errors/organizationTeam.error.js';
 import { OrganizationProfileController } from '../../../src/modules/organizations/presentation/http/controllers/organizationProfile.controller.js';
 import { OrganizationsController } from '../../../src/modules/organizations/presentation/http/controllers/organizations.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations';
@@ -109,7 +110,7 @@ describe('organization creation and profile HTTP contracts', () => {
       .set('Idempotency-Key', itemId)
       .send({ name: 'Another company' })
       .expect(409);
-    expect(response.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe('IDEMPOTENCY_CONFLICT');
   });
 
   it('lists organizations for the authenticated owner only', async () => {
@@ -125,7 +126,7 @@ describe('organization creation and profile HTTP contracts', () => {
       .expect(400);
     expect(get).not.toHaveBeenCalled();
     const response = await request(fixture.server).get(profileRoute).set('Authorization', 'Bearer fixture').expect(200);
-    expect(response.body.data).toEqual(profile);
+    expect(readJsonObject(response.body).data).toEqual(profile);
     expect(get).toHaveBeenCalledWith(actor);
   });
 
@@ -232,7 +233,7 @@ describe('organization creation and profile HTTP contracts', () => {
       .set('Authorization', 'Bearer fixture')
       .send({ name: 'New company' })
       .expect(status);
-    expect(response.body.error.code).toBe(error.code);
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe(error.code);
   });
 
   it('forwards uploaded multipart bytes, size and MIME type', async () => {
@@ -252,7 +253,7 @@ describe('organization creation and profile HTTP contracts', () => {
       .set('Authorization', 'Bearer fixture')
       .expect(400);
     expect(upload).toHaveBeenCalledWith(actor, { buffer: Buffer.alloc(0), mimeType: '', size: 0 });
-    expect(response.body.error.code).toBe('ORGANIZATION_LOGO_REQUIRED');
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe('ORGANIZATION_LOGO_REQUIRED');
   });
 
   it('rejects oversized multipart files before invoking storage operations', async () => {

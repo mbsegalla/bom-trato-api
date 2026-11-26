@@ -1,7 +1,5 @@
-import type { ConfigType } from '@nestjs/config';
+import type { MessageEvent } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import type { databaseConfig } from '../../../../config/database.config.js';
 
 import { IN_APP_NOTIFICATION_CHANNEL } from './notificationRealtime.constants.js';
 import { NotificationRealtimeService } from './notificationRealtime.service.js';
@@ -41,7 +39,7 @@ describe('NotificationRealtimeService', () => {
 
   it('subscribes once and emits only matching organization and user signals', async () => {
     const service = new NotificationRealtimeService(config);
-    const events = vi.fn();
+    const events = vi.fn<(event: MessageEvent) => void>();
 
     await service.onModuleInit();
     await service.onModuleInit();
@@ -77,7 +75,7 @@ describe('NotificationRealtimeService', () => {
   it('emits a heartbeat without including account data and stops it after unsubscribe', async () => {
     vi.useFakeTimers();
     const service = new NotificationRealtimeService(config);
-    const events = vi.fn();
+    const events = vi.fn<(event: MessageEvent) => void>();
     const subscription = service.stream('user', 'org').subscribe(events);
 
     try {

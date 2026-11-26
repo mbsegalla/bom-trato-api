@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 
 import { PrismaPlanRepository } from './prismaPlan.repository.js';
@@ -31,15 +32,15 @@ describe('PrismaPlanRepository', () => {
       prices: record.planPrices,
     });
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: {
           published: true,
           stripeActive: true,
           planPrices: { some: { published: true, stripeActive: true } },
         },
         orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
-        select: expect.objectContaining({
-          planPrices: expect.objectContaining({
+        select: asymmetric.objectContaining({
+          planPrices: asymmetric.objectContaining({
             where: { published: true, stripeActive: true },
             select: { id: true, amountInCents: true, currency: true, interval: true, intervalCount: true },
           }),

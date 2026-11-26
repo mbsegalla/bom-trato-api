@@ -62,13 +62,16 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
         let status: MercadoPagoConnectionStatus = 'NOT_CONNECTED';
 
         if (row !== null) {
-          status = row.disconnectedAt !== null
-            ? 'DISCONNECTED'
-            : row.connectedById !== actor.userId || row.clientId !== this.runtime.clientId || row.refreshClaimId !== null
-              ? 'RECONNECT_REQUIRED'
-              : row.expiresAt !== null && row.expiresAt > new Date()
-                ? 'CONNECTED'
-                : 'EXPIRED';
+          status =
+            row.disconnectedAt !== null
+              ? 'DISCONNECTED'
+              : row.connectedById !== actor.userId ||
+                  row.clientId !== this.runtime.clientId ||
+                  row.refreshClaimId !== null
+                ? 'RECONNECT_REQUIRED'
+                : row.expiresAt !== null && row.expiresAt > new Date()
+                  ? 'CONNECTED'
+                  : 'EXPIRED';
         }
 
         return {
@@ -121,7 +124,10 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
           clientId,
           liveMode,
           stateHash,
-          verifierCiphertext: this.runtime.cipher.seal(['verifier', actor.organizationId, clientId, String(liveMode), stateHash], request.verifier),
+          verifierCiphertext: this.runtime.cipher.seal(
+            ['verifier', actor.organizationId, clientId, String(liveMode), stateHash],
+            request.verifier,
+          ),
           createdAt,
           expiresAt,
           consumedAt: null,
@@ -234,13 +240,22 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
             throw new ReceivingSettingsError('MERCADO_PAGO_ACCOUNT_CONFLICT');
           }
 
-          const credentialContext = ['credential', actor.organizationId, clientId, String(context.liveMode), credentials.accountId];
+          const credentialContext = [
+            'credential',
+            actor.organizationId,
+            clientId,
+            String(context.liveMode),
+            credentials.accountId,
+          ];
           const data = {
             clientId,
             accountId: credentials.accountId,
             connectedById: actor.userId,
             accessTokenCiphertext: this.runtime.cipher.seal([...credentialContext, 'access'], credentials.accessToken),
-            refreshTokenCiphertext: this.runtime.cipher.seal([...credentialContext, 'refresh'], credentials.refreshToken),
+            refreshTokenCiphertext: this.runtime.cipher.seal(
+              [...credentialContext, 'refresh'],
+              credentials.refreshToken,
+            ),
             expiresAt: credentials.expiresAt,
             connectedAt: now,
             disconnectedAt: null,

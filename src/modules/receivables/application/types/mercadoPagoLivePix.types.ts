@@ -19,8 +19,8 @@ export interface MercadoPagoLivePixIssuance {
   status: 'RESERVED' | 'PENDING' | 'REVIEW_REQUIRED' | 'SETTLED' | 'CLOSED';
 }
 
-export type LivePixViewStatus = 'NOT_ISSUED' | 'PROCESSING' | 'PENDING' | 'REVIEW_REQUIRED' |
-  'EXPIRED' | 'STALE' | 'SETTLED' | 'CLOSED';
+export type LivePixViewStatus =
+  'NOT_ISSUED' | 'PROCESSING' | 'PENDING' | 'REVIEW_REQUIRED' | 'EXPIRED' | 'STALE' | 'SETTLED' | 'CLOSED';
 
 export interface MercadoPagoLivePixView {
   organizationId: string;

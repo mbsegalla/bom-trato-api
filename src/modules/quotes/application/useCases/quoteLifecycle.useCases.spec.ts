@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { ReceivableRepository } from '../../../receivables/domain/repositories/receivable.repository.js';
 import type { WorkOrderRepository } from '../../../workOrders/domain/repositories/workOrder.repository.js';
@@ -155,7 +156,7 @@ describe('quote lifecycle use cases', () => {
       unitAmountInCents: 3000,
       totalInCents: 4500,
     });
-    expect(f.quotes.save).toHaveBeenCalledWith(expect.any(Quote), 1);
+    expect(f.quotes.save).toHaveBeenCalledWith(asymmetric.any(Quote), 1);
   });
 
   it('rejects ambiguous item sources, missing catalog services and stale updates without saving', async () => {
@@ -195,7 +196,7 @@ describe('quote lifecycle use cases', () => {
 
     await expect(useCase.execute(params)).rejects.toThrow('CUSTOMER_ARCHIVED');
     expect(f.quotes.save).not.toHaveBeenCalled();
-    expect(await useCase.execute(params)).toMatchObject({ status: 'SENT', version: 2, sentAt: expect.any(Date) });
+    expect(await useCase.execute(params)).toMatchObject({ status: 'SENT', version: 2, sentAt: asymmetric.any(Date) });
   });
 
   it('creates the work order and rounded down payment before persisting approval', async () => {

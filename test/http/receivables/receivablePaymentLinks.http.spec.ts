@@ -5,6 +5,7 @@ import { appConfig } from '../../../src/config/app.config.js';
 import { ManageReceivablePaymentLinkUseCase } from '../../../src/modules/receivables/application/useCases/manageReceivablePaymentLink.useCase.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
 import { ReceivablePaymentLinksController } from '../../../src/modules/receivables/presentation/http/controllers/receivablePaymentLinks.controller.js';
+import { readJsonObject, readJsonString } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receivables/' + itemId + '/payment-link';
@@ -52,13 +53,13 @@ describe('receivablePaymentLinks HTTP contracts', () => {
       .set('Authorization', 'Bearer fixture')
       .send({ version: 2 })
       .expect(201);
-    const url = new URL(response.body.data.url);
+    const url = new URL(readJsonString(readJsonObject(readJsonObject(response.body).data).url));
 
     expect(url.pathname).toBe('/pagar');
     expect(url.origin).toBe('https://app.example.invalid');
     expect(url.search).toBe('');
     expect(url.hash).toBe('#token=' + token);
-    expect(response.body.data).not.toHaveProperty('token');
+    expect(readJsonObject(response.body).data).not.toHaveProperty('token');
     expect(response.headers['cache-control']).toContain('no-store');
     expect(create).toHaveBeenCalledWith({ ...actor, receivableId: itemId }, 2);
   });

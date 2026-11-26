@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 
 import { ListSessionsUseCase } from './listSessions.useCase.js';
@@ -18,7 +19,7 @@ describe('session management use cases', () => {
         sessionId: 'session',
       },
       reason: 'SESSION_REVOKED',
-      now: expect.any(Date),
+      now: asymmetric.any(Date),
     });
   });
 
@@ -27,7 +28,7 @@ describe('session management use cases', () => {
 
     await new LogoutAllUseCase({ revokeAll } as unknown as AuthRepository).execute('user');
 
-    expect(revokeAll).toHaveBeenCalledWith('user', expect.any(Date));
+    expect(revokeAll).toHaveBeenCalledWith('user', asymmetric.any(Date));
   });
 
   it('marks exactly the current session in the scoped list and preserves session metadata', async () => {
@@ -45,7 +46,7 @@ describe('session management use cases', () => {
       'second',
     );
 
-    expect(listSessions).toHaveBeenCalledWith('user', expect.any(Date));
+    expect(listSessions).toHaveBeenCalledWith('user', asymmetric.any(Date));
     expect(result).toEqual([
       { ...row, current: false },
       { ...row, id: 'second', current: true },

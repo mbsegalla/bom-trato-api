@@ -39,12 +39,7 @@ export interface ReadMercadoPagoSandboxPixInput {
   amountInCents: number;
 }
 
-export type MercadoPagoSandboxPaymentStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'CLOSED'
-  | 'REFUNDED'
-  | 'REVIEW_REQUIRED';
+export type MercadoPagoSandboxPaymentStatus = 'PENDING' | 'APPROVED' | 'CLOSED' | 'REFUNDED' | 'REVIEW_REQUIRED';
 
 export type SearchMercadoPagoSandboxPixInput = Omit<ReadMercadoPagoSandboxPixInput, 'paymentId'>;
 

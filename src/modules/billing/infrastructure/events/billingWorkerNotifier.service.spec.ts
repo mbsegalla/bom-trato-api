@@ -7,8 +7,8 @@ import { BillingWorkerNotifier } from './billingWorkerNotifier.service.js';
 describe('BillingWorkerNotifier', () => {
   it('routes each supported work type to the correct event channel', () => {
     const emitter = new EventEmitter2();
-    const available = vi.fn();
-    const changed = vi.fn();
+    const available = vi.fn<(work: BillingWork) => void>();
+    const changed = vi.fn<(work: BillingWork) => void>();
     emitter.on(BILLING_WORK_AVAILABLE_EVENT, available);
     emitter.on(BILLING_SCHEDULE_CHANGED_EVENT, changed);
 

@@ -37,19 +37,31 @@ export class MercadoPagoConnectionRuntime {
 
   get livePixAvailable(): boolean {
     const max = this.config.livePilotMaxAmountInCents;
-    return this.config.livePixEnabled === true && this.liveMode && this.client !== null &&
-      /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(this.config.livePilotOrganizationId ?? '') &&
+    return (
+      this.config.livePixEnabled === true &&
+      this.liveMode &&
+      this.client !== null &&
+      /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(
+        this.config.livePilotOrganizationId ?? '',
+      ) &&
       /^[1-9]\d{0,29}$/.test(this.config.livePilotAccountId ?? '') &&
-      max !== undefined && Number.isSafeInteger(max) && max >= 1 && max <= 10_000;
+      max !== undefined &&
+      Number.isSafeInteger(max) &&
+      max >= 1 &&
+      max <= 10_000
+    );
   }
 
   livePixAllowed(organizationId: string, accountId?: string, amountInCents?: number): boolean {
-    return this.livePixAvailable && organizationId === this.config.livePilotOrganizationId &&
+    return (
+      this.livePixAvailable &&
+      organizationId === this.config.livePilotOrganizationId &&
       (accountId === undefined || accountId === this.config.livePilotAccountId) &&
-      (amountInCents === undefined || (
-        Number.isSafeInteger(amountInCents) && amountInCents > 0 &&
-        amountInCents <= (this.config.livePilotMaxAmountInCents ?? 0)
-      ));
+      (amountInCents === undefined ||
+        (Number.isSafeInteger(amountInCents) &&
+          amountInCents > 0 &&
+          amountInCents <= (this.config.livePilotMaxAmountInCents ?? 0)))
+    );
   }
 
   get clientId(): string | undefined {

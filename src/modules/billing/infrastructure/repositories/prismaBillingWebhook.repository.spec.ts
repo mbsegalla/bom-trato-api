@@ -6,6 +6,19 @@ import type { BillingWorkerNotifier } from '../events/billingWorkerNotifier.serv
 
 import { PrismaBillingWebhookRepository } from './prismaBillingWebhook.repository.js';
 
+function readSqlFragment(value: unknown): { sql: string; values: readonly unknown[] } {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('sql' in value) ||
+    typeof value.sql !== 'string' ||
+    !('values' in value) ||
+    !Array.isArray(value.values)
+  ) {
+    throw new Error('Expected a Prisma SQL fragment');
+  }
+  return { sql: value.sql, values: value.values };
+}
 const event = {
   id: 'evt_fixture',
   type: 'invoice.paid',
@@ -24,8 +37,8 @@ const notice = {
 
 function fixture() {
   const createMany = vi.fn().mockResolvedValue({ count: 1 });
-  const query = vi.fn().mockResolvedValue([]);
-  const execute = vi.fn().mockResolvedValue(1);
+  const query = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([]);
+  const execute = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<number>>().mockResolvedValue(1);
   const notify = vi.fn();
   const repository = new PrismaBillingWebhookRepository(
     {
@@ -89,7 +102,8 @@ describe('PrismaBillingWebhookRepository', () => {
     f.execute.mockResolvedValueOnce(0);
     expect(await f.repository.settleEvent(event, outcome)).toBe(false);
 
-    const [parts, changes, id, token] = f.execute.mock.calls[0];
+    const [parts, fragment, id, token] = f.execute.mock.calls[0];
+    const changes = readSqlFragment(fragment);
 
     expect(parts.join('?')).toContain('"leaseToken" = NULL');
     expect(parts.join('?')).toContain('"leaseExpiresAt" > CURRENT_TIMESTAMP');
@@ -111,7 +125,7 @@ describe('PrismaBillingWebhookRepository', () => {
 
     await f.repository.settleEvent({ ...event, attempts: 24 }, 'RETRY', 'x'.repeat(150));
 
-    const changes = f.execute.mock.calls[0][1];
+    const changes = readSqlFragment(f.execute.mock.calls[0][1]);
 
     expect(changes.values).toEqual(['x'.repeat(100), 3600]);
     expect(changes.sql).toContain('"attempts" + 1 >= 25');

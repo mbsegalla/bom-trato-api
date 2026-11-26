@@ -1,8 +1,5 @@
 import type { MercadoPagoConnectionRepository } from '../ports/mercadoPagoConnectionRepository.port.js';
-import type {
-  MercadoPagoCompletionInput,
-  MercadoPagoConnectionActor,
-} from '../types/mercadoPagoConnection.types.js';
+import type { MercadoPagoCompletionInput, MercadoPagoConnectionActor } from '../types/mercadoPagoConnection.types.js';
 
 export class ManageMercadoPagoConnectionUseCase {
   constructor(private readonly repository: MercadoPagoConnectionRepository) {}

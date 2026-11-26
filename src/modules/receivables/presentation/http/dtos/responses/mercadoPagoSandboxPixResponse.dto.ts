@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import type { MercadoPagoSandboxPixView, SandboxPixViewStatus } from '../../../../application/types/mercadoPagoSandboxPix.types.js';
+import type {
+  MercadoPagoSandboxPixView,
+  SandboxPixViewStatus,
+} from '../../../../application/types/mercadoPagoSandboxPix.types.js';
 
 export class MercadoPagoSandboxPixResponseDto implements MercadoPagoSandboxPixView {
   @ApiProperty({ format: 'uuid' })

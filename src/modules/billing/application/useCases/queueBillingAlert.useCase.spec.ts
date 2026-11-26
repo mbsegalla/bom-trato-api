@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { NotificationOutbox } from '../../../notifications/application/ports/notificationOutbox.port.js';
 import type { InAppNotificationRepository } from '../../../notifications/domain/repositories/inAppNotification.repository.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingNotificationContext, WebhookNotice } from '../../domain/types/billing.types.js';

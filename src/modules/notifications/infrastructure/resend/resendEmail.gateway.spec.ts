@@ -1,6 +1,7 @@
 import type { ConfigType } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { notificationConfig } from '../../../../config/notification.config.js';
 
 import { ResendEmailGateway } from './resendEmail.gateway.js';
@@ -30,7 +31,7 @@ describe('ResendEmailGateway', () => {
     expect(await gateway.send('job', message)).toBe('email_fixture');
     expect(send).toHaveBeenCalledWith(message, {
       idempotencyKey: 'notification/job',
-      signal: expect.any(AbortSignal),
+      signal: asymmetric.any(AbortSignal),
     });
   });
 

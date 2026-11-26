@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteItem } from '../../domain/entities/quoteItem.entity.js';
@@ -107,7 +108,7 @@ describe('PrismaQuoteRepository', () => {
       hasMore: true,
     });
     expect(f.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { organizationId: 'org', status: 'DRAFT', customerId: undefined },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: 1,
@@ -136,10 +137,12 @@ describe('PrismaQuoteRepository', () => {
     expect(f.deleteItems).toHaveBeenCalledWith({
       where: { quoteId: 'quote', id: { in: ['second'] }, quote: { organizationId: 'org' } },
     });
-    expect(f.createItems).toHaveBeenCalledWith({ data: [expect.objectContaining({ id: 'third', quoteId: 'quote' })] });
+    expect(f.createItems).toHaveBeenCalledWith({
+      data: [asymmetric.objectContaining({ id: 'third', quoteId: 'quote' })],
+    });
     expect(f.updateItems).toHaveBeenCalledWith({
       where: { id: 'first', quoteId: 'quote', quote: { organizationId: 'org' } },
-      data: expect.objectContaining({ name: 'Updated service', quantityInThousandths: 2000, totalInCents: 2000 }),
+      data: asymmetric.objectContaining({ name: 'Updated service', quantityInThousandths: 2000, totalInCents: 2000 }),
     });
     expect(f.createHistory).not.toHaveBeenCalled();
   });

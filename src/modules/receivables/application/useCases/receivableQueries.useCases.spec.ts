@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
+
 import { access, actor, params, receivableFixture, receivableState } from './support/receivable.fixture.js';
 import { GetReceivableUseCase } from './getReceivable.useCase.js';
 import { ListReceivablePaymentsUseCase } from './listReceivablePayments.useCase.js';
@@ -35,7 +37,7 @@ describe('receivable read use cases', () => {
       ...input,
       dueFrom: new Date(input.dueFrom),
       dueTo: new Date(input.dueTo),
-      now: expect.any(Date),
+      now: asymmetric.any(Date),
     });
   });
 

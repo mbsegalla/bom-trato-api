@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Receivable, type ReceivableProps } from '../../domain/entities/receivable.entity.js';
 import { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
@@ -160,8 +161,8 @@ describe('PrismaReceivableRepository', () => {
       hasMore: true,
     });
     expect(f.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      asymmetric.objectContaining({
+        where: asymmetric.objectContaining({
           organizationId: state.organizationId,
           AND: [{ status: { in: ['OPEN', 'PARTIALLY_PAID'] } }, { dueAt: { lt: now } }],
         }),
@@ -173,8 +174,8 @@ describe('PrismaReceivableRepository', () => {
     await f.repository.list({ page: 1, limit: 10, now, overdue: false });
 
     expect(f.findMany).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      asymmetric.objectContaining({
+        where: asymmetric.objectContaining({
           AND: [{ OR: [{ status: { in: ['PAID', 'CANCELED'] } }, { dueAt: { gte: now } }] }],
         }),
       }),
@@ -202,7 +203,7 @@ describe('PrismaReceivableRepository', () => {
       data: { ...snapshot, receivable: { connect: { id: receivableId, organizationId: state.organizationId } } },
     });
     expect(f.listPayments).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { receivableId, receivable: { organizationId: state.organizationId } },
         skip: 5,
         take: 6,

@@ -1,6 +1,7 @@
 import type { ConfigType } from '@nestjs/config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { notificationConfig } from '../../../../config/notification.config.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
@@ -33,8 +34,11 @@ const message: NotificationMessage = {
 const lease = { id: job.id, status: 'PROCESSING', leaseToken: job.leaseToken };
 
 function fixture(enabled = true, candidate: NotificationJob = job) {
-  const query = vi.fn().mockResolvedValue([]).mockResolvedValueOnce([candidate]);
-  const execute = vi.fn().mockResolvedValue(1);
+  const query = vi
+    .fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue([])
+    .mockResolvedValueOnce([candidate]);
+  const execute = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<number>>().mockResolvedValue(1);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const decrypt = vi.fn().mockReturnValue(message);
   const send = vi.fn().mockResolvedValue('provider-id');
@@ -122,7 +126,7 @@ describe('NotificationWorker', () => {
     expect(f.send).not.toHaveBeenCalled();
     expect(f.updateMany).toHaveBeenCalledWith({
       where: lease,
-      data: expect.objectContaining({ status: 'SKIPPED', lastErrorCode: code, encryptedPayload: null }),
+      data: asymmetric.objectContaining({ status: 'SKIPPED', lastErrorCode: code, encryptedPayload: null }),
     });
   });
 
@@ -136,7 +140,7 @@ describe('NotificationWorker', () => {
     expect(f.send).not.toHaveBeenCalled();
     expect(f.updateMany).toHaveBeenCalledWith({
       where: lease,
-      data: expect.objectContaining({
+      data: asymmetric.objectContaining({
         status: 'FAILED',
         lastErrorCode: 'INVALID_ENCRYPTED_PAYLOAD',
         encryptedPayload: null,
@@ -182,7 +186,7 @@ describe('NotificationWorker', () => {
 
       expect(f.updateMany).toHaveBeenCalledWith({
         where: lease,
-        data: expect.objectContaining({ status: 'FAILED', lastErrorCode: code, encryptedPayload: null }),
+        data: asymmetric.objectContaining({ status: 'FAILED', lastErrorCode: code, encryptedPayload: null }),
       });
     },
   );

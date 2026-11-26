@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 
@@ -38,8 +39,12 @@ function fixture() {
   const findOrganization = vi.fn().mockResolvedValue({ id: 'org' });
   const readOrganization = vi.fn().mockResolvedValue(organization);
   const findMember = vi.fn().mockResolvedValue({ role: 'OWNER' });
-  const update = vi.fn().mockResolvedValue({ count: 1 });
-  const query = vi.fn().mockResolvedValue([{ id: 'org' }]);
+  const update = vi
+    .fn<(args: { data: Record<string, unknown> }) => Promise<{ count: number }>>()
+    .mockResolvedValue({ count: 1 });
+  const query = vi
+    .fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue([{ id: 'org' }]);
   const execute = vi.fn().mockResolvedValue(0);
   const db = {
     user: { findUnique: findUser },
@@ -86,7 +91,7 @@ describe('PrismaOrganizationUnitOfWork', () => {
       actorRole: 'OWNER',
     });
     expect(f.findMember).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { organizationId_userId: { organizationId: 'org', userId: 'user' } },
       }),
     );
@@ -140,7 +145,7 @@ describe('PrismaOrganizationUnitOfWork', () => {
 
     expect(f.update).toHaveBeenCalledWith({
       where: { id: 'org' },
-      data: expect.objectContaining({ name: 'Changed', defaultReceivableDueDays: 7 }),
+      data: asymmetric.objectContaining({ name: 'Changed', defaultReceivableDueDays: 7 }),
     });
     expect(f.update.mock.calls[0][0].data).not.toHaveProperty('ownerId');
     expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');

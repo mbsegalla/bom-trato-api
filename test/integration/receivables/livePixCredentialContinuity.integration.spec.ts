@@ -10,7 +10,7 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
   const context = createPaymentFixture();
 
   it('rotates a still-valid offline credential for a bound delivery without a user session', async () => {
-    const { prisma, fixture, settlementFixture, ledger } = context;
+    const { prisma, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const key = { organizationId_liveMode: { organizationId: f.actor.organizationId, liveMode: true } };
@@ -68,7 +68,7 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
   });
 
   it('retains an uncertain refresh claim and never repeats the possibly consumed grant', async () => {
-    const { prisma, fixture, settlementFixture, ledger } = context;
+    const { prisma, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const key = { organizationId_liveMode: { organizationId: f.actor.organizationId, liveMode: true } };
@@ -132,7 +132,7 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
   });
 
   it('continues settling an existing bound payment while new live issuance is switched off', async () => {
-    const { prisma, fixture, settlementFixture, ledger } = context;
+    const { prisma, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const runtime = new MercadoPagoConnectionRuntime({
