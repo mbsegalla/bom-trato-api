@@ -4,7 +4,7 @@ import type { Response } from 'express';
 import { hmacSha256 } from '../../../shared/security/hmac.js';
 import type { PrismaService } from '../../database/prisma.service.js';
 
-type PublicShareRateLimitScope = 'quote-share' | 'work-order-share';
+type PublicShareRateLimitScope = 'quote-share' | 'work-order-share' | 'receivable-payment-link';
 
 const REQUEST_LIMIT = 60;
 
