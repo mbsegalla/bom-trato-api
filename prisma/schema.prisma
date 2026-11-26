@@ -1447,3 +1447,18 @@ model MercadoPagoSandboxPix {
   @@unique([receivableId, organizationId], map: "MercadoPagoSandboxPix_receivable_key")
   @@unique([accountId, externalPaymentId], map: "MercadoPagoSandboxPix_external_key")
 }
+
+// Only signed delivery metadata is stored. Payment status and seller identity
+// must be established independently by the provider reconciliation adapter.
+model MercadoPagoWebhookEvent {
+  clientId    String   @db.VarChar(30)
+  deliveryKey String   @db.VarChar(64)
+  paymentId   String   @db.VarChar(30)
+  requestId   String   @db.VarChar(200)
+  signedAt    DateTime @db.Timestamptz(3)
+  receivedAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([clientId, deliveryKey])
+  @@index([clientId, paymentId])
+  @@index([receivedAt])
+}
