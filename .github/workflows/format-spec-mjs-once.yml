@@ -1,0 +1,120 @@
+name: One-time test formatting
+
+on:
+  push:
+    branches:
+      - chore/format-spec-mjs
+    paths:
+      - '.github/workflows/format-spec-mjs-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+      DATABASE_URL: postgresql://bom_trato_ci:ci_only_password@127.0.0.1:5432/bom_trato_ci?schema=public
+    steps:
+      - name: Checkout formatting branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+        with:
+          run_install: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install existing locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma types for ESLint
+        run: pnpm prisma:generate
+      - name: Format all tracked spec and mjs files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { ESLint } from 'eslint';
+          import { readFile, writeFile } from 'node:fs/promises';
+          import * as prettier from 'prettier';
+
+          const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+          const targets = tracked.filter((file) => /\.spec\.[^/]+$|\.mjs$/.test(file));
+          const eslint = new ESLint({
+            fix: (message) => [
+              'simple-import-sort/imports',
+              'simple-import-sort/exports',
+              '@typescript-eslint/consistent-type-imports',
+              'curly',
+              'prefer-const',
+              'object-shorthand',
+              'no-duplicate-imports',
+            ].includes(message.ruleId),
+          });
+          const lintTargets = [];
+          for (const file of targets) {
+            if (!(await eslint.isPathIgnored(file))) lintTargets.push(file);
+          }
+          console.log('FORMAT_TARGETS=' + targets.length);
+          console.log('LINT_TARGETS=' + lintTargets.length);
+          if (lintTargets.length) {
+            const results = await eslint.lintFiles(lintTargets);
+            await ESLint.outputFixes(results);
+          }
+          for (const file of targets) {
+            const options = await prettier.resolveConfig(file);
+            const before = await readFile(file, 'utf8');
+            const after = await prettier.format(before, { ...options, filepath: file });
+            if (after !== before) await writeFile(file, after, 'utf8');
+          }
+          const bad = [];
+          for (const file of targets) {
+            const options = await prettier.resolveConfig(file);
+            if (!(await prettier.check(await readFile(file, 'utf8'), { ...options, filepath: file }))) bad.push(file);
+          }
+          console.log('PRETTIER_FAILURES=' + bad.length);
+          if (bad.length) throw new Error('Prettier check failed: ' + bad.join(', '));
+          if (lintTargets.length) {
+            const check = new ESLint();
+            const results = await check.lintFiles(lintTargets);
+            console.log('ESLINT_ERRORS=' + results.reduce((n, r) => n + r.errorCount, 0));
+            console.log('ESLINT_WARNINGS=' + results.reduce((n, r) => n + r.warningCount, 0));
+            const counts = {};
+            for (const result of results) {
+              for (const m of result.messages) counts[m.ruleId ?? 'parser'] = (counts[m.ruleId ?? 'parser'] ?? 0) + 1;
+            }
+            console.log('ESLINT_REMAINING_RULES=' + JSON.stringify(counts));
+            if (results.some((r) => r.fatalErrorCount)) throw new Error('ESLint parsing failed');
+          }
+          const changes = execFileSync('git', ['diff', '--name-only', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+          if (changes.some((file) => !targets.includes(file))) throw new Error('Unexpected file modified');
+          console.log('FORMATTED_FILES=' + changes.length);
+          NODE
+          git diff --check
+          git diff --stat
+      - name: Commit formatting only to isolated branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'chore/format-spec-mjs'
+          if git diff --quiet; then
+            echo 'No formatting changes needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -u
+          git commit -m 'style: format spec and mjs files'
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/chore/format-spec-mjs
