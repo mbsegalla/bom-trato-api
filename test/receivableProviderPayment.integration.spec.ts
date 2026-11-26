@@ -1,13 +1,17 @@
 import 'reflect-metadata';
 
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PrismaService } from '../src/infrastructure/database/prisma.service.js';
 import { ConfirmReceivableProviderPaymentUseCase } from '../src/modules/receivables/application/useCases/confirmReceivableProviderPayment.useCase.js';
 import type { RegisterProviderChargeInput, VerifiedProviderPayment } from '../src/modules/receivables/domain/types/receivableProviderPayment.types.js';
+import { pixCrc16 } from '../src/modules/receivables/domain/policies/receivablePixCharge.policy.js';
+import { MercadoPagoConnectionRuntime } from '../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 import { PrismaReceivableRepository } from '../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
+import { MercadoPagoCredentialService } from '../src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.js';
+import { PrismaMercadoPagoLivePixRepository } from '../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixRepository.js';
 import { PrismaReceivableProviderPaymentRepository } from '../src/modules/receivables/infrastructure/transactions/prismaReceivableProviderPaymentRepository.js';
 
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
@@ -49,6 +53,7 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
 
     // Delete only this suite's UUID-scoped fixtures, in foreign-key order.
     for (const organizationId of organizations.splice(0)) {
+      await prisma.mercadoPagoLivePix.deleteMany({ where: { organizationId } });
       await prisma.receivableProviderCharge.deleteMany({ where: { organizationId } });
       await prisma.receivablePayment.deleteMany({ where: { receivable: { organizationId } } });
       await prisma.receivable.deleteMany({ where: { organizationId } });
@@ -56,6 +61,7 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
       await prisma.quote.deleteMany({ where: { organizationId } });
       await prisma.customer.deleteMany({ where: { organizationId } });
       await prisma.organizationTrial.deleteMany({ where: { organizationId } });
+      await prisma.mercadoPagoConnection.deleteMany({ where: { organizationId } });
       await prisma.organizationMember.deleteMany({ where: { organizationId } });
       await prisma.organization.deleteMany({ where: { id: organizationId } });
     }
@@ -131,11 +137,184 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
     return { actor, registration, payment, receivable };
   }
 
+  function tlv(id: string, value: string): string {
+    return id + String(value.length).padStart(2, '0') + value;
+  }
+
+  function fixtureQr(): string {
+    const payload = [
+      tlv('00', '01'), tlv('01', '12'), tlv('26', tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test')),
+      tlv('52', '0000'), tlv('53', '986'), tlv('54', '100.00'), tlv('58', 'BR'), tlv('59', 'TEST'),
+      tlv('60', 'SAO PAULO'), tlv('62', tlv('05', '***')), '6304',
+    ].join('');
+    return payload + pixCrc16(payload);
+  }
+
+  async function liveFixture(livePixEnabled = true) {
+    const setup = await fixture();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 3_600_000);
+    const session = await prisma.authSession.create({
+      data: {
+        userId: setup.actor.userId,
+        lastRefreshedAt: now,
+        idleExpiresAt: expiresAt,
+        absoluteExpiresAt: expiresAt,
+      },
+    });
+    const actor = { ...setup.actor, sessionId: session.id };
+    const clientId = '123456789';
+    const accountId = String(randomInt(1_000_000_000, 9_999_999_999));
+    const paymentId = String(randomInt(1_000_000_000, 9_999_999_999));
+    const accessToken = 'fixture-access';
+    const runtime = new MercadoPagoConnectionRuntime({
+      enabled: true,
+      liveMode: true,
+      sandboxPixEnabled: false,
+      livePixEnabled,
+      clientId,
+      clientSecret: 'fixture-secret',
+      encryptionKey: 'a'.repeat(64),
+      redirectUri: 'https://example.invalid/mercado-pago/callback',
+    });
+    await prisma.mercadoPagoConnection.create({
+      data: {
+        organizationId: actor.organizationId,
+        liveMode: true,
+        clientId,
+        accountId,
+        connectedById: actor.userId,
+        connectedAt: now,
+        expiresAt,
+        accessTokenCiphertext: runtime.cipher.seal(
+          ['credential', actor.organizationId, clientId, 'true', accountId, 'access'], accessToken,
+        ),
+        refreshTokenCiphertext: runtime.cipher.seal(
+          ['credential', actor.organizationId, clientId, 'true', accountId, 'refresh'], 'fixture-refresh',
+        ),
+      },
+    });
+    const credentials = new MercadoPagoCredentialService(prisma, runtime);
+    const credentialAccess = vi.spyOn(credentials, 'accessForOwner').mockResolvedValue({
+      accountId, accessToken, liveMode: true, expiresAt,
+    });
+    const create = vi.spyOn(runtime.requireEnabled().client, 'createLivePix').mockImplementation(async (input) => {
+      // A distinct connection can only read a committed reservation.
+      const reserved = await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: input.issuanceId } });
+      expect(reserved).toMatchObject({ status: 'RESERVED', organizationId: actor.organizationId, accountId });
+      return {
+        kind: 'PENDING', paymentId, accountId, issuanceId: input.issuanceId,
+        amountInCents: input.amountInCents, currency: 'brl', liveMode: true,
+        copyAndPaste: fixtureQr(), expiresAt: input.expiresAt,
+      };
+    });
+    const repository = new PrismaMercadoPagoLivePixRepository(prisma, runtime, credentials);
+    const input = {
+      version: setup.receivable.version,
+      buyerEmail: 'fixture@example.invalid',
+      buyerDocumentType: 'CPF' as const,
+      buyerDocumentNumber: '19119119100',
+      confirmed: true,
+    };
+    return { ...setup, actor, repository, credentialAccess, create, input, clientId, accountId, paymentId };
+  }
+
   async function ledger(receivableId: string) {
     const receivable = await prisma.receivable.findUniqueOrThrow({ where: { id: receivableId } });
     const payments = await prisma.receivablePayment.findMany({ where: { receivableId } });
     return { receivable, payments };
   }
+
+  it('reserves exactly once and atomically binds a live Pix without recording a ledger payment', async () => {
+    const f = await liveFixture();
+    const results = await Promise.all([
+      f.repository.issue(f.actor, f.input),
+      f.repository.issue(f.actor, f.input),
+    ]);
+    expect(f.create).toHaveBeenCalledTimes(1);
+    expect(results[0].issuanceId).toBe(results[1].issuanceId);
+    const row = await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: results[0].issuanceId } });
+    expect(row).toMatchObject({
+      status: 'PENDING', resultCode: 'VERIFIED_PENDING', externalPaymentId: f.paymentId,
+      providerChargeId: row.id, amountInCents: 10_000,
+    });
+    expect(row.copyAndPasteCiphertext).not.toBeNull();
+    expect(row.copyAndPasteCiphertext).not.toContain(fixtureQr());
+    const charge = await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: row.id } });
+    expect(charge).toMatchObject({
+      provider: 'mercado-pago', externalAccountId: f.accountId, externalPaymentId: f.paymentId,
+      organizationId: f.actor.organizationId, receivableId: f.receivable.id,
+      receivableVersion: 1, expectedAmountInCents: 10_000, paymentId: null, confirmedEventId: null,
+    });
+    expect(await f.repository.issue(f.actor, f.input)).toEqual({
+      issuanceId: row.id, providerChargeId: row.id, status: 'PENDING',
+    });
+    expect(f.create).toHaveBeenCalledTimes(1);
+    await expect(useCase.register(f.actor, f.registration)).rejects.toThrow('IDEMPOTENCY_CONFLICT');
+    expect(await ledger(f.receivable.id)).toMatchObject({
+      receivable: { receivedInCents: 0, status: 'OPEN', version: 1 }, payments: [],
+    });
+  }, 30_000);
+
+  it('fails closed when live issuance is disabled or the version is outdated', async () => {
+    const disabled = await liveFixture(false);
+    await expect(disabled.repository.issue(disabled.actor, disabled.input)).rejects.toThrow('MERCADO_PAGO_UNAVAILABLE');
+    expect(disabled.credentialAccess).not.toHaveBeenCalled();
+    expect(disabled.create).not.toHaveBeenCalled();
+    const outdated = await liveFixture();
+    await expect(outdated.repository.issue(outdated.actor, { ...outdated.input, version: 2 }))
+      .rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
+    expect(outdated.create).not.toHaveBeenCalled();
+    expect(await prisma.mercadoPagoLivePix.count({ where: { receivableId: outdated.receivable.id } })).toBe(0);
+  });
+
+  it('preserves uncertain live creation and never sends a second POST', async () => {
+    const f = await liveFixture();
+    f.create.mockRejectedValueOnce(new Error('fixture timeout'));
+    const result = await f.repository.issue(f.actor, f.input);
+    expect(result.status).toBe('REVIEW_REQUIRED');
+    expect(result.providerChargeId).toBeNull();
+    expect(await f.repository.issue(f.actor, f.input)).toEqual(result);
+    expect(f.create).toHaveBeenCalledTimes(1);
+    const row = await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: result.issuanceId } });
+    expect(row).toMatchObject({
+      resultCode: 'UNCERTAIN_CREATION', externalPaymentId: null, copyAndPasteCiphertext: null,
+    });
+    expect(await prisma.receivableProviderCharge.count({ where: { receivableId: f.receivable.id } })).toBe(0);
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('retains verified identity but hides the QR when the receivable changed during provider I/O', async () => {
+    const f = await liveFixture();
+    f.create.mockImplementationOnce(async (input) => {
+      await prisma.receivable.update({
+        where: { id: f.receivable.id }, data: { version: 2, notes: 'Changed during create' },
+      });
+      return {
+        kind: 'PENDING', paymentId: f.paymentId, accountId: f.accountId, issuanceId: input.issuanceId,
+        amountInCents: input.amountInCents, currency: 'brl', liveMode: true,
+        copyAndPaste: fixtureQr(), expiresAt: input.expiresAt,
+      };
+    });
+    const result = await f.repository.issue(f.actor, f.input);
+    expect(result.status).toBe('REVIEW_REQUIRED');
+    const row = await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: result.issuanceId } });
+    expect(row).toMatchObject({
+      resultCode: 'SNAPSHOT_CHANGED', externalPaymentId: f.paymentId, providerChargeId: row.id,
+      copyAndPasteCiphertext: null, expiresAt: null,
+    });
+    expect(await useCase.execute({
+      ...f.payment, provider: 'mercado-pago', externalAccountId: f.accountId, externalPaymentId: f.paymentId,
+    })).toBe('REVIEW_REQUIRED');
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('refuses a second live issuance when another provider charge already exists', async () => {
+    const f = await liveFixture();
+    await useCase.register(f.actor, f.registration);
+    await expect(f.repository.issue(f.actor, f.input)).rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
+    expect(f.create).not.toHaveBeenCalled();
+  });
 
   it('commits one ledger entry and one version advance despite concurrent duplicate delivery', async () => {
     const { actor, registration, payment, receivable } = await fixture();
