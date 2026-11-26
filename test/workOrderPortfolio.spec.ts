@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { PrivateObjectStorage } from '../src/shared/storage/privateObjectStorage.port.js';
 import type { WorkOrderPortfolioRepository } from '../src/modules/workOrders/application/ports/workOrderPortfolio.repository.js';
 import { GetPublicPortfolioPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicPortfolioPhotoContent.useCase.js';
 import { ManageWorkOrderPortfolioUseCase } from '../src/modules/workOrders/application/useCases/manageWorkOrderPortfolio.useCase.js';
 import { PublicPortfolioConsentUseCase } from '../src/modules/workOrders/application/useCases/publicPortfolioConsent.useCase.js';
 import { NodeWorkOrderShareSecurity } from '../src/modules/workOrders/infrastructure/security/nodeWorkOrderShareSecurity.js';
+import type { PrivateObjectStorage } from '../src/shared/storage/privateObjectStorage.port.js';
 
 const TOKEN = 'a'.repeat(64);
 const key = 'private/organization/photo.webp';
@@ -24,25 +24,21 @@ function setup() {
     revokeForOrganization: vi.fn(async () => ({ photos: [] })),
     listPublishedForSlug: vi.fn(async () => []),
     getPublicPhotoKey: vi.fn(async () => key),
-  };
+  } satisfies WorkOrderPortfolioRepository;
 
   const storage = {
+    put: vi.fn(async () => undefined),
     get: vi.fn(async () => new Uint8Array([1, 2, 3])),
-  };
+    delete: vi.fn(async () => undefined),
+  } satisfies PrivateObjectStorage;
 
   return {
     repository,
     storage,
     security: new NodeWorkOrderShareSecurity(),
-    publicConsent: new PublicPortfolioConsentUseCase(
-      repository as unknown as WorkOrderPortfolioRepository,
-      new NodeWorkOrderShareSecurity(),
-    ),
-    management: new ManageWorkOrderPortfolioUseCase(repository as unknown as WorkOrderPortfolioRepository),
-    photo: new GetPublicPortfolioPhotoContentUseCase(
-      repository as unknown as WorkOrderPortfolioRepository,
-      storage as unknown as PrivateObjectStorage,
-    ),
+    publicConsent: new PublicPortfolioConsentUseCase(repository, new NodeWorkOrderShareSecurity()),
+    management: new ManageWorkOrderPortfolioUseCase(repository),
+    photo: new GetPublicPortfolioPhotoContentUseCase(repository, storage),
   };
 }
 
