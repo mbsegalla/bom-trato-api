@@ -17,7 +17,6 @@ import { AcceptPublicWorkOrderUseCase } from './application/useCases/acceptPubli
 import { GeneratePublicWorkOrderReportUseCase } from './application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from './application/useCases/getPublicWorkOrder.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from './application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
-import { PublicPortfolioConsentUseCase } from './application/useCases/publicPortfolioConsent.useCase.js';
 import { NodeWorkOrderShareSecurity } from './infrastructure/security/nodeWorkOrderShareSecurity.js';
 import { PrismaPublicWorkOrderUnitOfWork } from './infrastructure/transactions/prismaPublicWorkOrderUnitOfWork.js';
 import { PublicWorkOrdersController } from './presentation/http/controllers/publicWorkOrders.controller.js';

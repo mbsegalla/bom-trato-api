@@ -9,8 +9,6 @@ import { WorkOrderRecurrencePageDto } from '../dtos/requests/workOrderRecurrence
 import { WorkOrderRecurrencesResponseDto } from '../dtos/responses/workOrderRecurrenceResponse.dto.js';
 import { workOrderOperation } from '../workOrderHttpError.js';
 
-const uuid = new ParseUUIDPipe({ version: '4' });
-
 @ApiTags('Work order recurrence')
 @ApiBearerAuth('access-token')
 @Controller('organizations/:organizationId/work-order-recurrences')
@@ -23,7 +21,7 @@ export class WorkOrderRecurrencesController {
   @ApiDataResponse(WorkOrderRecurrencesResponseDto)
   list(
     @CurrentAuth() auth: AuthContext,
-    @Param('organizationId', uuid) organizationId: string,
+    @Param('organizationId', new ParseUUIDPipe({ version: '4' })) organizationId: string,
     @Query() dto: WorkOrderRecurrencePageDto,
   ): Promise<WorkOrderRecurrencesResponseDto> {
     return workOrderOperation(() => this.recurrence.list({ organizationId, userId: auth.user.id }, dto));

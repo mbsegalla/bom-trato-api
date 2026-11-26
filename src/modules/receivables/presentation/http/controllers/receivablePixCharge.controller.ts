@@ -8,8 +8,6 @@ import { GetReceivablePixChargeUseCase } from '../../../application/useCases/get
 import { ReceivablePixChargeResponseDto } from '../dtos/responses/receivablePixChargeResponse.dto.js';
 import { receivingSettingsOperation } from '../receivingSettingsHttpError.js';
 
-const uuid = new ParseUUIDPipe({ version: '4' });
-
 @ApiTags('Receivables')
 @ApiBearerAuth('access-token')
 @Controller('organizations/:organizationId/receivables/:receivableId/pix-charge')
@@ -22,8 +20,8 @@ export class ReceivablePixChargeController {
   @ApiDataResponse(ReceivablePixChargeResponseDto)
   get(
     @CurrentAuth() auth: AuthContext,
-    @Param('organizationId', uuid) organizationId: string,
-    @Param('receivableId', uuid) receivableId: string,
+    @Param('organizationId', new ParseUUIDPipe({ version: '4' })) organizationId: string,
+    @Param('receivableId', new ParseUUIDPipe({ version: '4' })) receivableId: string,
   ): Promise<ReceivablePixChargeResponseDto> {
     return receivingSettingsOperation(() =>
       this.getPixCharge.execute({ organizationId, receivableId, userId: auth.user.id }),

@@ -1,11 +1,7 @@
-import type {
-  PixKeyType,
-  ReceivingSettings,
-  SaveReceivingSettingsInput,
-} from '../types/receivingSettings.types.js';
 import { ReceivingSettingsError } from '../errors/receivingSettings.error.js';
+import type { PixKeyType, ReceivingSettings, SaveReceivingSettingsInput } from '../types/receivingSettings.types.js';
 
-const emailPattern = /^[a-z0-9.!#$'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+const emailPattern = /^[a-z0-9.!#$'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
 const evpPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function invalid(): never {
@@ -18,31 +14,47 @@ export function normalizePixKey(type: PixKeyType, raw: string): string {
 
   switch (type) {
     case 'CPF':
-      if (!/^[0-9.-]+$/.test(value)) return invalid();
+      if (!/^[0-9.-]+$/.test(value)) {
+        return invalid();
+      }
       normalized = value.replace(/[.-]/g, '');
-      if (!/^\d{11}$/.test(normalized)) return invalid();
+      if (!/^\d{11}$/.test(normalized)) {
+        return invalid();
+      }
       return normalized;
 
     case 'CNPJ':
-      if (!/^[a-zA-Z0-9./-]+$/.test(value)) return invalid();
+      if (!/^[a-zA-Z0-9./-]+$/.test(value)) {
+        return invalid();
+      }
       normalized = value.replace(/[./-]/g, '').toUpperCase();
-      if (!/^[A-Z0-9]{12}[0-9]{2}$/.test(normalized)) return invalid();
+      if (!/^[A-Z0-9]{12}[0-9]{2}$/.test(normalized)) {
+        return invalid();
+      }
       return normalized;
 
     case 'PHONE':
-      if (!/^\+[0-9 ().-]+$/.test(value)) return invalid();
+      if (!/^\+[0-9 ().-]+$/.test(value)) {
+        return invalid();
+      }
       normalized = value.replace(/[ ().-]/g, '');
-      if (!/^\+[1-9]\d{1,14}$/.test(normalized)) return invalid();
+      if (!/^\+[1-9]\d{1,14}$/.test(normalized)) {
+        return invalid();
+      }
       return normalized;
 
     case 'EMAIL':
       normalized = value.toLowerCase();
-      if (normalized.length > 77 || !emailPattern.test(normalized)) return invalid();
+      if (normalized.length > 77 || !emailPattern.test(normalized)) {
+        return invalid();
+      }
       return normalized;
 
     case 'EVP':
       normalized = value.toLowerCase();
-      if (!evpPattern.test(normalized)) return invalid();
+      if (!evpPattern.test(normalized)) {
+        return invalid();
+      }
       return normalized;
 
     default:

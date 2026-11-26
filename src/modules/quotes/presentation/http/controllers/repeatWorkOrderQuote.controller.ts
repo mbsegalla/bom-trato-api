@@ -8,8 +8,6 @@ import { RepeatWorkOrderQuoteUseCase } from '../../../application/useCases/repea
 import { QuoteDetailsResponseDto } from '../dtos/responses/quoteResponse.dto.js';
 import { quoteOperation } from '../quoteHttpError.js';
 
-const uuid = new ParseUUIDPipe({ version: '4' });
-
 @ApiTags('Quotes')
 @ApiBearerAuth('access-token')
 @Controller('organizations/:organizationId/quotes')
@@ -23,8 +21,8 @@ export class RepeatWorkOrderQuoteController {
   @ApiDataResponse(QuoteDetailsResponseDto, { status: 201 })
   repeat(
     @CurrentAuth() auth: AuthContext,
-    @Param('organizationId', uuid) organizationId: string,
-    @Param('quoteId', uuid) quoteId: string,
+    @Param('organizationId', new ParseUUIDPipe({ version: '4' })) organizationId: string,
+    @Param('quoteId', new ParseUUIDPipe({ version: '4' })) quoteId: string,
   ): Promise<QuoteDetailsResponseDto> {
     return quoteOperation(() =>
       this.repeatWorkOrderQuoteUseCase.execute({
