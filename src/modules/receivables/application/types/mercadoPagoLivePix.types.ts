@@ -18,3 +18,30 @@ export interface MercadoPagoLivePixIssuance {
   providerChargeId: string | null;
   status: 'RESERVED' | 'PENDING' | 'REVIEW_REQUIRED' | 'SETTLED' | 'CLOSED';
 }
+
+export type LivePixViewStatus = 'NOT_ISSUED' | 'PROCESSING' | 'PENDING' | 'REVIEW_REQUIRED' |
+  'EXPIRED' | 'STALE' | 'SETTLED' | 'CLOSED';
+
+export interface MercadoPagoLivePixView {
+  organizationId: string;
+  receivableId: string;
+  receivableVersion: number;
+  available: boolean;
+  canIssue: boolean;
+  canRecover: boolean;
+  status: LivePixViewStatus;
+  issuanceId: string | null;
+  amountInCents: number | null;
+  paymentId: string | null;
+  expiresAt: Date | null;
+  copyAndPaste: string | null;
+  reviewCode: string | null;
+  lastRecoveryCode: string | null;
+  nextRecoveryAt: Date | null;
+  lastWebhookCode: string | null;
+  liveMode: true;
+}
+
+export interface RecoverMercadoPagoLivePixInput {
+  issuanceId: string;
+}

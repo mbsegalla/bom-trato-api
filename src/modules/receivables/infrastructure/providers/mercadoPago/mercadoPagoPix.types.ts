@@ -60,3 +60,10 @@ export interface ReadMercadoPagoLivePixInput extends ReadMercadoPagoSandboxPixIn
 export type MercadoPagoLivePaymentObservation =
   | { status: 'APPROVED'; payment: VerifiedProviderPayment }
   | { status: Exclude<MercadoPagoSandboxPaymentStatus, 'APPROVED'> };
+
+export type SearchMercadoPagoLivePixInput = Omit<ReadMercadoPagoLivePixInput, 'paymentId'>;
+
+export type SearchMercadoPagoLivePixResult =
+  | { kind: 'NOT_FOUND' }
+  | { kind: 'AMBIGUOUS' }
+  | { kind: 'FOUND'; paymentId: string; observation: MercadoPagoLivePaymentObservation };
