@@ -74,7 +74,15 @@ jobs:
       - name: Run tests
         env:
           PAYMENT_INTEGRATION_DATABASE_URL: postgresql://bom_trato_ci:ci_only_password@127.0.0.1:5432/bom_trato_ci?schema=public
-        run: pnpm exec vitest run --config vitest.config.ts
+        run: pnpm test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-coverage
+          path: coverage/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Build API
         run: pnpm build
