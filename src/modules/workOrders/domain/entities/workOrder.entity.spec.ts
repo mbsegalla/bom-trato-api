@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Quote } from '../../../quotes/domain/entities/quote.entity.js';
 import { QuoteItem } from '../../../quotes/domain/entities/quoteItem.entity.js';
+
 import { WorkOrder } from './workOrder.entity.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
@@ -15,18 +16,20 @@ function quote() {
         id: 'customer',
         name: 'Cliente',
         email: null,
-        phone: null
+        phone: null,
       },
-      details: { title: 'Servico' }
+      details: { title: 'Servico' },
     },
-    now
+    now,
   );
-  value.addItem(QuoteItem.create('quote-item', {
-    name: 'Servico',
-    unit: 'SERVICE',
-    quantity: '1',
-    unitAmountInCents: 1000
-  }));
+  value.addItem(
+    QuoteItem.create('quote-item', {
+      name: 'Servico',
+      unit: 'SERVICE',
+      quantity: '1',
+      unitAmountInCents: 1000,
+    }),
+  );
 
   return value;
 }
@@ -41,31 +44,33 @@ function order() {
       organizationId: 'org',
       userId: 'owner',
       quote: value.snapshot(),
-      itemIds: ['item']
+      itemIds: ['item'],
     },
-    now
+    now,
   );
 }
 
 describe('WorkOrder', () => {
   it('requires an approved quote from the same organization', () => {
-    expect(() => WorkOrder.create(
-      {
-        id: 'order',
-        organizationId: 'org',
-        userId: 'owner',
-        quote: quote().snapshot(),
-        itemIds: ['item']
-      },
-      now
-    )).toThrow('QUOTE_NOT_APPROVED');
+    expect(() =>
+      WorkOrder.create(
+        {
+          id: 'order',
+          organizationId: 'org',
+          userId: 'owner',
+          quote: quote().snapshot(),
+          itemIds: ['item'],
+        },
+        now,
+      ),
+    ).toThrow('QUOTE_NOT_APPROVED');
 
     const original = order().snapshot();
 
     expect(original).toMatchObject({
       totalInCents: 1000,
       status: 'OPEN',
-      items: [{ sourceQuoteItemId: 'quote-item' }]
+      items: [{ sourceQuoteItemId: 'quote-item' }],
     });
   });
 

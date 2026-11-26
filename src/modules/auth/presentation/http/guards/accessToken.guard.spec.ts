@@ -9,6 +9,7 @@ import type { PostgresAuthRateLimit } from '../../../infrastructure/rateLimits/p
 import type { AuthCookies } from '../authCookies.js';
 import type { AuthEndpointPolicy } from '../decorators/authEndpoint.decorator.js';
 import { AUTH_ENDPOINT } from '../decorators/authEndpoint.decorator.js';
+
 import { AccessTokenGuard } from './accessToken.guard.js';
 
 function fixture(authorization?: string, policy?: AuthEndpointPolicy, isPublic = false) {
@@ -23,7 +24,7 @@ function fixture(authorization?: string, policy?: AuthEndpointPolicy, isPublic =
   const request = { get: vi.fn().mockReturnValue(authorization), auth: undefined as unknown };
   const response = { setHeader };
   const reflector = {
-    getAllAndOverride: vi.fn((key: string) => key === AUTH_ENDPOINT ? policy : isPublic),
+    getAllAndOverride: vi.fn((key: string) => (key === AUTH_ENDPOINT ? policy : isPublic)),
   };
   const context = {
     getType: () => 'http',
@@ -39,7 +40,20 @@ function fixture(authorization?: string, policy?: AuthEndpointPolicy, isPublic =
     { check } as unknown as PostgresAuthRateLimit,
   );
 
-  return { guard, context, user, claims, request, response, verifyAccess, authenticate, check, assertCsrf, assertOrigin, setHeader };
+  return {
+    guard,
+    context,
+    user,
+    claims,
+    request,
+    response,
+    verifyAccess,
+    authenticate,
+    check,
+    assertCsrf,
+    assertOrigin,
+    setHeader,
+  };
 }
 
 describe('AccessTokenGuard', () => {
@@ -60,10 +74,13 @@ describe('AccessTokenGuard', () => {
 
     expect(await f.guard.canActivate(f.context)).toBe(true);
     expect(f.verifyAccess).toHaveBeenCalledExactlyOnceWith('fixture-token');
-    expect(f.authenticate).toHaveBeenCalledExactlyOnceWith({
-      userId: f.claims.sub,
-      sessionId: f.claims.sid,
-    }, expect.any(Date));
+    expect(f.authenticate).toHaveBeenCalledExactlyOnceWith(
+      {
+        userId: f.claims.sub,
+        sessionId: f.claims.sid,
+      },
+      expect.any(Date),
+    );
     expect(f.request.auth).toEqual({ user: f.user, sessionId: f.claims.sid });
     expect(f.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
   });
@@ -128,7 +145,9 @@ describe('AccessTokenGuard', () => {
   it('stops before authentication when CSRF validation fails', async () => {
     const f = fixture('Bearer fixture-token', { bucket: 'logout', mutation: true });
     const error = new Error('invalid CSRF');
-    f.assertCsrf.mockImplementation(() => { throw error; });
+    f.assertCsrf.mockImplementation(() => {
+      throw error;
+    });
 
     await expect(f.guard.canActivate(f.context)).rejects.toBe(error);
     expect(f.verifyAccess).not.toHaveBeenCalled();

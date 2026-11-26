@@ -2,6 +2,7 @@ import type { ConfigType } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { notificationConfig } from '../../../../config/notification.config.js';
+
 import { ResendEmailGateway } from './resendEmail.gateway.js';
 
 const { send } = vi.hoisted(() => ({ send: vi.fn() }));
@@ -58,20 +59,33 @@ describe('ResendEmailGateway', () => {
   it('does not retry a conflicting idempotency key', async () => {
     send.mockResolvedValueOnce({ error: { name: 'invalid_idempotent_request', statusCode: 409 }, data: null });
 
-    await expect(gateway.send('job', message)).rejects.toMatchObject({ code: 'RESEND_IDEMPOTENCY_CONFLICT', retryable: false });
+    await expect(gateway.send('job', message)).rejects.toMatchObject({
+      code: 'RESEND_IDEMPOTENCY_CONFLICT',
+      retryable: false,
+    });
   });
 
   it('bounds retry-after values and treats unknown provider or network failures as retryable', async () => {
     send.mockResolvedValueOnce({ error: { name: 'fixture' }, data: null, headers: { 'retry-after': '999999' } });
-    await expect(gateway.send('job', message)).rejects.toMatchObject({ code: 'RESEND_UNAVAILABLE', retryable: true, retryAfterSeconds: 86400 });
+    await expect(gateway.send('job', message)).rejects.toMatchObject({
+      code: 'RESEND_UNAVAILABLE',
+      retryable: true,
+      retryAfterSeconds: 86400,
+    });
 
     send.mockRejectedValueOnce(new Error('private request body'));
-    await expect(gateway.send('job', message)).rejects.toMatchObject({ message: 'RESEND_UNAVAILABLE', retryable: true });
+    await expect(gateway.send('job', message)).rejects.toMatchObject({
+      message: 'RESEND_UNAVAILABLE',
+      retryable: true,
+    });
   });
 
   it('rejects a successful response without a valid delivery identity', async () => {
     send.mockResolvedValueOnce({ data: { id: '' }, error: null });
 
-    await expect(gateway.send('job', message)).rejects.toMatchObject({ code: 'RESEND_INVALID_RESPONSE', retryable: true });
+    await expect(gateway.send('job', message)).rejects.toMatchObject({
+      code: 'RESEND_INVALID_RESPONSE',
+      retryable: true,
+    });
   });
 });

@@ -41,7 +41,7 @@ const body = {
   snapshotHash: 'b'.repeat(64),
   signerName: 'Maria da Silva',
   consent: true,
-  consentVersion: '1'
+  consentVersion: '1',
 };
 const receipt: WorkOrderAcceptanceReceipt = {
   id: '33333333-3333-4333-8333-333333333333',
@@ -88,7 +88,7 @@ describe('work order acceptance HTTP contract', () => {
           useValue: {
             status: async () => ({}),
             consent: async () => ({}),
-            revoke: async () => ({})
+            revoke: async () => ({}),
           },
         },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: async () => new Uint8Array() } },

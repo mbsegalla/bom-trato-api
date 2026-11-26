@@ -57,10 +57,17 @@ describe('Mercado Pago credential renewal policy', () => {
     expect(isMercadoPagoRefreshCoolingDown(now, now)).toBe(true);
     expect(isMercadoPagoRefreshCoolingDown(past, now)).toBe(false);
     expect(isMercadoPagoRefreshCoolingDown(null, now)).toBe(false);
-    expect(decideMercadoPagoCredentialAccess({
-      ...row,
-      refreshClaimId: 'uncertain',
-      refreshStartedAt: past
-    }, context, false, now)).toBe('RECONNECT_REQUIRED');
+    expect(
+      decideMercadoPagoCredentialAccess(
+        {
+          ...row,
+          refreshClaimId: 'uncertain',
+          refreshStartedAt: past,
+        },
+        context,
+        false,
+        now,
+      ),
+    ).toBe('RECONNECT_REQUIRED');
   });
 });

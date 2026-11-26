@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+
 import { expect, it } from 'vitest';
 
 import { NotificationStreamTicketService } from '../../../src/modules/notifications/infrastructure/realtime/notificationStreamTicket.service.js';
@@ -58,9 +59,11 @@ databaseSuite('notification stream ticket security (disposable PostgreSQL)', () 
     const second = await f.service.issue(f.params);
 
     expect(second.ticket).not.toBe(first.ticket);
-    expect(await db.prisma.notificationStreamTicket.count({
-      where: { sessionId: f.params.sessionId, organizationId: f.actor.organizationId },
-    })).toBe(1);
+    expect(
+      await db.prisma.notificationStreamTicket.count({
+        where: { sessionId: f.params.sessionId, organizationId: f.actor.organizationId },
+      }),
+    ).toBe(1);
 
     await expect(f.service.consume(f.actor.organizationId, first.ticket)).rejects.toThrow('INVALID_STREAM_TICKET');
     expect(await f.service.consume(f.actor.organizationId, second.ticket)).toEqual(f.actor);
@@ -70,7 +73,9 @@ databaseSuite('notification stream ticket security (disposable PostgreSQL)', () 
     const f = await fixture();
     const other = await db.tenant();
 
-    await expect(f.service.issue({ ...f.params, organizationId: other.organizationId })).rejects.toThrow('MEMBER_REQUIRED');
+    await expect(f.service.issue({ ...f.params, organizationId: other.organizationId })).rejects.toThrow(
+      'MEMBER_REQUIRED',
+    );
     await expect(f.service.issue({ ...f.params, userId: other.userId })).rejects.toThrow('INVALID_STREAM_TICKET');
 
     const issued = await f.service.issue(f.params);
@@ -140,6 +145,8 @@ databaseSuite('notification stream ticket security (disposable PostgreSQL)', () 
 
     await db.prisma.user.update({ where: { id: f.actor.userId }, data: { emailVerifiedAt: null } });
 
-    await expect(f.service.consume(f.actor.organizationId, ownerTicket.ticket)).rejects.toThrow('INVALID_STREAM_TICKET');
+    await expect(f.service.consume(f.actor.organizationId, ownerTicket.ticket)).rejects.toThrow(
+      'INVALID_STREAM_TICKET',
+    );
   });
 });

@@ -52,19 +52,25 @@ describe('authoritative sandbox Pix payment lookup', () => {
       ...response,
       status: 'approved',
       status_detail: 'accredited',
-      date_approved: new Date().toISOString()
+      date_approved: new Date().toISOString(),
     };
 
     await expect(fixture(approved).client.readSandboxPix(input)).resolves.toBe('APPROVED');
-    await expect(fixture({
-      ...approved,
-      status_detail: 'other'
-    }).client.readSandboxPix(input)).resolves.toBe('REVIEW_REQUIRED');
-    await expect(fixture({ ...approved, date_approved: 'bad' }).client.readSandboxPix(input)).rejects.toThrow('INVALID_RESPONSE');
-    await expect(fixture({
-      ...approved,
-      transaction_amount_refunded: '1.00'
-    }).client.readSandboxPix(input)).resolves.toBe('REFUNDED');
+    await expect(
+      fixture({
+        ...approved,
+        status_detail: 'other',
+      }).client.readSandboxPix(input),
+    ).resolves.toBe('REVIEW_REQUIRED');
+    await expect(fixture({ ...approved, date_approved: 'bad' }).client.readSandboxPix(input)).rejects.toThrow(
+      'INVALID_RESPONSE',
+    );
+    await expect(
+      fixture({
+        ...approved,
+        transaction_amount_refunded: '1.00',
+      }).client.readSandboxPix(input),
+    ).resolves.toBe('REFUNDED');
   });
 
   it.each(['rejected', 'cancelled'])('recognizes closed test payments: %s', async (status) => {
@@ -136,16 +142,21 @@ describe('authoritative live Pix observation (mock provider only)', () => {
   });
 
   it('keeps pending, refund, closure and uncertain statuses separate from approved evidence', async () => {
-    await expect(fixture({ ...response, live_mode: true }, true).client.readLivePix(liveInput))
-      .resolves.toEqual({ status: 'PENDING' });
-    await expect(fixture({ ...approved, transaction_amount_refunded: 1 }, true).client.readLivePix(liveInput))
-      .resolves.toEqual({ status: 'REFUNDED' });
-    await expect(fixture({ ...approved, status: 'charged_back' }, true).client.readLivePix(liveInput))
-      .resolves.toEqual({ status: 'REFUNDED' });
-    await expect(fixture({ ...approved, status: 'cancelled' }, true).client.readLivePix(liveInput))
-      .resolves.toEqual({ status: 'CLOSED' });
-    await expect(fixture({ ...approved, status_detail: 'unknown' }, true).client.readLivePix(liveInput))
-      .resolves.toEqual({ status: 'REVIEW_REQUIRED' });
+    await expect(fixture({ ...response, live_mode: true }, true).client.readLivePix(liveInput)).resolves.toEqual({
+      status: 'PENDING',
+    });
+    await expect(
+      fixture({ ...approved, transaction_amount_refunded: 1 }, true).client.readLivePix(liveInput),
+    ).resolves.toEqual({ status: 'REFUNDED' });
+    await expect(fixture({ ...approved, status: 'charged_back' }, true).client.readLivePix(liveInput)).resolves.toEqual(
+      { status: 'REFUNDED' },
+    );
+    await expect(fixture({ ...approved, status: 'cancelled' }, true).client.readLivePix(liveInput)).resolves.toEqual({
+      status: 'CLOSED',
+    });
+    await expect(
+      fixture({ ...approved, status_detail: 'unknown' }, true).client.readLivePix(liveInput),
+    ).resolves.toEqual({ status: 'REVIEW_REQUIRED' });
   });
 
   it('never reads a live payment through a test client', async () => {

@@ -29,8 +29,9 @@ describe('OrganizationInvitation', () => {
   it('rate limits resends and invalidates the previous token', () => {
     const invitation = fixture();
 
-    expect(() => invitation.resend('new-hash', 'owner', new Date(now.getTime() + 59999)))
-      .toThrow('INVITATION_RATE_LIMITED');
+    expect(() => invitation.resend('new-hash', 'owner', new Date(now.getTime() + 59999))).toThrow(
+      'INVITATION_RATE_LIMITED',
+    );
 
     invitation.resend('new-hash', 'owner', new Date(now.getTime() + 60000));
 

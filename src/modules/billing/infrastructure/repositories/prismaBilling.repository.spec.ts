@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingWork } from '../events/billing.events.js';
 import type { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
+
 import { PrismaBillingRepository } from './prismaBilling.repository.js';
 
 const organizationId = 'org';
@@ -22,7 +23,9 @@ const price = {
 function fixture() {
   const db = {
     organizationMember: { findUnique: vi.fn().mockResolvedValue(owner) },
-    organization: { findUniqueOrThrow: vi.fn().mockResolvedValue({ ownerId: userId, _count: { organizationMembers: 3 } }) },
+    organization: {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ ownerId: userId, _count: { organizationMembers: 3 } }),
+    },
     subscription: {
       findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn().mockResolvedValue(null),
@@ -62,14 +65,19 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
     await f.repository.assertMember(organizationId, userId);
     await f.repository.assertOwner(organizationId, userId);
 
-    expect(f.db.organizationMember.findUnique).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId_userId: { organizationId, userId } },
-    }));
+    expect(f.db.organizationMember.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId_userId: { organizationId, userId } },
+      }),
+    );
 
     f.db.organizationMember.findUnique.mockResolvedValueOnce(null);
     await expect(f.repository.assertMember(organizationId, userId)).rejects.toThrow('ORGANIZATION_NOT_FOUND');
 
-    for (const member of [{ ...owner, role: 'MEMBER' }, { ...owner, organization: { ownerId: 'other' } }]) {
+    for (const member of [
+      { ...owner, role: 'MEMBER' },
+      { ...owner, organization: { ownerId: 'other' } },
+    ]) {
       f.db.organizationMember.findUnique.mockResolvedValueOnce(member);
       await expect(f.repository.assertOwner(organizationId, userId)).rejects.toThrow('OWNER_REQUIRED');
     }
@@ -83,9 +91,11 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
     const { plan, ...fields } = price;
 
     expect(await f.repository.availablePrice(price.id)).toEqual({ ...fields, stripeProductId: plan.stripeProductId });
-    expect(f.db.planPrice.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: price.id, published: true, stripeActive: true, plan: { published: true, stripeActive: true } },
-    }));
+    expect(f.db.planPrice.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: price.id, published: true, stripeActive: true, plan: { published: true, stripeActive: true } },
+      }),
+    );
 
     f.db.planPrice.findFirst.mockResolvedValueOnce(null);
     await expect(f.repository.availablePrice('missing')).rejects.toThrow('PLAN_UNAVAILABLE');
@@ -115,19 +125,27 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
     const f = fixture();
 
     expect(await f.repository.entitlements(organizationId, 'member')).toEqual({
-      maxUsers: 0, teamManagementEnabled: false, memberCount: 3, isOwner: false,
+      maxUsers: 0,
+      teamManagementEnabled: false,
+      memberCount: 3,
+      isOwner: false,
     });
     expect(f.db.planPrice.findUniqueOrThrow).not.toHaveBeenCalled();
 
     f.db.subscription.findMany.mockResolvedValueOnce([{ planPriceId: price.id }]);
     expect(await f.repository.entitlements(organizationId, userId)).toEqual({
-      maxUsers: 5, teamManagementEnabled: true, memberCount: 3, isOwner: true,
+      maxUsers: 5,
+      teamManagementEnabled: true,
+      memberCount: 3,
+      isOwner: true,
     });
   });
 
   it('validates invoice cursors within the tenant and paginates equal timestamps deterministically', async () => {
     const f = fixture();
-    await expect(f.repository.invoices({ organizationId, cursor: 'foreign', limit: 1 })).rejects.toThrow('INVALID_CURSOR');
+    await expect(f.repository.invoices({ organizationId, cursor: 'foreign', limit: 1 })).rejects.toThrow(
+      'INVALID_CURSOR',
+    );
     expect(f.db.billingInvoice.findMany).not.toHaveBeenCalled();
 
     const anchor = { id: 'anchor', stripeCreatedAt: now };
@@ -136,26 +154,34 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
     f.db.billingInvoice.findMany.mockResolvedValueOnce([invoice, { id: 'next' }]);
 
     expect(await f.repository.invoices({ organizationId, cursor: anchor.id, limit: 1 })).toEqual({
-      items: [invoice], nextCursor: invoice.id,
+      items: [invoice],
+      nextCursor: invoice.id,
     });
     expect(f.db.billingInvoice.findFirst).toHaveBeenCalledWith({
-      where: { id: anchor.id, organizationId }, select: { id: true, stripeCreatedAt: true },
+      where: { id: anchor.id, organizationId },
+      select: { id: true, stripeCreatedAt: true },
     });
-    expect(f.db.billingInvoice.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        organizationId,
-        OR: [{ stripeCreatedAt: { lt: now } }, { stripeCreatedAt: now, id: { lt: anchor.id } }],
-      },
-      take: 2,
-      orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
-    }));
+    expect(f.db.billingInvoice.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId,
+          OR: [{ stripeCreatedAt: { lt: now } }, { stripeCreatedAt: now, id: { lt: anchor.id } }],
+        },
+        take: 2,
+        orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
   });
 
   it('reserves a single active checkout and releases its active identity on terminal outcomes', async () => {
     const f = fixture();
     const input = {
-      id: 'attempt', organizationId, planPriceId: price.id, stripePriceId: price.stripePriceId,
-      returnUrl: 'https://app.example.invalid/onboarding', expiresAt: now,
+      id: 'attempt',
+      organizationId,
+      planPriceId: price.id,
+      stripePriceId: price.stripePriceId,
+      returnUrl: 'https://app.example.invalid/onboarding',
+      expiresAt: now,
     };
 
     await f.repository.createCheckout(input);
@@ -163,11 +189,17 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
     await f.repository.attachCheckout(input.id, 'cs_fixture');
     await f.repository.closeCheckout(input.id, 'COMPLETE');
 
-    expect(f.db.checkoutAttempt.create).toHaveBeenCalledWith({ data: { ...input, activeOrganizationId: organizationId } });
+    expect(f.db.checkoutAttempt.create).toHaveBeenCalledWith({
+      data: { ...input, activeOrganizationId: organizationId },
+    });
     expect(f.db.checkoutAttempt.findUnique).toHaveBeenCalledWith({ where: { activeOrganizationId: organizationId } });
-    expect(f.db.checkoutAttempt.update).toHaveBeenNthCalledWith(1, { where: { id: input.id }, data: { stripeSessionId: 'cs_fixture' } });
+    expect(f.db.checkoutAttempt.update).toHaveBeenNthCalledWith(1, {
+      where: { id: input.id },
+      data: { stripeSessionId: 'cs_fixture' },
+    });
     expect(f.db.checkoutAttempt.update).toHaveBeenNthCalledWith(2, {
-      where: { id: input.id }, data: { status: 'COMPLETE', activeOrganizationId: null },
+      where: { id: input.id },
+      data: { status: 'COMPLETE', activeOrganizationId: null },
     });
   });
 
@@ -188,10 +220,13 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
     try {
       await f.repository.postponeReconciliation(organizationId);
       expect(f.db.billingCustomer.update).toHaveBeenCalledWith({
-        where: { organizationId }, data: { nextReconcileAt: new Date(now.getTime() + 300000) },
+        where: { organizationId },
+        data: { nextReconcileAt: new Date(now.getTime() + 300000) },
       });
       expect(f.scheduleChanged).toHaveBeenCalledWith(BillingWork.RECONCILIATION);
-      expect(f.db.billingCustomer.update.mock.invocationCallOrder[0]).toBeLessThan(f.scheduleChanged.mock.invocationCallOrder[0]!);
+      expect(f.db.billingCustomer.update.mock.invocationCallOrder[0]).toBeLessThan(
+        f.scheduleChanged.mock.invocationCallOrder[0],
+      );
 
       f.db.billingCustomer.update.mockRejectedValueOnce(new Error('Fixture unavailable'));
       await expect(f.repository.postponeReconciliation(organizationId)).rejects.toThrow('Fixture unavailable');

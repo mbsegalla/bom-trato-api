@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import type Stripe from 'stripe';
+import { describe, expect, it, vi } from 'vitest';
 
 import { parseStripePrice, parseStripeProduct } from './stripeCatalog.parser.js';
 
@@ -50,15 +49,23 @@ describe('Stripe catalog parser', () => {
   });
 
   it('rejects malformed metadata and invalid product names', () => {
-    expect(() => parseProduct({ ...product, metadata: { ...product.metadata, plan_code: 'lowercase', max_users: '0' } }))
-      .toThrow(/plan_code.*max_users/);
+    expect(() =>
+      parseProduct({ ...product, metadata: { ...product.metadata, plan_code: 'lowercase', max_users: '0' } }),
+    ).toThrow(/plan_code.*max_users/);
     expect(() => parseProduct({ ...product, name: '' })).toThrow(/name between/);
   });
 
   it('maps monthly and yearly integer amounts without converting cents to reais', () => {
-    expect(parsePrice(price)).toMatchObject({ amountInCents: 1299, currency: 'brl', interval: 'MONTH', intervalCount: 1 });
-    expect(parsePrice({ ...price, recurring: { ...price.recurring, interval: 'year' } }))
-      .toMatchObject({ interval: 'YEAR', intervalCount: 1 });
+    expect(parsePrice(price)).toMatchObject({
+      amountInCents: 1299,
+      currency: 'brl',
+      interval: 'MONTH',
+      intervalCount: 1,
+    });
+    expect(parsePrice({ ...price, recurring: { ...price.recurring, interval: 'year' } })).toMatchObject({
+      interval: 'YEAR',
+      intervalCount: 1,
+    });
   });
 
   it.each([

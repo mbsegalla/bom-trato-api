@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { PrivateObjectStorage } from '../../../../shared/storage/privateObjectStorage.port.js';
 import type { WorkOrderPortfolioRepository } from '../../application/ports/workOrderPortfolio.repository.js';
 import { GetPublicPortfolioPhotoContentUseCase } from '../../application/useCases/getPublicPortfolioPhotoContent.useCase.js';
 import { ManageWorkOrderPortfolioUseCase } from '../../application/useCases/manageWorkOrderPortfolio.useCase.js';
 import { PublicPortfolioConsentUseCase } from '../../application/useCases/publicPortfolioConsent.useCase.js';
 import { NodeWorkOrderShareSecurity } from '../../infrastructure/security/nodeWorkOrderShareSecurity.js';
-import type { PrivateObjectStorage } from '../../../../shared/storage/privateObjectStorage.port.js';
 
 const TOKEN = 'a'.repeat(64);
 const key = 'private/organization/photo.webp';
@@ -80,7 +80,7 @@ describe('portfolio consent via private work order share', () => {
       organizationId: 'organization',
       workOrderId: 'work-order',
       photoId: 'photo',
-      userId: 'member'
+      userId: 'member',
     };
 
     await fixture.management.revoke(params);

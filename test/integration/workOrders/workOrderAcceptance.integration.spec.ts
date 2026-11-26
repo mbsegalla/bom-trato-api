@@ -1,11 +1,15 @@
 import { expect, it } from 'vitest';
 
-import { createWorkOrderAcceptanceSnapshot, hashWorkOrderAcceptanceSnapshot } from '../../../src/modules/workOrders/application/mappers/workOrderAcceptance.mapper.js';
+import {
+  createWorkOrderAcceptanceSnapshot,
+  hashWorkOrderAcceptanceSnapshot,
+} from '../../../src/modules/workOrders/application/mappers/workOrderAcceptance.mapper.js';
 import { resolvePublicWorkOrderAcceptance } from '../../../src/modules/workOrders/application/services/publicWorkOrderAcceptance.service.js';
 import { AcceptPublicWorkOrderUseCase } from '../../../src/modules/workOrders/application/useCases/acceptPublicWorkOrder.useCase.js';
 import { WORK_ORDER_ACCEPTANCE_CONSENT_VERSION } from '../../../src/modules/workOrders/domain/entities/workOrderAcceptance.entity.js';
 import { PrismaPublicWorkOrderUnitOfWork } from '../../../src/modules/workOrders/infrastructure/transactions/prismaPublicWorkOrderUnitOfWork.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
+
 import { createWorkOrderFixture } from './support/workOrder.fixture.js';
 
 databaseSuite('work order acceptance (disposable PostgreSQL)', () => {
@@ -18,7 +22,9 @@ databaseSuite('work order acceptance (disposable PostgreSQL)', () => {
     const snapshot = await unit.read(f.tokenHash, async (tx) => {
       const order = await tx.findWorkOrder();
 
-      if (!order) throw new Error('Missing work order fixture');
+      if (!order) {
+        throw new Error('Missing work order fixture');
+      }
 
       return createWorkOrderAcceptanceSnapshot(order);
     });
@@ -59,16 +65,14 @@ databaseSuite('work order acceptance (disposable PostgreSQL)', () => {
   it('serializes simultaneous identical acceptances and rejects conflicting replays', async () => {
     const f = await fixture();
 
-    const receipts = await Promise.all([
-      f.accept.execute(f.token, f.input),
-      f.accept.execute(f.token, f.input),
-    ]);
+    const receipts = await Promise.all([f.accept.execute(f.token, f.input), f.accept.execute(f.token, f.input)]);
 
     expect(receipts[0]).toEqual(receipts[1]);
     expect(await f.count()).toBe(1);
 
-    await expect(f.accept.execute(f.token, { ...f.input, signerName: 'Different signer' }))
-      .rejects.toThrow('WORK_ORDER_ALREADY_ACCEPTED');
+    await expect(f.accept.execute(f.token, { ...f.input, signerName: 'Different signer' })).rejects.toThrow(
+      'WORK_ORDER_ALREADY_ACCEPTED',
+    );
     expect(await f.count()).toBe(1);
   }, 30000);
 
@@ -80,8 +84,7 @@ databaseSuite('work order acceptance (disposable PostgreSQL)', () => {
       data: { version: { increment: 1 }, title: 'Changed service' },
     });
 
-    await expect(f.accept.execute(f.token, f.input))
-      .rejects.toThrow('WORK_ORDER_ACCEPTANCE_SNAPSHOT_CONFLICT');
+    await expect(f.accept.execute(f.token, f.input)).rejects.toThrow('WORK_ORDER_ACCEPTANCE_SNAPSHOT_CONFLICT');
     expect(await f.count()).toBe(0);
   });
 
@@ -92,8 +95,7 @@ databaseSuite('work order acceptance (disposable PostgreSQL)', () => {
       where: { id: f.order.id },
       data: { status: 'IN_PROGRESS', completedAt: null },
     });
-    await expect(f.accept.execute(f.token, f.input))
-      .rejects.toThrow('WORK_ORDER_ACCEPTANCE_NOT_AVAILABLE');
+    await expect(f.accept.execute(f.token, f.input)).rejects.toThrow('WORK_ORDER_ACCEPTANCE_NOT_AVAILABLE');
 
     await db.prisma.workOrderShare.update({
       where: { id: f.share.id },
@@ -116,7 +118,9 @@ databaseSuite('work order acceptance (disposable PostgreSQL)', () => {
     const status = await f.unit.read(f.tokenHash, async (tx) => {
       const order = await tx.findWorkOrder();
 
-      if (!order) throw new Error('Missing work order fixture');
+      if (!order) {
+        throw new Error('Missing work order fixture');
+      }
 
       return resolvePublicWorkOrderAcceptance(tx, order);
     });

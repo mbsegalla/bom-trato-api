@@ -4,6 +4,7 @@ import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingCustomerProps, BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
+
 import { UpdateBillingCustomerNameUseCase } from './updateBillingCustomerName.useCase.js';
 
 const customer: BillingCustomerProps = {
@@ -46,7 +47,9 @@ describe('UpdateBillingCustomerNameUseCase', () => {
     expect(f.keys).toEqual(['organization:org']);
     expect(f.updateCustomerName).toHaveBeenCalledWith(customer.stripeCustomerId, params.name);
     expect(f.setCustomerName).toHaveBeenCalledWith(customer.id, params.name);
-    expect(f.updateCustomerName.mock.invocationCallOrder[0]!).toBeLessThan(f.setCustomerName.mock.invocationCallOrder[0]!);
+    expect(f.updateCustomerName.mock.invocationCallOrder[0]).toBeLessThan(
+      f.setCustomerName.mock.invocationCallOrder[0],
+    );
   });
 
   it('does not repeat writes when the name is unchanged', async () => {

@@ -4,11 +4,11 @@ import { expect, it } from 'vitest';
 
 import { ReceivableApplicationService } from '../../../src/modules/receivables/application/services/receivableApplicationService.service.js';
 import { RecordReceivablePaymentUseCase } from '../../../src/modules/receivables/application/useCases/recordReceivablePayment.useCase.js';
-import { PrismaReceivableUnitOfWork } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivableUnitOfWork.js';
-import { PrismaReceivablePixChargeRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivablePixChargeRepository.js';
 import type { SaveReceivingSettingsInput } from '../../../src/modules/receivables/domain/types/receivingSettings.types.js';
 import { ReceivingSettingsCipher } from '../../../src/modules/receivables/infrastructure/security/receivingSettingsCipher.js';
 import { PrismaReceivablePaymentLinkRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivablePaymentLinkRepository.js';
+import { PrismaReceivablePixChargeRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivablePixChargeRepository.js';
+import { PrismaReceivableUnitOfWork } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivableUnitOfWork.js';
 import { PrismaReceivingSettingsRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivingSettingsRepository.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
@@ -42,7 +42,9 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const settings = new PrismaReceivingSettingsRepository(prisma, cipher);
     const links = new PrismaReceivablePaymentLinkRepository(prisma, cipher);
 
-    if (configure) await settings.save(f.actor, input);
+    if (configure) {
+      await settings.save(f.actor, input);
+    }
 
     return { ...f, settings, links, cipher };
   }
@@ -51,12 +53,20 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const f = await setup(false);
 
     expect(await f.settings.read(f.actor)).toEqual({
-      pixEnabled: false, pixKeyType: null, pixKey: null, merchantName: null, merchantCity: null,
-      version: 0, canConfigure: true, encryptionAvailable: true,
+      pixEnabled: false,
+      pixKeyType: null,
+      pixKey: null,
+      merchantName: null,
+      merchantCity: null,
+      version: 0,
+      canConfigure: true,
+      encryptionAvailable: true,
     });
-    expect(await context.prisma.organizationReceivingSettings.findUnique({
-      where: { organizationId: f.actor.organizationId },
-    })).toBeNull();
+    expect(
+      await context.prisma.organizationReceivingSettings.findUnique({
+        where: { organizationId: f.actor.organizationId },
+      }),
+    ).toBeNull();
     expect(await f.links.status(f.actor)).toBeNull();
   });
 
@@ -67,8 +77,12 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     });
 
     expect(row).toMatchObject({
-      pixEnabled: true, pixKeyType: 'EMAIL', merchantName: 'FIXTURE MERCHANT', merchantCity: 'UBERLANDIA',
-      version: 1, updatedById: f.actor.userId,
+      pixEnabled: true,
+      pixKeyType: 'EMAIL',
+      merchantName: 'FIXTURE MERCHANT',
+      merchantCity: 'UBERLANDIA',
+      version: 1,
+      updatedById: f.actor.userId,
     });
     expect(row.pixKeyCiphertext).not.toContain('fixture@example.invalid');
     expect(f.cipher.decrypt(f.actor.organizationId, 'EMAIL', row.pixKeyCiphertext!)).toBe('fixture@example.invalid');
@@ -91,10 +105,15 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
   it('clears encrypted destination data when disabling Pix', async () => {
     const f = await setup();
 
-    expect(await f.settings.save(f.actor, { ...disabled, version: 1 })).toMatchObject({ pixEnabled: false, version: 2 });
-    expect(await context.prisma.organizationReceivingSettings.findUniqueOrThrow({
-      where: { organizationId: f.actor.organizationId },
-    })).toMatchObject({ pixKeyType: null, pixKeyCiphertext: null, merchantName: null, merchantCity: null });
+    expect(await f.settings.save(f.actor, { ...disabled, version: 1 })).toMatchObject({
+      pixEnabled: false,
+      version: 2,
+    });
+    expect(
+      await context.prisma.organizationReceivingSettings.findUniqueOrThrow({
+        where: { organizationId: f.actor.organizationId },
+      }),
+    ).toMatchObject({ pixKeyType: null, pixKeyCiphertext: null, merchantName: null, merchantCity: null });
     await expect(f.links.create(f.actor, f.receivable.version)).rejects.toThrow('PIX_DESTINATION_NOT_CONFIGURED');
   });
 
@@ -118,7 +137,8 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const f = await setup();
     const link = await f.links.create(f.actor, f.receivable.version);
     await context.prisma.organizationTrial.update({
-      where: { organizationId: f.actor.organizationId }, data: { revokedAt: new Date() },
+      where: { organizationId: f.actor.organizationId },
+      data: { revokedAt: new Date() },
     });
 
     expect(await f.settings.read(f.actor)).toMatchObject({ canConfigure: false, version: 1 });
@@ -135,9 +155,11 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
 
     expect(await repository.read(f.actor)).toMatchObject({ canConfigure: false, encryptionAvailable: false });
     await expect(repository.save(f.actor, input)).rejects.toThrow('RECEIVING_SETTINGS_UNAVAILABLE');
-    expect(await context.prisma.organizationReceivingSettings.findUnique({
-      where: { organizationId: f.actor.organizationId },
-    })).toBeNull();
+    expect(
+      await context.prisma.organizationReceivingSettings.findUnique({
+        where: { organizationId: f.actor.organizationId },
+      }),
+    ).toBeNull();
   });
 
   it('rejects stale receivable versions before creating a payment link', async () => {
@@ -159,8 +181,12 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     expect(await f.links.status(f.actor)).toEqual({ active: true, expiresAt: link.expiresAt });
     const publicLink = await f.links.resolve(link.token);
     expect(publicLink).toEqual({
-      organizationName: 'Fixture organization', merchantName: 'FIXTURE MERCHANT',
-      amountInCents: 10_000, currency: 'brl', copyAndPaste: expect.any(String), expiresAt: link.expiresAt,
+      organizationName: 'Fixture organization',
+      merchantName: 'FIXTURE MERCHANT',
+      amountInCents: 10_000,
+      currency: 'brl',
+      copyAndPaste: expect.any(String),
+      expiresAt: link.expiresAt,
     });
     expect(publicLink.copyAndPaste).toContain('fixture@example.invalid');
   });
@@ -181,10 +207,13 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const link = await f.links.create(f.actor, f.receivable.version);
 
     await f.links.revoke(f.actor);
-    const revoked = await context.prisma.receivablePaymentLink.findUniqueOrThrow({ where: { receivableId: f.receivable.id } });
+    const revoked = await context.prisma.receivablePaymentLink.findUniqueOrThrow({
+      where: { receivableId: f.receivable.id },
+    });
     await f.links.revoke(f.actor);
-    expect(await context.prisma.receivablePaymentLink.findUniqueOrThrow({ where: { receivableId: f.receivable.id } }))
-      .toMatchObject({ revokedAt: revoked.revokedAt });
+    expect(
+      await context.prisma.receivablePaymentLink.findUniqueOrThrow({ where: { receivableId: f.receivable.id } }),
+    ).toMatchObject({ revokedAt: revoked.revokedAt });
     expect(await f.links.status(f.actor)).toMatchObject({ active: false });
     await expect(f.links.resolve(link.token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
   });
@@ -202,7 +231,8 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const f = await setup();
     const link = await f.links.create(f.actor, f.receivable.version);
     await context.prisma.receivable.update({
-      where: { id: f.receivable.id }, data: { version: { increment: 1 } },
+      where: { id: f.receivable.id },
+      data: { version: { increment: 1 } },
     });
 
     expect(await f.links.status(f.actor)).toMatchObject({ active: false });
@@ -218,10 +248,13 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     expect(await f.links.status(actor)).toBeNull();
   });
 
-  it.each(['', 'A'.repeat(64), 'a'.repeat(63), 'f'.repeat(64)])('rejects invalid or unknown public tokens uniformly', async (token) => {
-    const f = await setup(false);
-    await expect(f.links.resolve(token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
-  });
+  it.each(['', 'A'.repeat(64), 'a'.repeat(63), 'f'.repeat(64)])(
+    'rejects invalid or unknown public tokens uniformly',
+    async (token) => {
+      const f = await setup(false);
+      await expect(f.links.resolve(token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
+    },
+  );
   it('returns a private Pix charge bound to the receivable and settings versions', async () => {
     const f = await setup();
     const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
@@ -245,9 +278,15 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const service = new ReceivableApplicationService(new PrismaReceivableUnitOfWork(context.prisma));
     const record = new RecordReceivablePaymentUseCase(service);
     const first = await f.links.create(f.actor, f.receivable.version);
-    await record.execute({ ...f.actor, version: f.receivable.version }, {
-      requestId: randomUUID(), amountInCents: 3001, method: 'PIX', receivedAt: new Date().toISOString(),
-    });
+    await record.execute(
+      { ...f.actor, version: f.receivable.version },
+      {
+        requestId: randomUUID(),
+        amountInCents: 3001,
+        method: 'PIX',
+        receivedAt: new Date().toISOString(),
+      },
+    );
 
     const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
     expect(await charges.read(f.actor)).toMatchObject({ amountInCents: 6999, receivableVersion: 2 });
@@ -261,9 +300,15 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
     const link = await f.links.create(f.actor, f.receivable.version);
     const service = new ReceivableApplicationService(new PrismaReceivableUnitOfWork(context.prisma));
     const record = new RecordReceivablePaymentUseCase(service);
-    await record.execute({ ...f.actor, version: f.receivable.version }, {
-      requestId: randomUUID(), amountInCents: 10_000, method: 'PIX', receivedAt: new Date().toISOString(),
-    });
+    await record.execute(
+      { ...f.actor, version: f.receivable.version },
+      {
+        requestId: randomUUID(),
+        amountInCents: 10_000,
+        method: 'PIX',
+        receivedAt: new Date().toISOString(),
+      },
+    );
 
     const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
     await expect(charges.read(f.actor)).rejects.toThrow('PIX_CHARGE_NOT_AVAILABLE');

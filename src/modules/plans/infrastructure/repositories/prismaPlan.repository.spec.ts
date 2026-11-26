@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaPlanRepository } from './prismaPlan.repository.js';
 
 const record = {
@@ -29,20 +30,22 @@ describe('PrismaPlanRepository', () => {
       maxUsers: 3,
       prices: record.planPrices,
     });
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        published: true,
-        stripeActive: true,
-        planPrices: { some: { published: true, stripeActive: true } },
-      },
-      orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
-      select: expect.objectContaining({
-        planPrices: expect.objectContaining({
-          where: { published: true, stripeActive: true },
-          select: { id: true, amountInCents: true, currency: true, interval: true, intervalCount: true },
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          published: true,
+          stripeActive: true,
+          planPrices: { some: { published: true, stripeActive: true } },
+        },
+        orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
+        select: expect.objectContaining({
+          planPrices: expect.objectContaining({
+            where: { published: true, stripeActive: true },
+            select: { id: true, amountInCents: true, currency: true, interval: true, intervalCount: true },
+          }),
         }),
       }),
-    }));
+    );
   });
 
   it('reports an empty available catalog as a domain error', async () => {

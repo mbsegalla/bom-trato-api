@@ -3,21 +3,29 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteItem } from '../../domain/entities/quoteItem.entity.js';
+
 import { PrismaQuoteRepository } from './prismaQuote.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const actor = { organizationId: 'org', userId: 'owner' };
 
 function makeQuote() {
-  const quote = Quote.create({
-    id: 'quote',
-    ...actor,
-    customer: { id: 'customer', name: 'Fixture', email: null, phone: null },
-    details: { title: 'Fixture service' },
-  }, now);
+  const quote = Quote.create(
+    {
+      id: 'quote',
+      ...actor,
+      customer: { id: 'customer', name: 'Fixture', email: null, phone: null },
+      details: { title: 'Fixture service' },
+    },
+    now,
+  );
 
-  quote.addItem(QuoteItem.create('first', { name: 'First service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 1000 }));
-  quote.addItem(QuoteItem.create('second', { name: 'Second service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 2000 }));
+  quote.addItem(
+    QuoteItem.create('first', { name: 'First service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 1000 }),
+  );
+  quote.addItem(
+    QuoteItem.create('second', { name: 'Second service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 2000 }),
+  );
 
   return quote;
 }
@@ -33,13 +41,28 @@ function fixture() {
   const updateItems = vi.fn().mockResolvedValue({ count: 1 });
   const createHistory = vi.fn().mockResolvedValue(undefined);
   const listHistory = vi.fn().mockResolvedValue([]);
-  const repository = new PrismaQuoteRepository({
-    quote: { findFirst, findMany, create, updateMany },
-    quoteItem: { deleteMany: deleteItems, createMany: createItems, updateMany: updateItems },
-    quoteStatusHistory: { create: createHistory, findMany: listHistory },
-  } as unknown as Prisma.TransactionClient, actor.organizationId);
+  const repository = new PrismaQuoteRepository(
+    {
+      quote: { findFirst, findMany, create, updateMany },
+      quoteItem: { deleteMany: deleteItems, createMany: createItems, updateMany: updateItems },
+      quoteStatusHistory: { create: createHistory, findMany: listHistory },
+    } as unknown as Prisma.TransactionClient,
+    actor.organizationId,
+  );
 
-  return { quote, repository, findFirst, findMany, create, updateMany, deleteItems, createItems, updateItems, createHistory, listHistory };
+  return {
+    quote,
+    repository,
+    findFirst,
+    findMany,
+    create,
+    updateMany,
+    deleteItems,
+    createItems,
+    updateItems,
+    createHistory,
+    listHistory,
+  };
 }
 
 describe('PrismaQuoteRepository', () => {
@@ -53,7 +76,9 @@ describe('PrismaQuoteRepository', () => {
       data: {
         ...state,
         quoteItems: { create: items },
-        quoteStatusHistories: { create: { fromStatus: null, toStatus: 'DRAFT', actorId: actor.userId, version: 1, createdAt: now } },
+        quoteStatusHistories: {
+          create: { fromStatus: null, toStatus: 'DRAFT', actorId: actor.userId, version: 1, createdAt: now },
+        },
       },
     });
   });
@@ -77,12 +102,18 @@ describe('PrismaQuoteRepository', () => {
     expect(await f.repository.findById(state.id)).toEqual(f.quote.snapshot());
     expect(await f.repository.findById('unknown')).toBeNull();
     expect(await f.repository.list({ page: 2, limit: 1, status: 'DRAFT' })).toMatchObject({
-      items: [state], page: 2, hasMore: true,
+      items: [state],
+      page: 2,
+      hasMore: true,
     });
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId: 'org', status: 'DRAFT', customerId: undefined },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: 1, take: 2,
-    }));
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: 'org', status: 'DRAFT', customerId: undefined },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: 1,
+        take: 2,
+      }),
+    );
   });
 
   it('applies item differences without recreating unchanged records or adding status history', async () => {
@@ -90,9 +121,14 @@ describe('PrismaQuoteRepository', () => {
     const original = f.quote.snapshot();
     f.findFirst.mockResolvedValueOnce({ status: original.status, quoteItems: original.items });
 
-    f.quote.replaceItem('first', QuoteItem.create('first', { name: 'Updated service', unit: 'SERVICE', quantity: '2', unitAmountInCents: 1000 }));
+    f.quote.replaceItem(
+      'first',
+      QuoteItem.create('first', { name: 'Updated service', unit: 'SERVICE', quantity: '2', unitAmountInCents: 1000 }),
+    );
     f.quote.removeItem('second');
-    f.quote.addItem(QuoteItem.create('third', { name: 'New service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 3000 }));
+    f.quote.addItem(
+      QuoteItem.create('third', { name: 'New service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 3000 }),
+    );
     f.quote.recordChange(actor.userId, now);
 
     await f.repository.save(f.quote, 1);
@@ -118,7 +154,14 @@ describe('PrismaQuoteRepository', () => {
     await f.repository.save(f.quote, 1);
 
     expect(f.createHistory).toHaveBeenCalledWith({
-      data: { quoteId: 'quote', fromStatus: 'DRAFT', toStatus: 'SENT', actorId: actor.userId, version: 2, createdAt: now },
+      data: {
+        quoteId: 'quote',
+        fromStatus: 'DRAFT',
+        toStatus: 'SENT',
+        actorId: actor.userId,
+        version: 2,
+        createdAt: now,
+      },
     });
     expect(f.updateItems).not.toHaveBeenCalled();
     expect(f.deleteItems).not.toHaveBeenCalled();

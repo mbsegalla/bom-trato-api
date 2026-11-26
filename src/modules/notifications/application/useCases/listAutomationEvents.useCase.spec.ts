@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AutomationEventRepository, AutomationEventProps } from '../../domain/repositories/automationEvent.repository.js';
+import type {
+  AutomationEventProps,
+  AutomationEventRepository,
+} from '../../domain/repositories/automationEvent.repository.js';
+
 import { ListAutomationEventsUseCase } from './listAutomationEvents.useCase.js';
 
 const params = { organizationId: 'org', userId: 'user', limit: 5 };
@@ -28,7 +32,7 @@ describe('ListAutomationEventsUseCase', () => {
     expect(await useCase.execute(params)).toEqual({ items: [event] });
     expect(isMember).toHaveBeenCalledWith(params.userId, params.organizationId);
     expect(list).toHaveBeenCalledWith(params.organizationId, params.limit);
-    expect(isMember.mock.invocationCallOrder[0]).toBeLessThan(list.mock.invocationCallOrder[0]!);
+    expect(isMember.mock.invocationCallOrder[0]).toBeLessThan(list.mock.invocationCallOrder[0]);
   });
 
   it('does not list events for a nonmember', async () => {

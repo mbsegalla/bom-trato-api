@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { QuoteShare, type QuoteShareProps } from '../../domain/entities/quoteShare.entity.js';
+
 import { PrismaQuoteShareRepository } from './prismaQuoteShare.repository.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -26,9 +27,12 @@ function fixture() {
   const findFirst = vi.fn().mockResolvedValue(null);
   const create = vi.fn().mockResolvedValue(undefined);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaQuoteShareRepository({
-    quoteShare: { findFirst, create, updateMany },
-  } as unknown as Prisma.TransactionClient, state.organizationId);
+  const repository = new PrismaQuoteShareRepository(
+    {
+      quoteShare: { findFirst, create, updateMany },
+    } as unknown as Prisma.TransactionClient,
+    state.organizationId,
+  );
 
   return { repository, findFirst, create, updateMany };
 }
@@ -42,22 +46,28 @@ describe('PrismaQuoteShareRepository', () => {
       where: { tokenHash: state.tokenHash, organizationId: state.organizationId },
     });
 
-    f.findFirst.mockResolvedValueOnce({ quoteVersion: 2, changeRequestedAt: now, changeRequestMessage: 'Fixture change' });
+    f.findFirst.mockResolvedValueOnce({
+      quoteVersion: 2,
+      changeRequestedAt: now,
+      changeRequestMessage: 'Fixture change',
+    });
 
     expect(await f.repository.findLatestChangeRequest(state.quoteId)).toEqual({
       quoteVersion: 2,
       requestedAt: now,
       message: 'Fixture change',
     });
-    expect(f.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({
-      where: {
-        quoteId: state.quoteId,
-        organizationId: state.organizationId,
-        changeRequestedAt: { not: null },
-        changeRequestMessage: { not: null },
-      },
-      orderBy: [{ changeRequestedAt: 'desc' }, { id: 'desc' }],
-    }));
+    expect(f.findFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          quoteId: state.quoteId,
+          organizationId: state.organizationId,
+          changeRequestedAt: { not: null },
+          changeRequestMessage: { not: null },
+        },
+        orderBy: [{ changeRequestedAt: 'desc' }, { id: 'desc' }],
+      }),
+    );
   });
 
   it('returns no change request for missing or incomplete persistence results', async () => {
@@ -99,16 +109,24 @@ describe('PrismaQuoteShareRepository', () => {
     const f = fixture();
     const decision = QuoteShare.restore({ ...state, decision: 'APPROVED', decidedAt: now, decidedVersion: 3 });
     const change = QuoteShare.restore({ ...state, changeRequestedAt: now, changeRequestMessage: 'Fixture change' });
-    const where = { id: state.id, organizationId: state.organizationId, revokedAt: null, decision: null, changeRequestedAt: null };
+    const where = {
+      id: state.id,
+      organizationId: state.organizationId,
+      revokedAt: null,
+      decision: null,
+      changeRequestedAt: null,
+    };
 
     await f.repository.saveDecision(decision);
     await f.repository.saveChangeRequest(change);
 
     expect(f.updateMany).toHaveBeenNthCalledWith(1, {
-      where, data: { decision: 'APPROVED', decidedAt: now, decidedVersion: 3 },
+      where,
+      data: { decision: 'APPROVED', decidedAt: now, decidedVersion: 3 },
     });
     expect(f.updateMany).toHaveBeenNthCalledWith(2, {
-      where, data: { changeRequestedAt: now, changeRequestMessage: 'Fixture change' },
+      where,
+      data: { changeRequestedAt: now, changeRequestMessage: 'Fixture change' },
     });
 
     f.updateMany.mockResolvedValue({ count: 0 });

@@ -10,7 +10,7 @@ const input = {
   customerName: 'Cliente Sobrenome Privado',
   rating: 5,
   comment: ' Good ',
-  now: new Date('2026-01-01T00:00:00Z')
+  now: new Date('2026-01-01T00:00:00Z'),
 };
 
 describe('ProfessionalReview', () => {
@@ -18,7 +18,7 @@ describe('ProfessionalReview', () => {
     expect(ProfessionalReview.create(input).snapshot()).toMatchObject({
       reviewerDisplayName: 'Cliente P.',
       rating: 5,
-      comment: 'Good'
+      comment: 'Good',
     });
     expect(ProfessionalReview.displayName(' ')).toBe('Cliente');
   });

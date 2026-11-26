@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { canEnqueueAutomation } from './prismaAutomationEnqueue.policy.js';
 import { automationFixture, now, trial } from './support/automationPolicy.fixture.js';
+import { canEnqueueAutomation } from './prismaAutomationEnqueue.policy.js';
 
 describe('automation enqueue eligibility', () => {
   it('locks the organization and counts its automation jobs within the trial window', async () => {
@@ -15,8 +15,8 @@ describe('automation enqueue eligibility', () => {
       db.notificationOutbox.count.mockResolvedValueOnce(50);
       expect(await canEnqueueAutomation(tx, trial.organizationId)).toBe(false);
 
-      expect(db.$queryRaw.mock.calls[0]![0].join('?')).toContain('FOR UPDATE');
-      expect(db.$queryRaw.mock.calls[0]![1]).toBe(trial.organizationId);
+      expect(db.$queryRaw.mock.calls[0][0].join('?')).toContain('FOR UPDATE');
+      expect(db.$queryRaw.mock.calls[0][1]).toBe(trial.organizationId);
       expect(db.notificationOutbox.count).toHaveBeenCalledWith({
         where: {
           organizationId: trial.organizationId,
@@ -24,7 +24,9 @@ describe('automation enqueue eligibility', () => {
           createdAt: { gte: trial.startsAt, lt: trial.expiresAt },
         },
       });
-      expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(db.notificationOutbox.count.mock.invocationCallOrder[0]!);
+      expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        db.notificationOutbox.count.mock.invocationCallOrder[0],
+      );
     } finally {
       vi.useRealTimers();
     }

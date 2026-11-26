@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
-import { createHash } from 'node:crypto';
 import { NodeWorkOrderShareSecurity } from './nodeWorkOrderShareSecurity.js';
 
 describe('NodeWorkOrderShareSecurity', () => {
@@ -16,14 +17,10 @@ describe('NodeWorkOrderShareSecurity', () => {
     expect(security.hash(first.token)).toBe(first.hash);
   });
 
-  it.each([
-    '',
-    'a'.repeat(63),
-    'a'.repeat(65),
-    'G'.repeat(64),
-    'A'.repeat(64),
-    ' ' + 'a'.repeat(64)
-  ])('rejects malformed private link secrets', (value) => {
-    expect(() => new NodeWorkOrderShareSecurity().hash(value)).toThrow('WORK_ORDER_SHARE_NOT_FOUND');
-  });
+  it.each(['', 'a'.repeat(63), 'a'.repeat(65), 'G'.repeat(64), 'A'.repeat(64), ' ' + 'a'.repeat(64)])(
+    'rejects malformed private link secrets',
+    (value) => {
+      expect(() => new NodeWorkOrderShareSecurity().hash(value)).toThrow('WORK_ORDER_SHARE_NOT_FOUND');
+    },
+  );
 });

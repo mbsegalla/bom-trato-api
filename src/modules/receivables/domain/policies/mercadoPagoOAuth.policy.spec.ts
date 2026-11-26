@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hashMercadoPagoState,
   isMercadoPagoAttemptCurrent,
-  MERCADO_PAGO_STATE_TTL_MS
+  MERCADO_PAGO_STATE_TTL_MS,
 } from './mercadoPagoOAuth.policy.js';
 
 const now = new Date('2026-11-25T15:00:00Z');

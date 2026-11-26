@@ -4,16 +4,17 @@ import { PaymentMethodUpdate } from './paymentMethodUpdate.entity.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const expiresAt = new Date(now.getTime() + 60000);
-const create = () => PaymentMethodUpdate.create({
-  id: 'update',
-  organizationId: 'org',
-  requestedById: 'owner',
-  stripeCustomerId: 'cus_fixture',
-  stripeSubscriptionId: 'sub_fixture',
-  consentVersion: '1',
-  consentAcceptedAt: now,
-  expiresAt
-});
+const create = () =>
+  PaymentMethodUpdate.create({
+    id: 'update',
+    organizationId: 'org',
+    requestedById: 'owner',
+    stripeCustomerId: 'cus_fixture',
+    stripeSubscriptionId: 'sub_fixture',
+    consentVersion: '1',
+    consentAcceptedAt: now,
+    expiresAt,
+  });
 const setup = { id: 'seti_fixture', customerId: 'cus_fixture', updateId: 'update' };
 
 describe('PaymentMethodUpdate', () => {

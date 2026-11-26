@@ -22,7 +22,7 @@ describe('Mercado Pago credential encryption', () => {
       [2, '333'],
       [3, 'true'],
       [4, '999'],
-      [5, 'refresh']
+      [5, 'refresh'],
     ] as const) {
       const different = [...context];
 
@@ -36,7 +36,9 @@ describe('Mercado Pago credential encryption', () => {
     const encrypted = cipher.seal(context, 'fixture-token');
 
     expect(() => new MercadoPagoCredentialCipher(undefined).seal(context, 'token')).toThrow('MERCADO_PAGO_UNAVAILABLE');
-    expect(() => new MercadoPagoCredentialCipher('b'.repeat(64)).open(context, encrypted)).toThrow('MERCADO_PAGO_UNAVAILABLE');
+    expect(() => new MercadoPagoCredentialCipher('b'.repeat(64)).open(context, encrypted)).toThrow(
+      'MERCADO_PAGO_UNAVAILABLE',
+    );
     expect(() => cipher.open(context, 'v1.invalid')).toThrow('MERCADO_PAGO_UNAVAILABLE');
   });
 });

@@ -3,20 +3,21 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MercadoPagoLivePixRepository } from '../ports/mercadoPagoLivePixRepository.port.js';
 import type { MercadoPagoLivePixReviewRepository } from '../ports/mercadoPagoLivePixReviewRepository.port.js';
 import type { MercadoPagoLivePixView } from '../types/mercadoPagoLivePix.types.js';
+
 import { ManageMercadoPagoLivePixUseCase } from './manageMercadoPagoLivePix.useCase.js';
 
 const actor = {
   organizationId: 'org',
   receivableId: 'receivable',
   userId: 'owner',
-  sessionId: 'session'
+  sessionId: 'session',
 };
 const input = {
   version: 1,
   buyerEmail: 'fixture@example.invalid',
   buyerDocumentType: 'CPF' as const,
   buyerDocumentNumber: '19119119100',
-  confirmed: true
+  confirmed: true,
 };
 const empty: MercadoPagoLivePixView = {
   organizationId: 'org',
@@ -42,7 +43,7 @@ const existing: MercadoPagoLivePixView = {
   canIssue: false,
   status: 'PROCESSING',
   issuanceId: 'issuance',
-  amountInCents: 100
+  amountInCents: 100,
 };
 function fixture() {
   const read = vi.fn<MercadoPagoLivePixReviewRepository['read']>().mockResolvedValue(empty);
@@ -50,14 +51,14 @@ function fixture() {
   const issue = vi.fn<MercadoPagoLivePixRepository['issue']>().mockResolvedValue({
     issuanceId: 'issuance',
     providerChargeId: null,
-    status: 'RESERVED'
+    status: 'RESERVED',
   });
 
   return {
     read,
     recover,
     issue,
-    useCase: new ManageMercadoPagoLivePixUseCase({ issue }, { read, recover })
+    useCase: new ManageMercadoPagoLivePixUseCase({ issue }, { read, recover }),
   };
 }
 

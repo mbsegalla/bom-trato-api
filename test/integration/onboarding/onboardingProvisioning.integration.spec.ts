@@ -38,8 +38,12 @@ databaseSuite('onboarding provisioning and trial eligibility (disposable Postgre
     const f = await fixture();
 
     expect(await f.application.state(f.user.id)).toEqual({
-      step: 'PROVISIONING', organizationId: null, selectedPlanPriceId: null,
-      accessSource: 'NONE', trialEligible: false, trial: null,
+      step: 'PROVISIONING',
+      organizationId: null,
+      selectedPlanPriceId: null,
+      accessSource: 'NONE',
+      trialEligible: false,
+      trial: null,
     });
   });
 
@@ -55,13 +59,19 @@ databaseSuite('onboarding provisioning and trial eligibility (disposable Postgre
 
     expect(organizations).toHaveLength(1);
 
-    const organization = organizations[0]!;
+    const organization = organizations[0];
 
-    expect(organization).toMatchObject({ id: states[0]!.organizationId, creationKey: f.user.id, setupCompletedAt: null });
-    expect(await db.prisma.organizationMember.findMany({ where: { organizationId: organization.id } }))
-      .toMatchObject([{ userId: f.user.id, role: 'OWNER' }]);
-    expect(await db.prisma.billingCustomer.findUniqueOrThrow({ where: { organizationId: organization.id } }))
-      .toMatchObject({ billingEmail: f.user.email, billingName: 'Fixture owner', stripeCustomerId: null });
+    expect(organization).toMatchObject({
+      id: states[0].organizationId,
+      creationKey: f.user.id,
+      setupCompletedAt: null,
+    });
+    expect(await db.prisma.organizationMember.findMany({ where: { organizationId: organization.id } })).toMatchObject([
+      { userId: f.user.id, role: 'OWNER' },
+    ]);
+    expect(
+      await db.prisma.billingCustomer.findUniqueOrThrow({ where: { organizationId: organization.id } }),
+    ).toMatchObject({ billingEmail: f.user.email, billingName: 'Fixture owner', stripeCustomerId: null });
     expect(await db.prisma.organizationTrial.count({ where: { ownerId: f.user.id } })).toBe(0);
   }, 30000);
 
@@ -72,9 +82,12 @@ databaseSuite('onboarding provisioning and trial eligibility (disposable Postgre
     const organizationId = state.organizationId!;
 
     await expect(f.application.state(other.id, organizationId)).rejects.toThrow('ORGANIZATION_NOT_FOUND');
-    await expect(f.repository.selectPlan(other.id, organizationId, organizationId)).rejects.toThrow('ORGANIZATION_NOT_FOUND');
-    await expect(f.repository.completeBusinessSetup({ userId: other.id, organizationId, name: 'Foreign name' }))
-      .rejects.toThrow('ORGANIZATION_NOT_FOUND');
+    await expect(f.repository.selectPlan(other.id, organizationId, organizationId)).rejects.toThrow(
+      'ORGANIZATION_NOT_FOUND',
+    );
+    await expect(
+      f.repository.completeBusinessSetup({ userId: other.id, organizationId, name: 'Foreign name' }),
+    ).rejects.toThrow('ORGANIZATION_NOT_FOUND');
 
     await db.prisma.organizationMember.create({
       data: { organizationId, userId: other.id, role: 'MEMBER' },
@@ -82,10 +95,12 @@ databaseSuite('onboarding provisioning and trial eligibility (disposable Postgre
     db.cleanup(() => db.prisma.organizationMember.deleteMany({ where: { organizationId, userId: other.id } }));
 
     expect(await f.application.state(other.id, organizationId)).toMatchObject({
-      step: 'CONTACT_OWNER', trialEligible: false,
+      step: 'CONTACT_OWNER',
+      trialEligible: false,
     });
     expect(await f.application.state(f.user.id, organizationId)).toMatchObject({
-      trialEligible: false, step: 'SELECT_PLAN',
+      trialEligible: false,
+      step: 'SELECT_PLAN',
     });
   });
 
@@ -95,17 +110,23 @@ databaseSuite('onboarding provisioning and trial eligibility (disposable Postgre
     const organizationId = state.organizationId!;
 
     await db.prisma.billingCustomer.update({
-      where: { organizationId }, data: { creationRequestedAt: new Date() },
+      where: { organizationId },
+      data: { creationRequestedAt: new Date() },
     });
     expect(await f.application.state(f.user.id, organizationId)).toMatchObject({
-      step: 'SELECT_PLAN', trialEligible: false,
+      step: 'SELECT_PLAN',
+      trialEligible: false,
     });
 
-    await expect(f.repository.selectPlan(f.user.id, organizationId, organizationId)).rejects.toThrow('PLAN_UNAVAILABLE');
-    await expect(f.repository.completeBusinessSetup({ userId: f.user.id, organizationId, name: 'Unpaid business' }))
-      .rejects.toThrow('SUBSCRIPTION_REQUIRED');
+    await expect(f.repository.selectPlan(f.user.id, organizationId, organizationId)).rejects.toThrow(
+      'PLAN_UNAVAILABLE',
+    );
+    await expect(
+      f.repository.completeBusinessSetup({ userId: f.user.id, organizationId, name: 'Unpaid business' }),
+    ).rejects.toThrow('SUBSCRIPTION_REQUIRED');
 
-    expect(await db.prisma.organization.findUniqueOrThrow({ where: { id: organizationId } }))
-      .toMatchObject({ setupCompletedAt: null });
+    expect(await db.prisma.organization.findUniqueOrThrow({ where: { id: organizationId } })).toMatchObject({
+      setupCompletedAt: null,
+    });
   });
 });

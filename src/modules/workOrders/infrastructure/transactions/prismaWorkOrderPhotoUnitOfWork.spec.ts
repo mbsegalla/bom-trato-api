@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaWorkOrderPhotoUnitOfWork } from './prismaWorkOrderPhotoUnitOfWork.js';
 
 const params = { organizationId: 'org', userId: 'owner', workOrderId: 'order' };
@@ -14,7 +15,8 @@ function fixture() {
     organization: { findUnique: organization },
     organizationMember: { findUnique: member },
     workOrder: { findFirst: workOrder },
-    $queryRaw: query, $executeRaw: vi.fn().mockResolvedValue(0),
+    $queryRaw: query,
+    $executeRaw: vi.fn().mockResolvedValue(0),
   };
   const transaction = vi.fn(async (operation: (client: typeof db) => Promise<unknown>) => operation(db));
   const unit = new PrismaWorkOrderPhotoUnitOfWork({ $transaction: transaction } as unknown as PrismaService);
@@ -29,10 +31,15 @@ describe('PrismaWorkOrderPhotoUnitOfWork', () => {
       expect(context.access).toMatchObject({ isMember: false, hasPlatformAccess: false });
       expect(context.photos).toBeDefined();
     });
-    expect(f.member).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId_userId: { organizationId: 'org', userId: 'owner' } },
-    }));
-    expect(f.transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'RepeatableRead' }));
+    expect(f.member).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId_userId: { organizationId: 'org', userId: 'owner' } },
+      }),
+    );
+    expect(f.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ isolationLevel: 'RepeatableRead' }),
+    );
   });
 
   it.each([null, { id: 'order' }])('limits order lookup to the requested organization', async (value) => {
@@ -56,7 +63,7 @@ describe('PrismaWorkOrderPhotoUnitOfWork', () => {
   it('locks the organization during a write and propagates the result', async () => {
     const f = fixture();
     expect(await f.unit.run(params, async () => 'saved')).toBe('saved');
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
   });
 
   it('rejects writes to missing organizations', async () => {

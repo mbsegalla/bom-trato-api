@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
-import { createHash } from 'node:crypto';
 import { NodeOrganizationInvitationTokens } from './nodeOrganizationInvitationTokens.js';
 
 describe('NodeOrganizationInvitationTokens', () => {

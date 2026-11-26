@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ObjectStorage } from '../../../../shared/storage/objectStorage.port.js';
-import type { ReviewRepository, ReviewInvitationView } from '../../domain/repositories/review.repository.js';
+import type { ReviewInvitationView, ReviewRepository } from '../../domain/repositories/review.repository.js';
+
 import { ResolveReviewInvitationUseCase } from './resolveReviewInvitation.useCase.js';
 import { SubmitReviewUseCase } from './submitReview.useCase.js';
 
@@ -36,7 +37,7 @@ function fixture() {
       reviewerDisplayName: 'Cliente P.',
       rating: 5,
       comment: null,
-      createdAt: now
+      createdAt: now,
     },
     professionalSlug: 'fixture',
   });
@@ -51,7 +52,7 @@ function fixture() {
     publicUrl,
     security,
     resolve: new ResolveReviewInvitationUseCase(repository, security, { publicUrl } as unknown as ObjectStorage),
-    submit: new SubmitReviewUseCase(repository, security)
+    submit: new SubmitReviewUseCase(repository, security),
   };
 }
 
@@ -97,7 +98,7 @@ describe('review invitation use cases', () => {
       tokenHash: 'hash',
       rating: 5,
       comment: null,
-      now: expect.any(Date)
+      now: expect.any(Date),
     });
     expect(result).toEqual({
       reviewerDisplayName: 'Cliente P.',
@@ -105,7 +106,7 @@ describe('review invitation use cases', () => {
       comment: null,
       createdAt: expect.any(Date),
       verified: true,
-      professionalSlug: 'fixture'
+      professionalSlug: 'fixture',
     });
     expect(result).not.toHaveProperty('customerId');
     expect(result).not.toHaveProperty('workOrderId');

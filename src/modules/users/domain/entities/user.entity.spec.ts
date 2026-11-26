@@ -10,18 +10,16 @@ const input = {
   passwordHash: 'hash',
   selectedPlanPriceId: null,
   emailVerifiedAt: null,
-  disabledAt: null
+  disabledAt: null,
 };
 
 describe('User', () => {
-  it.each([
-    'A!short',
-    'lowercase!1234',
-    'Uppercase1234',
-    'A!' + 'x'.repeat(127)
-  ])('rejects invalid password requirements', (password) => {
-    expect(() => User.assertPassword(password)).toThrow('INVALID_PASSWORD');
-  });
+  it.each(['A!short', 'lowercase!1234', 'Uppercase1234', 'A!' + 'x'.repeat(127)])(
+    'rejects invalid password requirements',
+    (password) => {
+      expect(() => User.assertPassword(password)).toThrow('INVALID_PASSWORD');
+    },
+  );
 
   it('accepts Unicode uppercase and symbols with code-point length boundaries', () => {
     expect(() => User.assertPassword('Á' + '😀'.repeat(11))).not.toThrow();
@@ -41,7 +39,7 @@ describe('User', () => {
       name: 'Fixture',
       email: input.email,
       selectedPlanPriceId: null,
-      emailVerified: true
+      emailVerified: true,
     });
 
     const copy = user.emailVerifiedAt!;

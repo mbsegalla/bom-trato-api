@@ -7,20 +7,24 @@ describe('validation exception factory', () => {
     const error = validationExceptionFactory([
       {
         property: 'items',
-        children: [{
-          property: '0',
-          children: [{
-            property: 'amount',
-            constraints: { isInt: 'must be integer' },
-            value: 'private',
-            target: { secret: 'private' }
-          }]
-        }]
+        children: [
+          {
+            property: '0',
+            children: [
+              {
+                property: 'amount',
+                constraints: { isInt: 'must be integer' },
+                value: 'private',
+                target: { secret: 'private' },
+              },
+            ],
+          },
+        ],
       },
       {
         property: 'name',
         constraints: { isNotEmpty: 'required' },
-        value: 'private'
+        value: 'private',
       },
     ]);
 
@@ -30,7 +34,7 @@ describe('validation exception factory', () => {
       details: [
         { field: 'items.0.amount', messages: ['must be integer'] },
         { field: 'name', messages: ['required'] },
-      ]
+      ],
     });
     expect(JSON.stringify(error.publicError)).not.toContain('private');
   });

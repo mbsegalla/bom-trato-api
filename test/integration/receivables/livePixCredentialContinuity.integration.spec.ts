@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest';
+
 import { MercadoPagoConnectionRuntime } from '../../../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 import { PrismaMercadoPagoLiveWebhookRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLiveWebhookRepository.js';
 import { ProcessMercadoPagoLiveWebhookService } from '../../../src/modules/receivables/infrastructure/workers/processMercadoPagoLiveWebhook.service.js';
@@ -9,12 +10,7 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
   const context = createPaymentFixture();
 
   it('rotates a still-valid offline credential for a bound delivery without a user session', async () => {
-    const {
-      prisma,
-      fixture,
-      settlementFixture,
-      ledger
-    } = context;
+    const { prisma, fixture, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const key = { organizationId_liveMode: { organizationId: f.actor.organizationId, liveMode: true } };
@@ -24,27 +20,29 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
       where: { id: f.actor.sessionId },
       data: {
         revokedAt: new Date(),
-        revocationReason: 'LOGOUT'
-      }
+        revocationReason: 'LOGOUT',
+      },
     });
     const expiresAt = new Date(Date.now() + 3_600_000);
 
-    const refresh = vi.spyOn(f.runtime.requireEnabled().client, 'refreshCredentials').mockImplementation(async (accountId, token) => {
-      expect(accountId).toBe(f.accountId);
-      expect(token).toBe('fixture-refresh');
+    const refresh = vi
+      .spyOn(f.runtime.requireEnabled().client, 'refreshCredentials')
+      .mockImplementation(async (accountId, token) => {
+        expect(accountId).toBe(f.accountId);
+        expect(token).toBe('fixture-refresh');
 
-      const row = await prisma.mercadoPagoConnection.findUniqueOrThrow({ where: key });
+        const row = await prisma.mercadoPagoConnection.findUniqueOrThrow({ where: key });
 
-      expect(row.refreshClaimId).not.toBeNull();
+        expect(row.refreshClaimId).not.toBeNull();
 
-      return {
-        accountId,
-        accessToken: 'fixture-rotated-access',
-        refreshToken: 'fixture-rotated-refresh',
-        expiresAt,
-        liveMode: true
-      };
-    });
+        return {
+          accountId,
+          accessToken: 'fixture-rotated-access',
+          refreshToken: 'fixture-rotated-refresh',
+          expiresAt,
+          liveMode: true,
+        };
+      });
     f.read.mockImplementationOnce(async (input) => {
       expect(input.accessToken).toBe('fixture-rotated-access');
 
@@ -60,33 +58,25 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
     const row = await prisma.mercadoPagoConnection.findUniqueOrThrow({ where: key });
 
     expect(row).toMatchObject({ expiresAt, refreshClaimId: null, refreshStartedAt: null });
-    expect(f.runtime.cipher.open(
-      [
-        'credential',
-        f.actor.organizationId,
-        f.clientId,
-        'true',
-        f.accountId,
-        'refresh'
-      ],
-      row.refreshTokenCiphertext!,
-    )).toBe('fixture-rotated-refresh');
+    expect(
+      f.runtime.cipher.open(
+        ['credential', f.actor.organizationId, f.clientId, 'true', f.accountId, 'refresh'],
+        row.refreshTokenCiphertext!,
+      ),
+    ).toBe('fixture-rotated-refresh');
     expect((await ledger(f.receivable.id)).payments).toHaveLength(1);
   });
 
   it('retains an uncertain refresh claim and never repeats the possibly consumed grant', async () => {
-    const {
-      prisma,
-      fixture,
-      settlementFixture,
-      ledger
-    } = context;
+    const { prisma, fixture, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const key = { organizationId_liveMode: { organizationId: f.actor.organizationId, liveMode: true } };
 
     await prisma.mercadoPagoConnection.update({ where: key, data: { expiresAt: new Date(Date.now() + 60_000) } });
-    const refresh = vi.spyOn(f.runtime.requireEnabled().client, 'refreshCredentials').mockRejectedValue(new Error('fixture timeout'));
+    const refresh = vi
+      .spyOn(f.runtime.requireEnabled().client, 'refreshCredentials')
+      .mockRejectedValue(new Error('fixture timeout'));
 
     const first = await f.delivery();
 
@@ -103,8 +93,9 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(f.read).not.toHaveBeenCalled();
     expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
-    expect(await prisma.mercadoPagoConnection.findUniqueOrThrow({ where: key }))
-      .toMatchObject({ refreshClaimId: claim.refreshClaimId });
+    expect(await prisma.mercadoPagoConnection.findUniqueOrThrow({ where: key })).toMatchObject({
+      refreshClaimId: claim.refreshClaimId,
+    });
   });
 
   it('never renews credentials for an unmatched delivery or an already expired token', async () => {
@@ -112,7 +103,9 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
 
     const f = await settlementFixture();
     const key = { organizationId_liveMode: { organizationId: f.actor.organizationId, liveMode: true } };
-    const refresh = vi.spyOn(f.runtime.requireEnabled().client, 'refreshCredentials').mockRejectedValue(new Error('unexpected refresh'));
+    const refresh = vi
+      .spyOn(f.runtime.requireEnabled().client, 'refreshCredentials')
+      .mockRejectedValue(new Error('unexpected refresh'));
 
     await prisma.mercadoPagoConnection.update({ where: key, data: { expiresAt: new Date(Date.now() + 60_000) } });
     await f.inbox.enqueue(f.notice('987654321'));
@@ -139,12 +132,7 @@ paymentIntegrationSuite('livePixCredentialContinuity (disposable PostgreSQL)', (
   });
 
   it('continues settling an existing bound payment while new live issuance is switched off', async () => {
-    const {
-      prisma,
-      fixture,
-      settlementFixture,
-      ledger
-    } = context;
+    const { prisma, fixture, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const runtime = new MercadoPagoConnectionRuntime({

@@ -1,8 +1,10 @@
-import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { ConfigType } from '@nestjs/config';
+import type * as S3 from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { storageConfig } from '../../config/storage.config.js';
+
 import { S3ObjectStorage } from './s3ObjectStorage.js';
 
 const mocks = vi.hoisted(() => ({
@@ -11,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@aws-sdk/client-s3', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@aws-sdk/client-s3')>();
+  const actual = await importOriginal<typeof S3>();
 
   return {
     ...actual,
@@ -45,14 +47,19 @@ describe('S3ObjectStorage', () => {
   it('configures the isolated endpoint and writes the original bytes with the requested metadata', async () => {
     const storage = new S3ObjectStorage(config);
 
-    await storage.put({ key: 'logos/fixture.webp', body, contentType: 'image/webp', cacheControl: 'public, max-age=3600' });
+    await storage.put({
+      key: 'logos/fixture.webp',
+      body,
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=3600',
+    });
 
     expect(mocks.construct).toHaveBeenCalledWith({
       endpoint: config.endpoint,
       region: config.region,
       credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
     });
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(PutObjectCommand);
     expect(command.input).toEqual({
@@ -67,8 +74,9 @@ describe('S3ObjectStorage', () => {
   it('encodes key segments without interpreting query or fragment characters as URL syntax', () => {
     const storage = new S3ObjectStorage(config);
 
-    expect(storage.publicUrl('logos/ação & foto?#.webp'))
-      .toBe('https://assets.example.invalid/logos/a%C3%A7%C3%A3o%20%26%20foto%3F%23.webp');
+    expect(storage.publicUrl('logos/ação & foto?#.webp')).toBe(
+      'https://assets.example.invalid/logos/a%C3%A7%C3%A3o%20%26%20foto%3F%23.webp',
+    );
     expect(mocks.send).not.toHaveBeenCalled();
   });
 
@@ -77,7 +85,7 @@ describe('S3ObjectStorage', () => {
 
     await storage.delete('logos/old.webp');
 
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(DeleteObjectCommand);
     expect(command.input).toEqual({ Bucket: config.bucket, Key: 'logos/old.webp' });

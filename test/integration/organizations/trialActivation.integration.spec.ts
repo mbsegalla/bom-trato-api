@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+
 import { expect, it } from 'vitest';
 
 import { PrismaOrganizationTrialActivation } from '../../../src/modules/organizations/infrastructure/transactions/prismaOrganizationTrialActivation.js';
@@ -8,16 +9,26 @@ databaseSuite('organization trial activation (disposable PostgreSQL)', () => {
   const db = createDisposableDatabaseFixture();
 
   async function fixture(owner = undefined as Awaited<ReturnType<typeof db.user>> | undefined, initial = true) {
-    const user = owner ?? await db.user();
-    const organization = await db.prisma.organization.create({ data: {
-      name: 'Initial company', ownerId: user.id, creationKey: initial ? user.id : randomUUID(),
-    } });
+    const user = owner ?? (await db.user());
+    const organization = await db.prisma.organization.create({
+      data: {
+        name: 'Initial company',
+        ownerId: user.id,
+        creationKey: initial ? user.id : randomUUID(),
+      },
+    });
     db.cleanup(() => db.prisma.organization.deleteMany({ where: { id: organization.id } }));
-    await db.prisma.organizationMember.create({ data: { organizationId: organization.id, userId: user.id, role: 'OWNER' } });
+    await db.prisma.organizationMember.create({
+      data: { organizationId: organization.id, userId: user.id, role: 'OWNER' },
+    });
     db.cleanup(() => db.prisma.organizationMember.deleteMany({ where: { organizationId: organization.id } }));
-    const customer = await db.prisma.billingCustomer.create({ data: {
-      organizationId: organization.id, billingName: organization.name, billingEmail: user.email,
-    } });
+    const customer = await db.prisma.billingCustomer.create({
+      data: {
+        organizationId: organization.id,
+        billingName: organization.name,
+        billingEmail: user.email,
+      },
+    });
     db.cleanup(() => db.prisma.billingCustomer.deleteMany({ where: { id: customer.id } }));
     db.cleanup(() => db.prisma.organizationTrial.deleteMany({ where: { organizationId: organization.id } }));
     const activation = new PrismaOrganizationTrialActivation(db.prisma);
@@ -32,7 +43,10 @@ databaseSuite('organization trial activation (disposable PostgreSQL)', () => {
     const f = await fixture();
     const result = await f.activation.activate(f.params);
 
-    expect(result).toMatchObject({ status: 'ACTIVATED', trial: { organizationId: f.organization.id, ownerId: f.user.id, convertedAt: null, revokedAt: null } });
+    expect(result).toMatchObject({
+      status: 'ACTIVATED',
+      trial: { organizationId: f.organization.id, ownerId: f.user.id, convertedAt: null, revokedAt: null },
+    });
     const trial = await f.readTrial();
     expect(trial).not.toBeNull();
     expect(trial!.expiresAt.getTime() - trial!.startsAt.getTime()).toBe(14 * 86400000);
@@ -44,7 +58,8 @@ databaseSuite('organization trial activation (disposable PostgreSQL)', () => {
     const f = await fixture();
     const first = await f.activation.activate(f.params);
     expect(await f.activation.activate({ ...f.params, name: 'Different name' })).toMatchObject({
-      status: 'EXISTING', trial: first.status === 'ACTIVATED' ? first.trial : undefined,
+      status: 'EXISTING',
+      trial: first.status === 'ACTIVATED' ? first.trial : undefined,
     });
     expect(await f.readOrganization()).toMatchObject({ name: f.params.name });
     expect(await db.prisma.organizationTrial.count({ where: { ownerId: f.user.id } })).toBe(1);
@@ -72,17 +87,28 @@ databaseSuite('organization trial activation (disposable PostgreSQL)', () => {
     expect(await f.readTrial()).toBeNull();
   });
 
-  it.each(['remote-customer', 'creation-checkpoint', 'completed-setup'] as const)('does not activate a trial after incompatible %s activity', async (state) => {
-    const f = await fixture();
-    if (state === 'completed-setup') {
-      await db.prisma.organization.update({ where: { id: f.organization.id }, data: { setupCompletedAt: new Date() } });
-    } else {
-      await db.prisma.billingCustomer.update({ where: { id: f.customer.id }, data: state === 'remote-customer'
-        ? { stripeCustomerId: 'cus_' + randomUUID() } : { creationRequestedAt: new Date() } });
-    }
-    expect(await f.activation.activate(f.params)).toEqual({ status: 'TRIAL_NOT_AVAILABLE' });
-    expect(await f.readTrial()).toBeNull();
-  });
+  it.each(['remote-customer', 'creation-checkpoint', 'completed-setup'] as const)(
+    'does not activate a trial after incompatible %s activity',
+    async (state) => {
+      const f = await fixture();
+      if (state === 'completed-setup') {
+        await db.prisma.organization.update({
+          where: { id: f.organization.id },
+          data: { setupCompletedAt: new Date() },
+        });
+      } else {
+        await db.prisma.billingCustomer.update({
+          where: { id: f.customer.id },
+          data:
+            state === 'remote-customer'
+              ? { stripeCustomerId: 'cus_' + randomUUID() }
+              : { creationRequestedAt: new Date() },
+        });
+      }
+      expect(await f.activation.activate(f.params)).toEqual({ status: 'TRIAL_NOT_AVAILABLE' });
+      expect(await f.readTrial()).toBeNull();
+    },
+  );
 
   it('rejects an unrelated actor without changing the organization', async () => {
     const f = await fixture();

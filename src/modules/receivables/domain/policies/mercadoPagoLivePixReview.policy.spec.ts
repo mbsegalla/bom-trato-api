@@ -8,7 +8,7 @@ const receivable = {
   status: 'OPEN',
   currency: 'brl',
   amountInCents: 10_000,
-  receivedInCents: 0
+  receivedInCents: 0,
 };
 const row = {
   status: 'PENDING' as const,
@@ -25,10 +25,17 @@ describe('live Pix presentation and recovery admission', () => {
     expect(livePixViewStatus(row, receivable, false, now)).toBe('STALE');
     expect(livePixViewStatus(row, { ...receivable, version: 2 }, true, now)).toBe('STALE');
     expect(livePixViewStatus(row, receivable, true, row.expiresAt)).toBe('EXPIRED');
-    expect(livePixViewStatus({
-      ...row,
-      settlementReviewCode: 'VERIFIED_REFUNDED'
-    }, receivable, true, now)).toBe('REVIEW_REQUIRED');
+    expect(
+      livePixViewStatus(
+        {
+          ...row,
+          settlementReviewCode: 'VERIFIED_REFUNDED',
+        },
+        receivable,
+        true,
+        now,
+      ),
+    ).toBe('REVIEW_REQUIRED');
   });
 
   it('preserves terminal outcomes without displaying any payment code', () => {
@@ -40,17 +47,21 @@ describe('live Pix presentation and recovery admission', () => {
     const leaseExpiresAt = new Date(now.getTime() + 120_000);
 
     expect(nextLivePixRecoveryAt({ ...row, status: 'RESERVED' }, null)).toEqual(leaseExpiresAt);
-    expect(nextLivePixRecoveryAt(row, {
-      resultCode: 'IN_PROGRESS',
-      startedAt: now,
-      completedAt: null,
-      leaseExpiresAt,
-    })).toEqual(leaseExpiresAt);
-    expect(nextLivePixRecoveryAt(row, {
-      resultCode: 'NOT_FOUND',
-      startedAt: now,
-      completedAt: now,
-      leaseExpiresAt,
-    })).toEqual(new Date(now.getTime() + 60_000));
+    expect(
+      nextLivePixRecoveryAt(row, {
+        resultCode: 'IN_PROGRESS',
+        startedAt: now,
+        completedAt: null,
+        leaseExpiresAt,
+      }),
+    ).toEqual(leaseExpiresAt);
+    expect(
+      nextLivePixRecoveryAt(row, {
+        resultCode: 'NOT_FOUND',
+        startedAt: now,
+        completedAt: now,
+        leaseExpiresAt,
+      }),
+    ).toEqual(new Date(now.getTime() + 60_000));
   });
 });

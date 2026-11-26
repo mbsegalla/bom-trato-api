@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '../../../../generated/prisma/client.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaReviewRepository } from './prismaReview.repository.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -61,7 +62,10 @@ describe('PrismaReviewRepository', () => {
       customerName: 'Fixture Customer',
       reviewExists: false,
     });
-    f.invitation.mockResolvedValueOnce({ ...row, workOrder: { ...row.workOrder, professionalReview: { id: 'existing' } } });
+    f.invitation.mockResolvedValueOnce({
+      ...row,
+      workOrder: { ...row.workOrder, professionalReview: { id: 'existing' } },
+    });
     expect(await f.repository.resolveInvitation(row.tokenHash)).toMatchObject({ reviewExists: true });
     f.invitation.mockResolvedValueOnce(null);
     expect(await f.repository.resolveInvitation(row.tokenHash)).toBeNull();

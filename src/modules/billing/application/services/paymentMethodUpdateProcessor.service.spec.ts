@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PaymentMethodUpdate, type PaymentMethodUpdateProps } from '../../domain/entities/paymentMethodUpdate.entity.js';
+import {
+  PaymentMethodUpdate,
+  type PaymentMethodUpdateProps,
+} from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { PaymentMethodUpdateRepository } from '../../domain/repositories/paymentMethodUpdate.repository.js';
 import type { PaymentMethodGateway, PaymentSetup } from '../ports/paymentMethodGateway.port.js';
+
 import { PaymentMethodUpdateProcessor } from './paymentMethodUpdateProcessor.service.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -63,7 +67,9 @@ describe('PaymentMethodUpdateProcessor', () => {
     const f = fixture();
 
     expect(await f.processor.process({ ...state, status })).toEqual({
-      updateId: state.id, status, clientSecret: null,
+      updateId: state.id,
+      status,
+      clientSecret: null,
     });
     expect(f.billing.assertOwner).not.toHaveBeenCalled();
     expect(f.gateway.createSetup).not.toHaveBeenCalled();
@@ -74,14 +80,19 @@ describe('PaymentMethodUpdateProcessor', () => {
     const f = fixture();
 
     expect(await f.processor.process(state)).toEqual({
-      updateId: state.id, status: 'PENDING', clientSecret: setup.clientSecret,
+      updateId: state.id,
+      status: 'PENDING',
+      clientSecret: setup.clientSecret,
     });
     expect(f.gateway.createSetup).toHaveBeenCalledWith(state);
-    expect(f.repository.save.mock.calls[0]![0].snapshot()).toMatchObject({
-      stripeSetupIntentId: setup.id, status: 'PENDING',
+    expect(f.repository.save.mock.calls[0][0].snapshot()).toMatchObject({
+      stripeSetupIntentId: setup.id,
+      status: 'PENDING',
     });
     expect(f.repository.postpone).toHaveBeenCalledWith(state.id, 30);
-    expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(f.repository.postpone.mock.invocationCallOrder[0]!);
+    expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.postpone.mock.invocationCallOrder[0],
+    );
   });
 
   it.each(['OWNER_REQUIRED', 'EMAIL_NOT_VERIFIED', 'ORGANIZATION_NOT_FOUND'] as const)(
@@ -91,7 +102,7 @@ describe('PaymentMethodUpdateProcessor', () => {
       f.billing.assertOwner.mockRejectedValueOnce(new BillingError(code));
 
       expect(await f.processor.process(state)).toMatchObject({ status: 'CANCELED', clientSecret: null });
-      expect(f.repository.save.mock.calls[0]![0].snapshot().status).toBe('CANCELED');
+      expect(f.repository.save.mock.calls[0][0].snapshot().status).toBe('CANCELED');
       expect(f.gateway.createSetup).not.toHaveBeenCalled();
       expect(f.billing.customer).not.toHaveBeenCalled();
     },
@@ -128,18 +139,19 @@ describe('PaymentMethodUpdateProcessor', () => {
     expect(f.gateway.createSetup).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { customerId: 'cus_other' },
-    { updateId: 'other' },
-    { id: 'seti_other' },
-  ])('rejects a remote setup identity mismatch: %j', async (override) => {
-    const f = fixture();
-    f.gateway.retrieveSetup.mockResolvedValueOnce({ ...setup, ...override });
+  it.each([{ customerId: 'cus_other' }, { updateId: 'other' }, { id: 'seti_other' }])(
+    'rejects a remote setup identity mismatch: %j',
+    async (override) => {
+      const f = fixture();
+      f.gateway.retrieveSetup.mockResolvedValueOnce({ ...setup, ...override });
 
-    await expect(f.processor.process({ ...state, stripeSetupIntentId: setup.id })).rejects.toThrow('INVALID_PAYMENT_METHOD_UPDATE');
-    expect(f.gateway.apply).not.toHaveBeenCalled();
-    expect(f.repository.save).not.toHaveBeenCalled();
-  });
+      await expect(f.processor.process({ ...state, stripeSetupIntentId: setup.id })).rejects.toThrow(
+        'INVALID_PAYMENT_METHOD_UPDATE',
+      );
+      expect(f.gateway.apply).not.toHaveBeenCalled();
+      expect(f.repository.save).not.toHaveBeenCalled();
+    },
+  );
 
   it('cancels expired confirmable setups but keeps remotely processing payments pending', async () => {
     const f = fixture();
@@ -158,11 +170,15 @@ describe('PaymentMethodUpdateProcessor', () => {
   it('applies a succeeded setup to the exact customer and subscription before marking it applied', async () => {
     const f = fixture();
     f.gateway.retrieveSetup.mockResolvedValueOnce({
-      ...setup, status: 'succeeded', paymentMethodId: 'pm_fixture',
+      ...setup,
+      status: 'succeeded',
+      paymentMethodId: 'pm_fixture',
     });
 
     expect(await f.processor.process({ ...state, stripeSetupIntentId: setup.id })).toEqual({
-      updateId: state.id, status: 'APPLIED', clientSecret: null,
+      updateId: state.id,
+      status: 'APPLIED',
+      clientSecret: null,
     });
     expect(f.gateway.apply).toHaveBeenCalledExactlyOnceWith({
       customerId: state.stripeCustomerId,
@@ -170,7 +186,7 @@ describe('PaymentMethodUpdateProcessor', () => {
       updateId: state.id,
       paymentMethodId: 'pm_fixture',
     });
-    expect(f.gateway.apply.mock.invocationCallOrder[0]).toBeLessThan(f.repository.save.mock.invocationCallOrder[0]!);
+    expect(f.gateway.apply.mock.invocationCallOrder[0]).toBeLessThan(f.repository.save.mock.invocationCallOrder[0]);
     expect(f.repository.postpone).not.toHaveBeenCalled();
   });
 

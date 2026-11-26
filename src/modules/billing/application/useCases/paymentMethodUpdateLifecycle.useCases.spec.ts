@@ -7,6 +7,7 @@ import type { PaymentMethodUpdateRepository } from '../../domain/repositories/pa
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PaymentMethodUpdateProcessor } from '../services/paymentMethodUpdateProcessor.service.js';
+
 import { CompletePaymentMethodUpdateUseCase } from './completePaymentMethodUpdate.useCase.js';
 import { StartPaymentMethodUpdateUseCase } from './startPaymentMethodUpdate.useCase.js';
 import { SyncPaymentMethodUpdateUseCase } from './syncPaymentMethodUpdate.useCase.js';
@@ -31,7 +32,9 @@ function fixture() {
     assertOwner: vi.fn().mockResolvedValue(undefined),
     customer: vi.fn().mockResolvedValue({ stripeCustomerId: state.stripeCustomerId }),
     saveSnapshot: vi.fn().mockResolvedValue(undefined),
-    currentSubscription: vi.fn().mockResolvedValue({ status: 'ACTIVE', stripeSubscriptionId: state.stripeSubscriptionId }),
+    currentSubscription: vi
+      .fn()
+      .mockResolvedValue({ status: 'ACTIVE', stripeSubscriptionId: state.stripeSubscriptionId }),
   };
   const repository = {
     active: vi.fn().mockResolvedValue(null),
@@ -48,7 +51,11 @@ function fixture() {
   const p = processor as unknown as PaymentMethodUpdateProcessor;
 
   return {
-    billing, repository, gateway, lock, processor,
+    billing,
+    repository,
+    gateway,
+    lock,
+    processor,
     start: new StartPaymentMethodUpdateUseCase(b, r, gateway as unknown as BillingGateway, l, p),
     complete: new CompletePaymentMethodUpdateUseCase(b, r, l, p),
     sync: new SyncPaymentMethodUpdateUseCase(r, l, p),
@@ -71,7 +78,7 @@ describe('payment method update lifecycle', () => {
     expect(f.lock.run).toHaveBeenCalledWith('organization:org', expect.any(Function));
     expect(f.gateway.snapshot).toHaveBeenCalledWith(state.stripeCustomerId);
 
-    const stored = f.repository.create.mock.calls[0]![0].snapshot();
+    const stored = f.repository.create.mock.calls[0][0].snapshot();
 
     expect(stored).toMatchObject({
       organizationId: actor.organizationId,
@@ -84,7 +91,9 @@ describe('payment method update lifecycle', () => {
       expiresAt: new Date(now.getTime() + 7200000),
     });
     expect(f.processor.process).toHaveBeenCalledWith(stored);
-    expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(f.repository.create.mock.invocationCallOrder[0]!);
+    expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.create.mock.invocationCallOrder[0],
+    );
   });
 
   it('resumes the same owner setup without creating a second update', async () => {
@@ -103,8 +112,8 @@ describe('payment method update lifecycle', () => {
 
     await f.start.execute(actor);
 
-    expect(f.repository.save.mock.calls[0]![0].snapshot().status).toBe('CANCELED');
-    expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(f.repository.create.mock.invocationCallOrder[0]!);
+    expect(f.repository.save.mock.calls[0][0].snapshot().status).toBe('CANCELED');
+    expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(f.repository.create.mock.invocationCallOrder[0]);
   });
 
   it('stops if authorization changes while waiting for the organization lock', async () => {

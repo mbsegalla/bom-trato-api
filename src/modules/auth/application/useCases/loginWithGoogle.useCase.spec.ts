@@ -6,6 +6,7 @@ import type { AuthRepository } from '../../domain/repositories/auth.repository.j
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthTransaction, AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
 import type { GoogleIdentityProvider } from '../ports/googleIdentityProvider.port.js';
+
 import { LoginWithGoogleUseCase } from './loginWithGoogle.useCase.js';
 
 const policy = {
@@ -20,7 +21,7 @@ const profile = {
   email: ' USER@example.invalid ',
   name: 'Fixture',
   emailVerified: true,
-  hostedDomain: null
+  hostedDomain: null,
 };
 const account = User.restore({
   id: 'user',
@@ -49,7 +50,8 @@ function fixture() {
   };
   const google = { verifyCredential: vi.fn<GoogleIdentityProvider['verifyCredential']>().mockResolvedValue(profile) };
   const run = vi.fn(async (operation: (tx: AuthTransaction) => Promise<unknown>) =>
-    operation({ auth } as unknown as AuthTransaction));
+    operation({ auth } as unknown as AuthTransaction),
+  );
 
   return {
     auth,
@@ -57,8 +59,11 @@ function fixture() {
     security,
     run,
     useCase: new LoginWithGoogleUseCase(
-      { run } as unknown as AuthUnitOfWork, security as unknown as AuthSecurity, google, policy,
-    )
+      { run } as unknown as AuthUnitOfWork,
+      security as unknown as AuthSecurity,
+      google,
+      policy,
+    ),
   };
 }
 
@@ -85,11 +90,13 @@ describe('LoginWithGoogleUseCase', () => {
     const f = fixture();
 
     await expect(f.useCase.execute(input)).rejects.toThrow('TERMS_ACCEPTANCE_REQUIRED');
-    await expect(f.useCase.execute({
-      ...input,
-      ...legal,
-      termsVersion: 'outdated'
-    })).rejects.toThrow('LEGAL_DOCUMENT_VERSION_OUTDATED');
+    await expect(
+      f.useCase.execute({
+        ...input,
+        ...legal,
+        termsVersion: 'outdated',
+      }),
+    ).rejects.toThrow('LEGAL_DOCUMENT_VERSION_OUTDATED');
     expect(f.auth.registerFederated).not.toHaveBeenCalled();
   });
 
@@ -97,17 +104,19 @@ describe('LoginWithGoogleUseCase', () => {
     const f = fixture();
 
     expect(await f.useCase.execute({ ...input, ...legal })).toMatchObject({ accessToken: 'access', expiresIn: 900 });
-    expect(f.auth.registerFederated).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'user',
-      email: 'user@example.invalid',
-      identity: {
-        id: 'identity',
+    expect(f.auth.registerFederated).toHaveBeenCalledWith(
+      expect.objectContaining({
         userId: 'user',
-        provider: 'GOOGLE',
-        providerAccountId: profile.subject
-      },
-      legalAcceptance: expect.objectContaining({ ...legal, source: 'GOOGLE_REGISTER' }),
-    }));
+        email: 'user@example.invalid',
+        identity: {
+          id: 'identity',
+          userId: 'user',
+          provider: 'GOOGLE',
+          providerAccountId: profile.subject,
+        },
+        legalAcceptance: expect.objectContaining({ ...legal, source: 'GOOGLE_REGISTER' }),
+      }),
+    );
     expect(f.auth.startFederatedSession).toHaveBeenCalledWith({
       session: expect.objectContaining({ id: 'session', userId: 'user' }),
       refreshHash: 'refresh-hash',

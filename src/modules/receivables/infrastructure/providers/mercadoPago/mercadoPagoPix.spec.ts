@@ -119,19 +119,22 @@ describe('Mercado Pago sandbox Pix transport', () => {
     await expect(client.createSandboxPix(input)).rejects.toThrow();
   });
 
-  it.each(['approved', 'rejected', 'cancelled', 'in_process'])('does not offer a QR or confirm payment for %s', async (status) => {
-    const { client } = fixture({ ...response, status });
+  it.each(['approved', 'rejected', 'cancelled', 'in_process'])(
+    'does not offer a QR or confirm payment for %s',
+    async (status) => {
+      const { client } = fixture({ ...response, status });
 
-    await expect(client.createSandboxPix(input)).resolves.toEqual({
-      kind: 'REVIEW_REQUIRED',
-      paymentId: '456789',
-      accountId: input.accountId,
-      issuanceId: input.issuanceId,
-      amountInCents: input.amountInCents,
-      currency: 'brl',
-      liveMode: false,
-    });
-  });
+      await expect(client.createSandboxPix(input)).resolves.toEqual({
+        kind: 'REVIEW_REQUIRED',
+        paymentId: '456789',
+        accountId: input.accountId,
+        issuanceId: input.issuanceId,
+        amountInCents: input.amountInCents,
+        currency: 'brl',
+        liveMode: false,
+      });
+    },
+  );
 
   it('does not retry or leak the original error after an uncertain request', async () => {
     const { client, transport } = fixture(response);

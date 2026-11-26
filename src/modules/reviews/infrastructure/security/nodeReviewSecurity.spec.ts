@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
-import { createHash } from 'node:crypto';
 import { NodeReviewSecurity } from './nodeReviewSecurity.js';
 
 describe('NodeReviewSecurity', () => {
@@ -16,14 +17,10 @@ describe('NodeReviewSecurity', () => {
     expect(security.hash(first.token)).toBe(first.hash);
   });
 
-  it.each([
-    '',
-    'a'.repeat(63),
-    'a'.repeat(65),
-    'G'.repeat(64),
-    'A'.repeat(64),
-    ' ' + 'a'.repeat(64)
-  ])('rejects malformed private link secrets', (value) => {
-    expect(() => new NodeReviewSecurity().hash(value)).toThrow('REVIEW_INVITATION_NOT_FOUND');
-  });
+  it.each(['', 'a'.repeat(63), 'a'.repeat(65), 'G'.repeat(64), 'A'.repeat(64), ' ' + 'a'.repeat(64)])(
+    'rejects malformed private link secrets',
+    (value) => {
+      expect(() => new NodeReviewSecurity().hash(value)).toThrow('REVIEW_INVITATION_NOT_FOUND');
+    },
+  );
 });

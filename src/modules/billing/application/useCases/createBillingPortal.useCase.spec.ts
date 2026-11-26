@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingCustomerProps, BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
+
 import { CreateBillingPortalUseCase } from './createBillingPortal.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner' };
@@ -19,7 +20,9 @@ const customer: BillingCustomerProps = {
 function fixture() {
   const assertOwner = vi.fn<BillingRepository['assertOwner']>().mockResolvedValue(undefined);
   const readCustomer = vi.fn<BillingRepository['customer']>().mockResolvedValue(customer);
-  const createPortal = vi.fn<BillingGateway['createPortal']>().mockResolvedValue('https://billing.example.invalid/session');
+  const createPortal = vi
+    .fn<BillingGateway['createPortal']>()
+    .mockResolvedValue('https://billing.example.invalid/session');
   const useCase = new CreateBillingPortalUseCase(
     { assertOwner, customer: readCustomer } as unknown as BillingRepository,
     { createPortal } as unknown as BillingGateway,
@@ -58,7 +61,7 @@ describe('CreateBillingPortalUseCase', () => {
     expect(result).toEqual({ url: 'https://billing.example.invalid/session' });
     expect(f.assertOwner).toHaveBeenCalledWith(organizationId, actor.userId);
     expect(f.readCustomer).toHaveBeenCalledWith(organizationId);
-    const [remoteId, returnUrl] = f.createPortal.mock.calls[0]!;
+    const [remoteId, returnUrl] = f.createPortal.mock.calls[0];
     expect(remoteId).toBe(customer.stripeCustomerId);
     const url = new URL(returnUrl);
     expect(url.pathname).toBe('/billing');

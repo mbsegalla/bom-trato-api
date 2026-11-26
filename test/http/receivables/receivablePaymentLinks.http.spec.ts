@@ -1,11 +1,11 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ManageReceivablePaymentLinkUseCase } from '../../../src/modules/receivables/application/useCases/manageReceivablePaymentLink.useCase.js';
-import { ReceivablePaymentLinksController } from '../../../src/modules/receivables/presentation/http/controllers/receivablePaymentLinks.controller.js';
 import { appConfig } from '../../../src/config/app.config.js';
+import { ManageReceivablePaymentLinkUseCase } from '../../../src/modules/receivables/application/useCases/manageReceivablePaymentLink.useCase.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { ReceivablePaymentLinksController } from '../../../src/modules/receivables/presentation/http/controllers/receivablePaymentLinks.controller.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receivables/' + itemId + '/payment-link';
 const actor = { organizationId, userId };
@@ -17,10 +17,13 @@ describe('receivablePaymentLinks HTTP contracts', () => {
   const revoke = vi.fn();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([ReceivablePaymentLinksController], [
-      { provide: ManageReceivablePaymentLinkUseCase, useValue: { create: create, status: status, revoke: revoke } },
-      { provide: appConfig.KEY, useValue: { frontendUrl: 'https://app.example.invalid' } },
-    ]);
+    fixture = await createHttpFixture(
+      [ReceivablePaymentLinksController],
+      [
+        { provide: ManageReceivablePaymentLinkUseCase, useValue: { create, status, revoke } },
+        { provide: appConfig.KEY, useValue: { frontendUrl: 'https://app.example.invalid' } },
+      ],
+    );
   });
 
   beforeEach(() => {
@@ -44,7 +47,11 @@ describe('receivablePaymentLinks HTTP contracts', () => {
   });
 
   it('returns a no-store payment link with its token in the fragment and passes only trusted scope', async () => {
-    const response = await request(fixture.server).post(route).set('Authorization', 'Bearer fixture').send({ version: 2 }).expect(201);
+    const response = await request(fixture.server)
+      .post(route)
+      .set('Authorization', 'Bearer fixture')
+      .send({ version: 2 })
+      .expect(201);
     const url = new URL(response.body.data.url);
 
     expect(url.pathname).toBe('/pagar');

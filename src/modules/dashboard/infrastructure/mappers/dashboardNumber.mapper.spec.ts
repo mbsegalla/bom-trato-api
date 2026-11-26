@@ -7,7 +7,10 @@ describe('dashboard aggregate numeric boundaries', () => {
     expect(toDashboardNumber(value)).toBe(Number(value));
   });
 
-  it.each(['', '-1', '1.5', '1e3', 'NaN', ' 2 ', '9007199254740992', '999999999999999999999999999'])('rejects an unsafe or malformed aggregate %s', (value) => {
-    expect(() => toDashboardNumber(value)).toThrow('DASHBOARD_VALUE_OUT_OF_RANGE');
-  });
+  it.each(['', '-1', '1.5', '1e3', 'NaN', ' 2 ', '9007199254740992', '999999999999999999999999999'])(
+    'rejects an unsafe or malformed aggregate %s',
+    (value) => {
+      expect(() => toDashboardNumber(value)).toThrow('DASHBOARD_VALUE_OUT_OF_RANGE');
+    },
+  );
 });

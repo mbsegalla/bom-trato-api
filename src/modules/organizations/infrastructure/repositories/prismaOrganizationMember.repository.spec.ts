@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+
 import { PrismaOrganizationMemberRepository } from './prismaOrganizationMember.repository.js';
 
 const organizationId = 'organization';
@@ -29,12 +30,18 @@ describe('PrismaOrganizationMemberRepository', () => {
     await f.repository.findById({ organizationId, memberId });
 
     expect(f.count).toHaveBeenCalledWith({ where: { organizationId } });
-    expect(f.findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: { organizationId, userId },
-    }));
-    expect(f.findFirst).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: { organizationId, id: memberId },
-    }));
+    expect(f.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { organizationId, userId },
+      }),
+    );
+    expect(f.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { organizationId, id: memberId },
+      }),
+    );
   });
 
   it('checks membership by email only within the selected tenant', async () => {
@@ -63,7 +70,9 @@ describe('PrismaOrganizationMemberRepository', () => {
     f.findMany.mockResolvedValueOnce([member, { ...member, id: 'next' }]);
 
     expect(await f.repository.list({ organizationId, page: 2, limit: 1 })).toEqual({
-      items: [member], page: 2, hasMore: true,
+      items: [member],
+      page: 2,
+      hasMore: true,
     });
     expect(f.findMany).toHaveBeenCalledWith({
       where: { organizationId },
@@ -82,10 +91,15 @@ describe('PrismaOrganizationMemberRepository', () => {
 
     expect(await f.repository.listJoined({ userId, page: 1, limit: 10 })).toEqual({
       items: [{ id: organizationId, name: 'Fixture', logoKey: null, role: 'MEMBER' }],
-      page: 1, hasMore: false,
+      page: 1,
+      hasMore: false,
     });
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId }, skip: 0, take: 11,
-    }));
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId },
+        skip: 0,
+        take: 11,
+      }),
+    );
   });
 });

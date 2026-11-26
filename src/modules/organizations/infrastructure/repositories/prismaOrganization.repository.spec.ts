@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Prisma } from '../../../../generated/prisma/client.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { Organization } from '../../domain/entities/organization.entity.js';
+
 import { PrismaOrganizationRepository } from './prismaOrganization.repository.js';
 
 const organization = Organization.create({ id: 'org', ownerId: 'owner', name: 'Fixture business' }).snapshot();
@@ -39,13 +40,17 @@ describe('PrismaOrganizationRepository', () => {
     const f = fixture();
 
     expect(await f.repository.create(input)).toEqual(organization);
-    expect(f.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: {
-        ...organization, creationKey: input.creationKey, setupCompletedAt: expect.any(Date),
-        organizationMembers: { create: { userId: organization.ownerId, role: 'OWNER' } },
-        billingCustomer: { create: { billingEmail: input.billingEmail, billingName: organization.name } },
-      },
-    }));
+    expect(f.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          ...organization,
+          creationKey: input.creationKey,
+          setupCompletedAt: expect.any(Date),
+          organizationMembers: { create: { userId: organization.ownerId, role: 'OWNER' } },
+          billingCustomer: { create: { billingEmail: input.billingEmail, billingName: organization.name } },
+        },
+      }),
+    );
   });
 
   it('reuses a matching creation key only for the same owner and normalized name', async () => {
@@ -55,16 +60,19 @@ describe('PrismaOrganizationRepository', () => {
     expect(await f.repository.create(input)).toEqual(organization);
     await expect(f.repository.create(input)).rejects.toThrow('IDEMPOTENCY_CONFLICT');
 
-    expect(f.find).toHaveBeenCalledWith(expect.objectContaining({
-      where: { ownerId_creationKey: { ownerId: organization.ownerId, creationKey: input.creationKey } },
-    }));
+    expect(f.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ownerId_creationKey: { ownerId: organization.ownerId, creationKey: input.creationKey } },
+      }),
+    );
     expect(f.create).not.toHaveBeenCalled();
   });
 
   it('recovers a concurrent unique-key creation without masking unrelated database failures', async () => {
     const f = fixture();
     const conflict = new Prisma.PrismaClientKnownRequestError('Fixture unique conflict', {
-      code: 'P2002', clientVersion: 'fixture',
+      code: 'P2002',
+      clientVersion: 'fixture',
     });
     f.find.mockResolvedValueOnce(null).mockResolvedValueOnce(organization);
     f.create.mockRejectedValueOnce(conflict);
@@ -82,9 +90,12 @@ describe('PrismaOrganizationRepository', () => {
     f.list.mockResolvedValueOnce([organization]);
 
     expect(await f.repository.listOwned('owner')).toEqual([organization]);
-    expect(f.list).toHaveBeenCalledWith(expect.objectContaining({
-      where: { ownerId: 'owner', setupCompletedAt: { not: null } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: 100,
-    }));
+    expect(f.list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ownerId: 'owner', setupCompletedAt: { not: null } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: 100,
+      }),
+    );
   });
 });

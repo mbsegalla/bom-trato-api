@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
+
+import { now, params, receivableFixture, receivableState } from './support/receivable.fixture.js';
 import { CancelReceivableUseCase } from './cancelReceivable.useCase.js';
-import { UpdateReceivableUseCase } from './updateReceivable.useCase.js';
 import { RecordReceivablePaymentUseCase } from './recordReceivablePayment.useCase.js';
 import { ReverseReceivablePaymentUseCase } from './reverseReceivablePayment.useCase.js';
-import { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
-import { now, params, receivableFixture, receivableState } from './support/receivable.fixture.js';
+import { UpdateReceivableUseCase } from './updateReceivable.useCase.js';
 
 const input = {
   requestId: 'fixture-request',
@@ -14,20 +15,24 @@ const input = {
   receivedAt: now.toISOString(),
   notes: 'Fixture payment',
 };
-const payment = ReceivablePayment.create({
-  ...input,
-  id: 'payment',
-  receivableId: params.receivableId,
-  receivedAt: now,
-  recordedById: params.userId,
-}, now).snapshot();
+const payment = ReceivablePayment.create(
+  {
+    ...input,
+    id: 'payment',
+    receivableId: params.receivableId,
+    receivedAt: now,
+    recordedById: params.userId,
+  },
+  now,
+).snapshot();
 
 describe('receivable mutations', () => {
   it('updates only mutable details and advances the optimistic version', async () => {
     const f = receivableFixture();
 
     const result = await new UpdateReceivableUseCase(f.service).execute(params, {
-      dueAt: '2030-01-01T00:00:00Z', notes: '  Updated note  ',
+      dueAt: '2030-01-01T00:00:00Z',
+      notes: '  Updated note  ',
     });
 
     expect(result).toMatchObject({
@@ -38,14 +43,16 @@ describe('receivable mutations', () => {
       dueAt: new Date('2030-01-01T00:00:00Z'),
       updatedById: params.userId,
     });
-    expect(f.receivables.save.mock.calls[0]![1]).toBe(1);
+    expect(f.receivables.save.mock.calls[0][1]).toBe(1);
   });
 
   it('rejects stale edits and cannot edit a fully paid receivable', async () => {
     const f = receivableFixture();
     const update = new UpdateReceivableUseCase(f.service);
 
-    await expect(update.execute({ ...params, version: 2 }, { notes: 'Changed' })).rejects.toThrow('RECEIVABLE_VERSION_CONFLICT');
+    await expect(update.execute({ ...params, version: 2 }, { notes: 'Changed' })).rejects.toThrow(
+      'RECEIVABLE_VERSION_CONFLICT',
+    );
 
     f.receivables.findById.mockResolvedValueOnce(receivableState({ status: 'PAID', receivedInCents: 10000 }));
 
@@ -100,7 +107,9 @@ describe('receivable mutations', () => {
     const record = new RecordReceivablePaymentUseCase(f.service);
 
     await expect(record.execute(params, input)).rejects.toThrow('RECEIVABLE_VERSION_CONFLICT');
-    await expect(record.execute({ ...params, version: 2 }, { ...input, amountInCents: 7001 })).rejects.toThrow('PAYMENT_EXCEEDS_BALANCE');
+    await expect(record.execute({ ...params, version: 2 }, { ...input, amountInCents: 7001 })).rejects.toThrow(
+      'PAYMENT_EXCEEDS_BALANCE',
+    );
     expect(f.receivables.save).not.toHaveBeenCalled();
     expect(f.receivables.createPayment).not.toHaveBeenCalled();
   });
@@ -112,7 +121,10 @@ describe('receivable mutations', () => {
     await expect(reverse.execute(params, payment.id, 'Fixture reversal')).rejects.toThrow('PAYMENT_NOT_FOUND');
 
     f.receivables.findPaymentById.mockResolvedValueOnce({
-      ...payment, reversedAt: now, reversedById: params.userId, reversalReason: 'Previous reversal',
+      ...payment,
+      reversedAt: now,
+      reversedById: params.userId,
+      reversalReason: 'Previous reversal',
     });
 
     await expect(reverse.execute(params, payment.id, 'Fixture reversal')).rejects.toThrow('PAYMENT_ALREADY_REVERSED');
@@ -128,9 +140,12 @@ describe('receivable mutations', () => {
 
     expect(result.receivable).toMatchObject({ status: 'OPEN', balanceInCents: 10000, receivedInCents: 0, version: 2 });
     expect(result.payment).toMatchObject({
-      id: payment.id, amountInCents: 3000, reversedAt: expect.any(Date),
-      reversedById: params.userId, reversalReason: 'Fixture reversal',
+      id: payment.id,
+      amountInCents: 3000,
+      reversedAt: expect.any(Date),
+      reversedById: params.userId,
+      reversalReason: 'Fixture reversal',
     });
-    expect(f.receivables.savePaymentReversal.mock.calls[0]![0].snapshot()).toEqual(result.payment);
+    expect(f.receivables.savePaymentReversal.mock.calls[0][0].snapshot()).toEqual(result.payment);
   });
 });

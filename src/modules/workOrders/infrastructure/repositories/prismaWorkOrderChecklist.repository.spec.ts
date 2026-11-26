@@ -2,17 +2,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { WorkOrderChecklistItem } from '../../domain/entities/workOrderChecklistItem.entity.js';
-import { PrismaWorkOrderChecklistRepository, workOrderChecklistItemSelect } from './prismaWorkOrderChecklist.repository.js';
+
+import {
+  PrismaWorkOrderChecklistRepository,
+  workOrderChecklistItemSelect,
+} from './prismaWorkOrderChecklist.repository.js';
 
 const scope = { organizationId: 'org', workOrderId: 'order' };
 const now = new Date('2026-01-01T12:00:00Z');
-const item = WorkOrderChecklistItem.create({
-  ...scope,
-  id: 'item',
-  title: 'Fixture task',
-  position: 0,
-  createdById: 'owner',
-}, now);
+const item = WorkOrderChecklistItem.create(
+  {
+    ...scope,
+    id: 'item',
+    title: 'Fixture task',
+    position: 0,
+    createdById: 'owner',
+  },
+  now,
+);
 
 function fixture() {
   const findMany = vi.fn().mockResolvedValue([]);
@@ -20,9 +27,13 @@ function fixture() {
   const create = vi.fn().mockResolvedValue(undefined);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaWorkOrderChecklistRepository({
-    workOrderChecklistItem: { findMany, findFirst, create, updateMany, deleteMany },
-  } as unknown as Prisma.TransactionClient, scope.organizationId, scope.workOrderId);
+  const repository = new PrismaWorkOrderChecklistRepository(
+    {
+      workOrderChecklistItem: { findMany, findFirst, create, updateMany, deleteMany },
+    } as unknown as Prisma.TransactionClient,
+    scope.organizationId,
+    scope.workOrderId,
+  );
 
   return { repository, findMany, findFirst, create, updateMany, deleteMany };
 }
@@ -40,7 +51,8 @@ describe('PrismaWorkOrderChecklistRepository', () => {
       orderBy: [{ position: 'asc' }, { id: 'asc' }],
     });
     expect(f.findFirst).toHaveBeenCalledWith({
-      where: { ...scope, id: 'item' }, select: workOrderChecklistItemSelect,
+      where: { ...scope, id: 'item' },
+      select: workOrderChecklistItemSelect,
     });
   });
 

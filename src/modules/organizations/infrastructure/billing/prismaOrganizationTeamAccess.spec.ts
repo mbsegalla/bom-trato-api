@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { readOrganizationPlatformAccess } from '../access/prismaOrganizationPlatformAccess.js';
+
 import { PrismaOrganizationTeamAccess } from './prismaOrganizationTeamAccess.js';
 
 vi.mock('../access/prismaOrganizationPlatformAccess.js', () => ({ readOrganizationPlatformAccess: vi.fn() }));
@@ -13,7 +14,10 @@ const params = { organizationId: 'org', now };
 function fixture() {
   const price = vi.fn().mockResolvedValue({ plan: { maxUsers: 5, teamManagementEnabled: true } });
   const pending = vi.fn().mockResolvedValue(null);
-  const db = { planPrice: { findUniqueOrThrow: price }, planChange: { findUnique: pending } } as unknown as Prisma.TransactionClient;
+  const db = {
+    planPrice: { findUniqueOrThrow: price },
+    planChange: { findUnique: pending },
+  } as unknown as Prisma.TransactionClient;
   const service = new PrismaOrganizationTeamAccess(db);
   return { service, price, pending, db };
 }
@@ -22,7 +26,8 @@ function snapshot(source: string, hasAccess: boolean, billingNeedsReconciliation
   return {
     access: { source, hasAccess, billingNeedsReconciliation },
     currentSubscription: planPriceId ? { planPriceId } : null,
-    trial: null, hasPaidSubscriptionHistory: false,
+    trial: null,
+    hasPaidSubscriptionHistory: false,
   } as Awaited<ReturnType<typeof readOrganizationPlatformAccess>>;
 }
 
@@ -51,7 +56,11 @@ describe('PrismaOrganizationTeamAccess', () => {
     expect(f.pending).not.toHaveBeenCalled();
   });
 
-  it.each([[null, 5], [2, 2], [10, 5]] as const)('caps member limits under pending changes', async (targetMaxUsers, memberLimit) => {
+  it.each([
+    [null, 5],
+    [2, 2],
+    [10, 5],
+  ] as const)('caps member limits under pending changes', async (targetMaxUsers, memberLimit) => {
     const f = fixture();
     read.mockResolvedValue(snapshot('SUBSCRIPTION', true, false, 'price'));
     f.pending.mockResolvedValue(targetMaxUsers === null ? null : { targetMaxUsers });

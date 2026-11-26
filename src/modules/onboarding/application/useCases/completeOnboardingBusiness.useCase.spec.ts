@@ -6,6 +6,7 @@ import type { StartOrganizationTrialUseCase } from '../../../organizations/appli
 import type { OnboardingRepository } from '../../domain/repositories/onboarding.repository.js';
 import type { OnboardingState } from '../../domain/types/onboarding.types.js';
 import type { OnboardingApplicationService } from '../services/onboardingApplicationService.service.js';
+
 import { CompleteOnboardingBusinessUseCase } from './completeOnboardingBusiness.useCase.js';
 
 const userId = 'owner';
@@ -22,7 +23,12 @@ const completed: OnboardingState = { ...state, step: 'APP', trialEligible: false
 
 function fixture(initial: Partial<OnboardingState> = {}) {
   const repository = { completeBusinessSetup: vi.fn().mockResolvedValue(undefined) };
-  const application = { state: vi.fn().mockResolvedValueOnce({ ...state, ...initial }).mockResolvedValue(completed) };
+  const application = {
+    state: vi
+      .fn()
+      .mockResolvedValueOnce({ ...state, ...initial })
+      .mockResolvedValue(completed),
+  };
   const billingName = { execute: vi.fn().mockResolvedValue(undefined) };
   const trial = { execute: vi.fn().mockResolvedValue(undefined) };
   const billing = { assertOwner: vi.fn().mockResolvedValue(undefined) };
@@ -56,7 +62,9 @@ describe('CompleteOnboardingBusinessUseCase', () => {
 
     expect(f.billingName.execute).toHaveBeenCalledWith({ organizationId, name: 'Fixture paid' });
     expect(f.repository.completeBusinessSetup).toHaveBeenCalledWith({ organizationId, userId, name: 'Fixture paid' });
-    expect(f.billingName.execute.mock.invocationCallOrder[0]).toBeLessThan(f.repository.completeBusinessSetup.mock.invocationCallOrder[0]!);
+    expect(f.billingName.execute.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.completeBusinessSetup.mock.invocationCallOrder[0],
+    );
     expect(f.trial.execute).not.toHaveBeenCalled();
   });
 

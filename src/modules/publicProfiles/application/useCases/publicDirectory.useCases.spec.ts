@@ -4,8 +4,9 @@ import type { ObjectStorage } from '../../../../shared/storage/objectStorage.por
 import type { WorkOrderPortfolioRepository } from '../../../workOrders/application/ports/workOrderPortfolio.repository.js';
 import type {
   PublicProfessionalRecord,
-  PublicProfileRepository
+  PublicProfileRepository,
 } from '../../domain/repositories/publicProfile.repository.js';
+
 import { GetPublicProfessionalUseCase } from './getPublicProfessional.useCase.js';
 import { GetPublicProfessionalWhatsappUseCase } from './getPublicProfessionalWhatsapp.useCase.js';
 import { ListPublicProfessionalsUseCase } from './listPublicProfessionals.useCase.js';
@@ -21,31 +22,35 @@ const record: PublicProfessionalRecord = {
     name: 'Fixture & Co',
     logoKey: 'private/logo',
     city: 'Uberlandia',
-    state: 'MG'
+    state: 'MG',
   },
-  services: [{
-    id: 'service',
-    name: 'Fixture service',
-    description: 'Details'
-  }],
-  reviews: [{
-    id: 'review',
-    reviewerDisplayName: 'Cliente T.',
-    rating: 5,
-    comment: null,
-    createdAt: new Date(0)
-  }]
+  services: [
+    {
+      id: 'service',
+      name: 'Fixture service',
+      description: 'Details',
+    },
+  ],
+  reviews: [
+    {
+      id: 'review',
+      reviewerDisplayName: 'Cliente T.',
+      rating: 5,
+      comment: null,
+      createdAt: new Date(0),
+    },
+  ],
 };
 function fixture() {
   const findPublishedBySlug = vi.fn<PublicProfileRepository['findPublishedBySlug']>().mockResolvedValue(record);
   const findWhatsappContact = vi.fn<PublicProfileRepository['findWhatsappContact']>().mockResolvedValue({
     businessName: record.organization.name,
-    phone: '34999991234'
+    phone: '34999991234',
   });
   const listPublished = vi.fn<PublicProfileRepository['listPublished']>().mockResolvedValue({
     items: [record],
     page: 1,
-    hasMore: false
+    hasMore: false,
   });
   const repository = { findPublishedBySlug, findWhatsappContact, listPublished } as unknown as PublicProfileRepository;
   const publicUrl = vi.fn().mockReturnValue('https://assets.example.invalid/logo');
@@ -58,9 +63,11 @@ function fixture() {
     listPublished,
     publicUrl,
     listPublishedForSlug,
-    get: new GetPublicProfessionalUseCase(repository, storage, { listPublishedForSlug } as unknown as WorkOrderPortfolioRepository),
+    get: new GetPublicProfessionalUseCase(repository, storage, {
+      listPublishedForSlug,
+    } as unknown as WorkOrderPortfolioRepository),
     list: new ListPublicProfessionalsUseCase(repository, storage),
-    contact: new GetPublicProfessionalWhatsappUseCase(repository)
+    contact: new GetPublicProfessionalWhatsappUseCase(repository),
   };
 }
 
@@ -74,10 +81,12 @@ describe('public directory projections', () => {
     expect(f.listPublishedForSlug).toHaveBeenCalledWith('fixture');
     expect(result).toMatchObject({
       logoUrl: 'https://assets.example.invalid/logo',
-      reviews: [{
-        reviewerDisplayName: 'Cliente T.',
-        verified: true
-      }]
+      reviews: [
+        {
+          reviewerDisplayName: 'Cliente T.',
+          verified: true,
+        },
+      ],
     });
     expect(result).not.toHaveProperty('organization');
     expect(JSON.stringify(result)).not.toContain('private/logo');

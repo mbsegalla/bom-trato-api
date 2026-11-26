@@ -2,14 +2,25 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { WorkOrderPhoto } from '../../domain/entities/workOrderPhoto.entity.js';
+
 import { PrismaWorkOrderPhotoRepository, workOrderPhotoSelect } from './prismaWorkOrderPhoto.repository.js';
 
 const scope = { organizationId: 'org', workOrderId: 'order' };
 const now = new Date('2026-01-01T12:00:00Z');
-const photo = WorkOrderPhoto.create({
-  ...scope, id: 'photo', objectKey: 'fixture/private/photo.webp', stage: 'BEFORE', caption: null,
-  width: 800, height: 600, sizeInBytes: 1000, createdById: 'owner',
-}, now);
+const photo = WorkOrderPhoto.create(
+  {
+    ...scope,
+    id: 'photo',
+    objectKey: 'fixture/private/photo.webp',
+    stage: 'BEFORE',
+    caption: null,
+    width: 800,
+    height: 600,
+    sizeInBytes: 1000,
+    createdById: 'owner',
+  },
+  now,
+);
 
 function fixture() {
   const findMany = vi.fn().mockResolvedValue([]);
@@ -18,9 +29,13 @@ function fixture() {
   const create = vi.fn().mockResolvedValue(undefined);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaWorkOrderPhotoRepository({
-    workOrderPhoto: { findMany, count, findFirst, create, updateMany, deleteMany },
-  } as unknown as Prisma.TransactionClient, scope.organizationId, scope.workOrderId);
+  const repository = new PrismaWorkOrderPhotoRepository(
+    {
+      workOrderPhoto: { findMany, count, findFirst, create, updateMany, deleteMany },
+    } as unknown as Prisma.TransactionClient,
+    scope.organizationId,
+    scope.workOrderId,
+  );
 
   return { repository, findMany, count, findFirst, create, updateMany, deleteMany };
 }
@@ -35,20 +50,25 @@ describe('PrismaWorkOrderPhotoRepository', () => {
     expect(await f.repository.count()).toBe(1);
     expect(await f.repository.findById('photo')).toEqual(photo.snapshot());
     expect(f.findMany).toHaveBeenCalledWith({
-      where: scope, select: workOrderPhotoSelect, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      where: scope,
+      select: workOrderPhotoSelect,
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     expect(f.count).toHaveBeenCalledWith({ where: scope });
     expect(f.findFirst).toHaveBeenCalledWith({ where: { ...scope, id: 'photo' }, select: workOrderPhotoSelect });
   });
 
-  it.each([{ organizationId: 'other' }, { workOrderId: 'other' }])('rejects foreign photo writes: %j', async (patch) => {
-    const f = fixture();
-    const foreign = WorkOrderPhoto.restore({ ...photo.snapshot(), ...patch });
-    await expect(f.repository.create(foreign)).rejects.toThrow('WORK_ORDER_PHOTO_NOT_FOUND');
-    await expect(f.repository.save(foreign, 1)).rejects.toThrow('WORK_ORDER_PHOTO_NOT_FOUND');
-    expect(f.create).not.toHaveBeenCalled();
-    expect(f.updateMany).not.toHaveBeenCalled();
-  });
+  it.each([{ organizationId: 'other' }, { workOrderId: 'other' }])(
+    'rejects foreign photo writes: %j',
+    async (patch) => {
+      const f = fixture();
+      const foreign = WorkOrderPhoto.restore({ ...photo.snapshot(), ...patch });
+      await expect(f.repository.create(foreign)).rejects.toThrow('WORK_ORDER_PHOTO_NOT_FOUND');
+      await expect(f.repository.save(foreign, 1)).rejects.toThrow('WORK_ORDER_PHOTO_NOT_FOUND');
+      expect(f.create).not.toHaveBeenCalled();
+      expect(f.updateMany).not.toHaveBeenCalled();
+    },
+  );
 
   it('persists only mutable photo fields using the original version and tenant scope', async () => {
     const f = fixture();

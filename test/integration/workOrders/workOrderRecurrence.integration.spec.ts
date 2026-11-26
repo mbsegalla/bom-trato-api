@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import { workOrderRecurrenceDate } from '../../../src/modules/workOrders/domain/policies/workOrderRecurrence.policy.js';
 import { PrismaWorkOrderRecurrenceRepository } from '../../../src/modules/workOrders/infrastructure/transactions/prismaWorkOrderRecurrenceRepository.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
+
 import { createWorkOrderFixture } from './support/workOrder.fixture.js';
 
 databaseSuite('work order recurrence configuration (disposable PostgreSQL)', () => {
@@ -46,8 +47,9 @@ databaseSuite('work order recurrence configuration (disposable PostgreSQL)', () 
       version: f.order.version,
       completedAt: f.order.completedAt,
     });
-    await expect(f.repository.save(f.params, { ...f.input, version: 1 }))
-      .rejects.toThrow('WORK_ORDER_RECURRENCE_VERSION_CONFLICT');
+    await expect(f.repository.save(f.params, { ...f.input, version: 1 })).rejects.toThrow(
+      'WORK_ORDER_RECURRENCE_VERSION_CONFLICT',
+    );
   });
 
   it('allows only one concurrent update for the same recurrence version', async () => {
@@ -60,8 +62,9 @@ databaseSuite('work order recurrence configuration (disposable PostgreSQL)', () 
     ]);
 
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-    expect(results.find((result) => result.status === 'rejected')?.reason)
-      .toMatchObject({ code: 'WORK_ORDER_RECURRENCE_VERSION_CONFLICT' });
+    expect(results.find((result) => result.status === 'rejected')?.reason).toMatchObject({
+      code: 'WORK_ORDER_RECURRENCE_VERSION_CONFLICT',
+    });
     expect((await f.repository.read(f.params)).recurrence?.version).toBe(2);
   }, 30000);
 
@@ -73,17 +76,22 @@ databaseSuite('work order recurrence configuration (disposable PostgreSQL)', () 
       data: { archivedAt: new Date() },
     });
 
-    await expect(f.repository.save(f.params, { ...f.input, version: 1 }))
-      .rejects.toThrow('WORK_ORDER_RECURRENCE_CUSTOMER_ARCHIVED');
-    expect(await f.repository.save(f.params, { ...f.input, version: 1, enabled: false }))
-      .toMatchObject({ customerArchived: true, recurrence: { enabled: false, version: 2 } });
-    await expect(f.repository.save(f.params, { ...f.input, version: 2 }))
-      .rejects.toThrow('WORK_ORDER_RECURRENCE_CUSTOMER_ARCHIVED');
+    await expect(f.repository.save(f.params, { ...f.input, version: 1 })).rejects.toThrow(
+      'WORK_ORDER_RECURRENCE_CUSTOMER_ARCHIVED',
+    );
+    expect(await f.repository.save(f.params, { ...f.input, version: 1, enabled: false })).toMatchObject({
+      customerArchived: true,
+      recurrence: { enabled: false, version: 2 },
+    });
+    await expect(f.repository.save(f.params, { ...f.input, version: 2 })).rejects.toThrow(
+      'WORK_ORDER_RECURRENCE_CUSTOMER_ARCHIVED',
+    );
 
     await db.prisma.workOrderRecurrence.delete({ where: { workOrderId: f.order.id } });
     expect(await f.repository.read(f.params)).toMatchObject({ recurrence: null, canConfigure: false });
-    await expect(f.repository.save(f.params, { ...f.input, enabled: false }))
-      .rejects.toThrow('WORK_ORDER_RECURRENCE_CUSTOMER_ARCHIVED');
+    await expect(f.repository.save(f.params, { ...f.input, enabled: false })).rejects.toThrow(
+      'WORK_ORDER_RECURRENCE_CUSTOMER_ARCHIVED',
+    );
   });
 
   it('filters recurrence lists by tenant, customer name and status', async () => {
@@ -93,20 +101,24 @@ databaseSuite('work order recurrence configuration (disposable PostgreSQL)', () 
     await other.repository.save(other.params, other.input);
 
     const list = { page: 1, limit: 10 };
-    expect(await f.repository.list(f.actor, { ...list, status: 'ACTIVE', customerName: '  fixture customer  ' }))
-      .toMatchObject({ items: [{ workOrderId: f.order.id }], hasMore: false });
+    expect(
+      await f.repository.list(f.actor, { ...list, status: 'ACTIVE', customerName: '  fixture customer  ' }),
+    ).toMatchObject({ items: [{ workOrderId: f.order.id }], hasMore: false });
     expect((await f.repository.list(f.actor, { ...list, customerName: '%' })).items).toEqual([]);
     expect((await f.repository.list(f.actor, { ...list, status: 'PAUSED' })).items).toEqual([]);
 
     await f.repository.save(f.params, { ...f.input, version: 1, enabled: false });
     expect((await f.repository.list(f.actor, { ...list, status: 'ACTIVE' })).items).toEqual([]);
-    expect(await f.repository.list(f.actor, { ...list, status: 'PAUSED' }))
-      .toMatchObject({ items: [{ workOrderId: f.order.id, recurrence: { enabled: false } }] });
+    expect(await f.repository.list(f.actor, { ...list, status: 'PAUSED' })).toMatchObject({
+      items: [{ workOrderId: f.order.id, recurrence: { enabled: false } }],
+    });
 
-    await expect(f.repository.read({ ...f.params, workOrderId: other.order.id }))
-      .rejects.toThrow('WORK_ORDER_NOT_FOUND');
-    await expect(f.repository.list({ ...f.actor, userId: other.actor.userId }, list))
-      .rejects.toThrow('MEMBER_REQUIRED');
+    await expect(f.repository.read({ ...f.params, workOrderId: other.order.id })).rejects.toThrow(
+      'WORK_ORDER_NOT_FOUND',
+    );
+    await expect(f.repository.list({ ...f.actor, userId: other.actor.userId }, list)).rejects.toThrow(
+      'MEMBER_REQUIRED',
+    );
   });
 
   it('keeps historical configuration readable but denies writes without platform access', async () => {
@@ -118,7 +130,6 @@ databaseSuite('work order recurrence configuration (disposable PostgreSQL)', () 
     });
 
     expect(await f.repository.read(f.params)).toMatchObject({ canConfigure: false, recurrence: { version: 1 } });
-    await expect(f.repository.save(f.params, { ...f.input, version: 1 }))
-      .rejects.toThrow('SUBSCRIPTION_REQUIRED');
+    await expect(f.repository.save(f.params, { ...f.input, version: 1 })).rejects.toThrow('SUBSCRIPTION_REQUIRED');
   });
 });

@@ -1,8 +1,9 @@
+import type { ExecutionContext } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ExecutionContext } from '@nestjs/common';
 import type { OrganizationPlatformAccessReader } from '../../../../organizations/application/ports/organizationPlatformAccessReader.port.js';
 import type { OrganizationAccessContext } from '../../../../organizations/domain/policies/organizationAccess.policy.js';
+
 import { SubscriptionAccessGuard } from './subscriptionAccess.guard.js';
 
 const organizationId = '11111111-1111-4111-8111-111111111111';
@@ -11,13 +12,17 @@ const access: OrganizationAccessContext = {
   verified: true,
   hasPlatformAccess: true,
   source: 'TRIAL',
-  billingNeedsReconciliation: false
+  billingNeedsReconciliation: false,
 };
 function context(id: unknown = organizationId, auth: unknown = { user: { id: 'user' } }) {
-  return { switchToHttp: () => ({ getRequest: () => ({
-    params: { organizationId: id },
-    auth
-  }) }) } as unknown as ExecutionContext;
+  return {
+    switchToHttp: () => ({
+      getRequest: () => ({
+        params: { organizationId: id },
+        auth,
+      }),
+    }),
+  } as unknown as ExecutionContext;
 }
 
 describe('SubscriptionAccessGuard', () => {
@@ -28,7 +33,11 @@ describe('SubscriptionAccessGuard', () => {
     expect(await guard.canActivate(context())).toBe(true);
     expect(read).toHaveBeenCalledWith({ organizationId, userId: 'user' });
     await expect(guard.canActivate(context('bad'))).rejects.toMatchObject({ status: 404 });
-    await expect(guard.canActivate({ switchToHttp: () => ({ getRequest: () => ({ params: { organizationId } }) }) } as unknown as ExecutionContext)).rejects.toMatchObject({ status: 404 });
+    await expect(
+      guard.canActivate({
+        switchToHttp: () => ({ getRequest: () => ({ params: { organizationId } }) }),
+      } as unknown as ExecutionContext),
+    ).rejects.toMatchObject({ status: 404 });
     expect(read).toHaveBeenCalledTimes(1);
   });
 

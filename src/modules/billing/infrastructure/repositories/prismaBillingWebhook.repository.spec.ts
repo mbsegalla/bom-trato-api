@@ -3,22 +3,38 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingWork } from '../events/billing.events.js';
 import type { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
+
 import { PrismaBillingWebhookRepository } from './prismaBillingWebhook.repository.js';
 
 const event = {
-  id: 'evt_fixture', type: 'invoice.paid', stripeCustomerId: 'cus_fixture', stripeObjectId: 'in_fixture',
-  attempts: 0, receivedAt: new Date('2026-01-01T00:00:00Z'), leaseToken: 'fixture-lease',
+  id: 'evt_fixture',
+  type: 'invoice.paid',
+  stripeCustomerId: 'cus_fixture',
+  stripeObjectId: 'in_fixture',
+  attempts: 0,
+  receivedAt: new Date('2026-01-01T00:00:00Z'),
+  leaseToken: 'fixture-lease',
 };
-const notice = { id: event.id, type: event.type, stripeCustomerId: event.stripeCustomerId, stripeObjectId: event.stripeObjectId };
+const notice = {
+  id: event.id,
+  type: event.type,
+  stripeCustomerId: event.stripeCustomerId,
+  stripeObjectId: event.stripeObjectId,
+};
 
 function fixture() {
   const createMany = vi.fn().mockResolvedValue({ count: 1 });
   const query = vi.fn().mockResolvedValue([]);
   const execute = vi.fn().mockResolvedValue(1);
   const notify = vi.fn();
-  const repository = new PrismaBillingWebhookRepository({
-    stripeWebhookEvent: { createMany }, $queryRaw: query, $executeRaw: execute,
-  } as unknown as PrismaService, { notify } as unknown as BillingWorkerNotifier);
+  const repository = new PrismaBillingWebhookRepository(
+    {
+      stripeWebhookEvent: { createMany },
+      $queryRaw: query,
+      $executeRaw: execute,
+    } as unknown as PrismaService,
+    { notify } as unknown as BillingWorkerNotifier,
+  );
 
   return { repository, createMany, query, execute, notify };
 }
@@ -42,7 +58,7 @@ describe('PrismaBillingWebhookRepository', () => {
     expect(await f.repository.claimEvent(event.leaseToken)).toEqual(event);
     expect(await f.repository.claimEvent(event.leaseToken)).toBeNull();
 
-    const [parts, token] = f.query.mock.calls[0]!;
+    const [parts, token] = f.query.mock.calls[0];
     const sql = parts.join('?');
 
     expect(sql).toContain('FOR UPDATE SKIP LOCKED');
@@ -59,7 +75,7 @@ describe('PrismaBillingWebhookRepository', () => {
     expect(await f.repository.renewEventLease(event)).toBe(false);
     expect(await f.repository.renewEventLease(event)).toBe(true);
 
-    const [parts, id, token] = f.execute.mock.calls[0]!;
+    const [parts, id, token] = f.execute.mock.calls[0];
 
     expect(parts.join('?')).toContain('"leaseExpiresAt" > CURRENT_TIMESTAMP');
     expect(id).toBe(event.id);
@@ -73,15 +89,21 @@ describe('PrismaBillingWebhookRepository', () => {
     f.execute.mockResolvedValueOnce(0);
     expect(await f.repository.settleEvent(event, outcome)).toBe(false);
 
-    const [parts, changes, id, token] = f.execute.mock.calls[0]!;
+    const [parts, changes, id, token] = f.execute.mock.calls[0];
 
     expect(parts.join('?')).toContain('"leaseToken" = NULL');
     expect(parts.join('?')).toContain('"leaseExpiresAt" > CURRENT_TIMESTAMP');
     expect(id).toBe(event.id);
     expect(token).toBe(event.leaseToken);
-    if (outcome === 'COMPLETE') expect(changes.sql).toContain('"processedAt" = CURRENT_TIMESTAMP');
-    if (outcome === 'DEFER') expect(changes.sql).toContain("INTERVAL '15 seconds'");
-    if (outcome === 'RETRY') expect(changes.sql).toContain('"attempts" = "attempts" + 1');
+    if (outcome === 'COMPLETE') {
+      expect(changes.sql).toContain('"processedAt" = CURRENT_TIMESTAMP');
+    }
+    if (outcome === 'DEFER') {
+      expect(changes.sql).toContain("INTERVAL '15 seconds'");
+    }
+    if (outcome === 'RETRY') {
+      expect(changes.sql).toContain('"attempts" = "attempts" + 1');
+    }
   });
 
   it('caps retry delay and error length while retaining the terminal retry threshold', async () => {
@@ -89,7 +111,7 @@ describe('PrismaBillingWebhookRepository', () => {
 
     await f.repository.settleEvent({ ...event, attempts: 24 }, 'RETRY', 'x'.repeat(150));
 
-    const changes = f.execute.mock.calls[0]![1];
+    const changes = f.execute.mock.calls[0][1];
 
     expect(changes.values).toEqual(['x'.repeat(100), 3600]);
     expect(changes.sql).toContain('"attempts" + 1 >= 25');

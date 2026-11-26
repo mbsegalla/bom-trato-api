@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { access, actor, params, receivableFixture, receivableState } from './support/receivable.fixture.js';
 import { GetReceivableUseCase } from './getReceivable.useCase.js';
 import { ListReceivablePaymentsUseCase } from './listReceivablePayments.useCase.js';
 import { ListReceivablesUseCase } from './listReceivables.useCase.js';
-import { access, actor, params, receivableFixture, receivableState } from './support/receivable.fixture.js';
 
 describe('receivable read use cases', () => {
   it('computes outstanding balance and overdue state from persisted financial amounts', async () => {
@@ -32,7 +32,10 @@ describe('receivable read use cases', () => {
 
     expect(result).toMatchObject({ page: 2, hasMore: true, items: [{ balanceInCents: 7500, overdue: true }] });
     expect(f.receivables.list).toHaveBeenCalledWith({
-      ...input, dueFrom: new Date(input.dueFrom), dueTo: new Date(input.dueTo), now: expect.any(Date),
+      ...input,
+      dueFrom: new Date(input.dueFrom),
+      dueTo: new Date(input.dueTo),
+      now: expect.any(Date),
     });
   });
 

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Receivable, type ReceivableProps } from '../../domain/entities/receivable.entity.js';
 import { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
+
 import { PrismaReceivableRepository } from './prismaReceivable.repository.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -29,15 +30,18 @@ const state: ReceivableProps = {
   createdAt: now,
   updatedAt: now,
 };
-const payment = ReceivablePayment.create({
-  id: 'payment',
-  receivableId: state.id,
-  requestId: 'request',
-  amountInCents: 3000,
-  method: 'PIX',
-  receivedAt: now,
-  recordedById: 'owner',
-}, now);
+const payment = ReceivablePayment.create(
+  {
+    id: 'payment',
+    receivableId: state.id,
+    requestId: 'request',
+    amountInCents: 3000,
+    method: 'PIX',
+    receivedAt: now,
+    recordedById: 'owner',
+  },
+  now,
+);
 
 function fixture() {
   const create = vi.fn().mockResolvedValue(undefined);
@@ -48,17 +52,30 @@ function fixture() {
   const findPayment = vi.fn().mockResolvedValue(null);
   const listPayments = vi.fn().mockResolvedValue([]);
   const reversePayment = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaReceivableRepository({
-    receivable: { create, findFirst, findMany, updateMany },
-    receivablePayment: {
-      create: createPayment,
-      findFirst: findPayment,
-      findMany: listPayments,
-      updateMany: reversePayment,
-    },
-  } as unknown as Prisma.TransactionClient, state.organizationId);
+  const repository = new PrismaReceivableRepository(
+    {
+      receivable: { create, findFirst, findMany, updateMany },
+      receivablePayment: {
+        create: createPayment,
+        findFirst: findPayment,
+        findMany: listPayments,
+        updateMany: reversePayment,
+      },
+    } as unknown as Prisma.TransactionClient,
+    state.organizationId,
+  );
 
-  return { repository, create, findFirst, findMany, updateMany, createPayment, findPayment, listPayments, reversePayment };
+  return {
+    repository,
+    create,
+    findFirst,
+    findMany,
+    updateMany,
+    createPayment,
+    findPayment,
+    listPayments,
+    reversePayment,
+  };
 }
 
 describe('PrismaReceivableRepository', () => {
@@ -137,24 +154,31 @@ describe('PrismaReceivableRepository', () => {
     const f = fixture();
     f.findMany.mockResolvedValueOnce([state, { ...state, id: 'next' }]);
 
-    expect(await f.repository.list({ page: 2, limit: 1, now, overdue: true }))
-      .toEqual({ items: [state], page: 2, hasMore: true });
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        organizationId: state.organizationId,
-        AND: [{ status: { in: ['OPEN', 'PARTIALLY_PAID'] } }, { dueAt: { lt: now } }],
+    expect(await f.repository.list({ page: 2, limit: 1, now, overdue: true })).toEqual({
+      items: [state],
+      page: 2,
+      hasMore: true,
+    });
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: state.organizationId,
+          AND: [{ status: { in: ['OPEN', 'PARTIALLY_PAID'] } }, { dueAt: { lt: now } }],
+        }),
+        skip: 1,
+        take: 2,
       }),
-      skip: 1,
-      take: 2,
-    }));
+    );
 
     await f.repository.list({ page: 1, limit: 10, now, overdue: false });
 
-    expect(f.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        AND: [{ OR: [{ status: { in: ['PAID', 'CANCELED'] } }, { dueAt: { gte: now } }] }],
+    expect(f.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [{ OR: [{ status: { in: ['PAID', 'CANCELED'] } }, { dueAt: { gte: now } }] }],
+        }),
       }),
-    }));
+    );
   });
 
   it('binds payment identity, request id and pagination to the receivable tenant', async () => {
@@ -177,11 +201,13 @@ describe('PrismaReceivableRepository', () => {
     expect(f.createPayment).toHaveBeenCalledWith({
       data: { ...snapshot, receivable: { connect: { id: receivableId, organizationId: state.organizationId } } },
     });
-    expect(f.listPayments).toHaveBeenCalledWith(expect.objectContaining({
-      where: { receivableId, receivable: { organizationId: state.organizationId } },
-      skip: 5,
-      take: 6,
-    }));
+    expect(f.listPayments).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { receivableId, receivable: { organizationId: state.organizationId } },
+        skip: 5,
+        take: 6,
+      }),
+    );
   });
 
   it('rejects incomplete or duplicate reversals and preserves the original payment amount', async () => {
@@ -195,7 +221,12 @@ describe('PrismaReceivableRepository', () => {
     await f.repository.savePaymentReversal(reversed);
 
     expect(f.reversePayment).toHaveBeenCalledWith({
-      where: { id: 'payment', receivableId: state.id, reversedAt: null, receivable: { organizationId: state.organizationId } },
+      where: {
+        id: 'payment',
+        receivableId: state.id,
+        reversedAt: null,
+        receivable: { organizationId: state.organizationId },
+      },
       data: { reversedAt: now, reversedById: 'owner', reversalReason: 'Fixture reversal' },
     });
 

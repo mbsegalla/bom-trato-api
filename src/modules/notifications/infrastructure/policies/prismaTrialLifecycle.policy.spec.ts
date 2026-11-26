@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { readTrialLifecycleNotification, shouldSkipTrialLifecycle } from './prismaTrialLifecycle.policy.js';
 import { automationFixture, day, job, now, trial, trialRow } from './support/automationPolicy.fixture.js';
+import { readTrialLifecycleNotification, shouldSkipTrialLifecycle } from './prismaTrialLifecycle.policy.js';
 
 describe('trial lifecycle notification eligibility', () => {
   it('builds the first-quote notice only for the verified owner of the current trial', async () => {
@@ -23,7 +23,10 @@ describe('trial lifecycle notification eligibility', () => {
       where: { organizationId_userId: { organizationId: trial.organizationId, userId: trial.ownerId } },
       select: { role: true },
     });
-    expect(db.quote.findFirst).toHaveBeenCalledWith({ where: { organizationId: trial.organizationId }, select: { id: true } });
+    expect(db.quote.findFirst).toHaveBeenCalledWith({
+      where: { organizationId: trial.organizationId },
+      select: { id: true },
+    });
   });
 
   it.each([

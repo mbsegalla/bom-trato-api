@@ -28,19 +28,17 @@ describe('MercadoPagoConnectionRuntime', () => {
     expect(runtime.livePixAvailable).toBe(true);
   });
 
-  it.each([
-    { enabled: false },
-    { clientId: undefined },
-    { clientSecret: undefined },
-    { encryptionKey: undefined },
-  ])('fails closed when configuration is incomplete: %j', (override) => {
-    const runtime = new MercadoPagoConnectionRuntime({ ...config, ...override });
+  it.each([{ enabled: false }, { clientId: undefined }, { clientSecret: undefined }, { encryptionKey: undefined }])(
+    'fails closed when configuration is incomplete: %j',
+    (override) => {
+      const runtime = new MercadoPagoConnectionRuntime({ ...config, ...override });
 
-    expect(runtime.client).toBeNull();
-    expect(runtime.livePixAvailable).toBe(false);
-    expect(runtime.sandboxPixAvailable).toBe(false);
-    expect(() => runtime.requireEnabled()).toThrow('MERCADO_PAGO_UNAVAILABLE');
-  });
+      expect(runtime.client).toBeNull();
+      expect(runtime.livePixAvailable).toBe(false);
+      expect(runtime.sandboxPixAvailable).toBe(false);
+      expect(() => runtime.requireEnabled()).toThrow('MERCADO_PAGO_UNAVAILABLE');
+    },
+  );
 
   it('allows only sandbox Pix when configured in test mode', () => {
     const runtime = new MercadoPagoConnectionRuntime({ ...config, liveMode: false });
@@ -49,7 +47,9 @@ describe('MercadoPagoConnectionRuntime', () => {
     expect(runtime.livePixAvailable).toBe(false);
     expect(runtime.livePixAllowed(organizationId, accountId, 1)).toBe(false);
 
-    expect(new MercadoPagoConnectionRuntime({ ...config, liveMode: false, sandboxPixEnabled: false }).sandboxPixAvailable).toBe(false);
+    expect(
+      new MercadoPagoConnectionRuntime({ ...config, liveMode: false, sandboxPixEnabled: false }).sandboxPixAvailable,
+    ).toBe(false);
   });
 
   it.each([

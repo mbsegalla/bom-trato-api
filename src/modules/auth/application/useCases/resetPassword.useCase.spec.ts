@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthTransaction, AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
+
 import { ResetPasswordUseCase } from './resetPassword.useCase.js';
 
 function fixture() {
@@ -11,8 +12,12 @@ function fixture() {
   const hashPassword = vi.fn<AuthSecurity['hashPassword']>().mockResolvedValue('password-hash');
   const hashToken = vi.fn().mockReturnValue('token-hash');
   const run = vi.fn(async (operation: (tx: AuthTransaction) => Promise<unknown>) =>
-    operation({ auth: { consumeAction }, notifications: { enqueue } } as unknown as AuthTransaction));
-  const useCase = new ResetPasswordUseCase({ run } as unknown as AuthUnitOfWork, { hashPassword, hashToken } as unknown as AuthSecurity);
+    operation({ auth: { consumeAction }, notifications: { enqueue } } as unknown as AuthTransaction),
+  );
+  const useCase = new ResetPasswordUseCase(
+    { run } as unknown as AuthUnitOfWork,
+    { hashPassword, hashToken } as unknown as AuthSecurity,
+  );
 
   return {
     useCase,
@@ -20,7 +25,7 @@ function fixture() {
     enqueue,
     hashPassword,
     hashToken,
-    run
+    run,
   };
 }
 
@@ -36,11 +41,13 @@ describe('ResetPasswordUseCase', () => {
       now: expect.any(Date),
       passwordHash: 'password-hash',
     });
-    expect(f.enqueue).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'password-changed/token-hash',
-      recipient: 'user@example.invalid',
-      content: { type: 'PASSWORD_CHANGED' },
-    }));
+    expect(f.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'password-changed/token-hash',
+        recipient: 'user@example.invalid',
+        content: { type: 'PASSWORD_CHANGED' },
+      }),
+    );
     expect(f.run).toHaveBeenCalledTimes(1);
   });
 

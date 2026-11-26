@@ -75,7 +75,7 @@ describe('work order photo HTTP contract', () => {
           useValue: {
             status: async () => ({}),
             consent: async () => ({}),
-            revoke: async () => ({})
+            revoke: async () => ({}),
           },
         },
         { provide: AcceptPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
@@ -198,7 +198,7 @@ describe('work order photo HTTP contract', () => {
       organizationId,
       workOrderId,
       userId,
-      photoId
+      photoId,
     });
 
     await request(server).get(`${route}/${photoId}/content`).expect(401);

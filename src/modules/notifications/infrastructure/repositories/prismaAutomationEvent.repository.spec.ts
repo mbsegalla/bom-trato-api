@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaAutomationEventRepository } from './prismaAutomationEvent.repository.js';
 
 const organizationId = 'organization';
@@ -48,47 +49,48 @@ describe('PrismaAutomationEventRepository', () => {
     const f = fixture();
     f.findMany.mockResolvedValueOnce([{ ...row, encryptedPayload: 'private', recipient: 'private' }]);
 
-    expect(await f.repository.list(organizationId, 5)).toEqual([{
-      id: row.id,
-      type: row.automationType,
-      entityType: row.automationEntityType,
-      entityId: row.automationEntityId,
-      description: row.automationDescription,
-      href: row.automationHref,
-      status: row.status,
-      availableAt: now,
-      createdAt: now,
-      finishedAt: now,
-      lastErrorCode: row.lastErrorCode,
-    }]);
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        organizationId,
-        automationType: { not: null },
-        automationEntityType: { not: null },
-        automationEntityId: { not: null },
-        automationDescription: { not: null },
-        automationHref: { not: null },
+    expect(await f.repository.list(organizationId, 5)).toEqual([
+      {
+        id: row.id,
+        type: row.automationType,
+        entityType: row.automationEntityType,
+        entityId: row.automationEntityId,
+        description: row.automationDescription,
+        href: row.automationHref,
+        status: row.status,
+        availableAt: now,
+        createdAt: now,
+        finishedAt: now,
+        lastErrorCode: row.lastErrorCode,
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 5,
-    }));
-    const selection = f.findMany.mock.calls[0]![0].select;
+    ]);
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId,
+          automationType: { not: null },
+          automationEntityType: { not: null },
+          automationEntityId: { not: null },
+          automationDescription: { not: null },
+          automationHref: { not: null },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 5,
+      }),
+    );
+    const selection = f.findMany.mock.calls[0][0].select;
 
     expect(selection).not.toHaveProperty('encryptedPayload');
     expect(selection).not.toHaveProperty('recipient');
   });
 
-  it.each([
-    'automationType',
-    'automationEntityType',
-    'automationEntityId',
-    'automationDescription',
-    'automationHref',
-  ])('discards incomplete automation metadata: %s', async (field) => {
-    const f = fixture();
-    f.findMany.mockResolvedValueOnce([{ ...row, [field]: null }]);
+  it.each(['automationType', 'automationEntityType', 'automationEntityId', 'automationDescription', 'automationHref'])(
+    'discards incomplete automation metadata: %s',
+    async (field) => {
+      const f = fixture();
+      f.findMany.mockResolvedValueOnce([{ ...row, [field]: null }]);
 
-    expect(await f.repository.list(organizationId, 10)).toEqual([]);
-  });
+      expect(await f.repository.list(organizationId, 10)).toEqual([]);
+    },
+  );
 });
