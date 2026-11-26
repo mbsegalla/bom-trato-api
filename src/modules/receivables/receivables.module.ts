@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../infrastructure/database/database.module.js';
 
+import { ReceivableProviderPaymentRepository } from './application/ports/receivableProviderPaymentRepository.port.js';
 import { ReceivableUnitOfWork } from './application/ports/receivableUnitOfWork.port.js';
 import { ReceivableApplicationService } from './application/services/receivableApplicationService.service.js';
 import { CancelReceivableUseCase } from './application/useCases/cancelReceivable.useCase.js';
+import { ConfirmReceivableProviderPaymentUseCase } from './application/useCases/confirmReceivableProviderPayment.useCase.js';
 import { CreateReceivableUseCase } from './application/useCases/createReceivable.useCase.js';
 import { GetReceivableUseCase } from './application/useCases/getReceivable.useCase.js';
 import { ListReceivablePaymentsUseCase } from './application/useCases/listReceivablePayments.useCase.js';
@@ -12,6 +14,7 @@ import { ListReceivablesUseCase } from './application/useCases/listReceivables.u
 import { RecordReceivablePaymentUseCase } from './application/useCases/recordReceivablePayment.useCase.js';
 import { ReverseReceivablePaymentUseCase } from './application/useCases/reverseReceivablePayment.useCase.js';
 import { UpdateReceivableUseCase } from './application/useCases/updateReceivable.useCase.js';
+import { PrismaReceivableProviderPaymentRepository } from './infrastructure/transactions/prismaReceivableProviderPaymentRepository.js';
 import { PrismaReceivableUnitOfWork } from './infrastructure/transactions/prismaReceivableUnitOfWork.js';
 import { ReceivablesController } from './presentation/http/controllers/receivables.controller.js';
 
@@ -19,6 +22,16 @@ import { ReceivablesController } from './presentation/http/controllers/receivabl
   imports: [DatabaseModule],
   controllers: [ReceivablesController],
   providers: [
+    {
+      provide: ReceivableProviderPaymentRepository,
+      useClass: PrismaReceivableProviderPaymentRepository,
+    },
+    {
+      provide: ConfirmReceivableProviderPaymentUseCase,
+      useFactory: (repository: ReceivableProviderPaymentRepository) =>
+        new ConfirmReceivableProviderPaymentUseCase(repository),
+      inject: [ReceivableProviderPaymentRepository],
+    },
     {
       provide: ReceivableUnitOfWork,
       useClass: PrismaReceivableUnitOfWork,
@@ -69,5 +82,6 @@ import { ReceivablesController } from './presentation/http/controllers/receivabl
       inject: [ReceivableApplicationService],
     },
   ],
+  exports: [ConfirmReceivableProviderPaymentUseCase],
 })
 export class ReceivablesModule {}
