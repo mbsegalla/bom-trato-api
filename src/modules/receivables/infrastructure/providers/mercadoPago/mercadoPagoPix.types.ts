@@ -1,3 +1,5 @@
+import type { VerifiedProviderPayment } from '../../../domain/types/receivableProviderPayment.types.js';
+
 export interface CreateMercadoPagoPixInput {
   // Must be the UUID of an immutable, durably reserved issuance attempt.
   // Use the same value for idempotency and external reference.
@@ -50,3 +52,11 @@ export type SearchMercadoPagoSandboxPixResult =
   | { kind: 'NOT_FOUND' }
   | { kind: 'AMBIGUOUS' }
   | { kind: 'FOUND'; paymentId: string; status: MercadoPagoSandboxPaymentStatus };
+
+export interface ReadMercadoPagoLivePixInput extends ReadMercadoPagoSandboxPixInput {
+  eventId: string;
+}
+
+export type MercadoPagoLivePaymentObservation =
+  | { status: 'APPROVED'; payment: VerifiedProviderPayment }
+  | { status: Exclude<MercadoPagoSandboxPaymentStatus, 'APPROVED'> };

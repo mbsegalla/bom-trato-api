@@ -51,13 +51,14 @@ credentials or customer data into this environment.
 
 ## Production activation remains blocked
 
-Do not set live payment flags or accept real Pix based on this checklist
-alone. Before activating real collections, implement and verify an explicit
-live issuance reservation, immutable application/seller/receivable binding,
-live-mode-scoped durable webhook intake and worker, authoritative lookup with
-external reference verification, safe application of the existing confirmation
-use case, system credential access/rotation policy, and operational review for
-unmatched, late, refunded or charged-back payments. A failure or disconnect
+Phases 4.5.7 and 4.5.8 implement the internal live reservation/charge binding
+and separate authenticated live settlement inbox. See
+[Live Pix issuance](mercado-pago-live-pix-issuance.md) and
+[Live settlement](mercado-pago-live-settlement.md). Do not set live payment
+flags or accept real Pix based on this checklist alone. Safe live QR/status
+presentation, uncertain-create recovery, credential continuity and operational
+review for unmatched, late, refunded or charged-back payments must be
+completed and externally homologated. A failure or disconnect
 must stop new issuance without silently dropping already received payments.
 Require a separate operator-controlled pilot, authorization and feature gates
 before any live activation. Static Pix/manual recording stays independent.

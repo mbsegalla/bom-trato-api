@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +12,11 @@ import { MercadoPagoConnectionRuntime } from '../src/modules/receivables/infrast
 import { PrismaReceivableRepository } from '../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import { MercadoPagoCredentialService } from '../src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.js';
 import { PrismaMercadoPagoLivePixRepository } from '../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixRepository.js';
+import { PrismaMercadoPagoLiveWebhookRepository } from '../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLiveWebhookRepository.js';
+import { PrismaMercadoPagoWebhookRepository } from '../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
+import { ProcessMercadoPagoLiveWebhookService } from '../src/modules/receivables/infrastructure/workers/processMercadoPagoLiveWebhook.service.js';
+import type { ClaimedMercadoPagoWebhook } from '../src/modules/receivables/domain/types/mercadoPagoWebhook.types.js';
+import { MercadoPagoError } from '../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoClient.js';
 import { PrismaReceivableProviderPaymentRepository } from '../src/modules/receivables/infrastructure/transactions/prismaReceivableProviderPaymentRepository.js';
 
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
@@ -40,6 +45,7 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
   let useCase: ConfirmReceivableProviderPaymentUseCase;
   const organizations: string[] = [];
   const users: string[] = [];
+  const webhookClientIds: string[] = [];
 
   beforeAll(async () => {
     prisma = new PrismaService({ url: disposableDatabaseUrl() });
@@ -50,6 +56,10 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     if (!prisma) return;
+
+    const ids = webhookClientIds.splice(0);
+    await prisma.mercadoPagoLiveWebhookEvent.deleteMany({ where: { clientId: { in: ids } } });
+    await prisma.mercadoPagoWebhookEvent.deleteMany({ where: { clientId: { in: ids } } });
 
     // Delete only this suite's UUID-scoped fixtures, in foreign-key order.
     for (const organizationId of organizations.splice(0)) {
@@ -163,7 +173,8 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
       },
     });
     const actor = { ...setup.actor, sessionId: session.id };
-    const clientId = '123456789';
+    const clientId = String(randomInt(1_000_000_000, 9_999_999_999));
+    webhookClientIds.push(clientId);
     const accountId = String(randomInt(1_000_000_000, 9_999_999_999));
     const paymentId = String(randomInt(1_000_000_000, 9_999_999_999));
     const accessToken = 'fixture-access';
@@ -216,7 +227,60 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
       buyerDocumentNumber: '19119119100',
       confirmed: true,
     };
-    return { ...setup, actor, repository, credentialAccess, create, input, clientId, accountId, paymentId };
+    return { ...setup, actor, repository, credentialAccess, create, input, clientId, accountId, paymentId, runtime };
+  }
+
+  async function settlementFixture() {
+    const f = await liveFixture();
+    const issuance = await f.repository.issue(f.actor, f.input);
+    const inbox = new PrismaMercadoPagoLiveWebhookRepository(prisma, f.runtime);
+    const sandbox = new PrismaMercadoPagoWebhookRepository(prisma, f.runtime);
+    const processor = new ProcessMercadoPagoLiveWebhookService(inbox, f.runtime);
+    const approval = (eventId: string): VerifiedProviderPayment => ({
+      ...f.payment,
+      provider: 'mercado-pago',
+      externalAccountId: f.accountId,
+      externalPaymentId: f.paymentId,
+      eventId,
+      liveMode: true,
+    });
+    const read = vi.spyOn(f.runtime.requireEnabled().client, 'readLivePix').mockImplementation(async (input) => {
+      expect(input).toMatchObject({
+        issuanceId: issuance.issuanceId, accountId: f.accountId, paymentId: f.paymentId,
+        amountInCents: 10_000, accessToken: 'fixture-access',
+      });
+      return { status: 'APPROVED', payment: approval(input.eventId) };
+    });
+    function notice(paymentId = f.paymentId) {
+      return {
+        clientId: f.clientId,
+        deliveryKey: createHash('sha256').update(randomUUID()).digest('hex'),
+        paymentId,
+        requestId: randomUUID(),
+        signedAt: new Date(),
+      };
+    }
+    async function claim(): Promise<ClaimedMercadoPagoWebhook> {
+      const job = await inbox.claim(f.clientId, randomUUID());
+      if (job === null) throw new Error('Fixture live event was not claimed');
+      return job;
+    }
+    async function delivery() {
+      const event = notice();
+      await inbox.enqueue(event);
+      const job = await claim();
+      expect(job.deliveryKey).toBe(event.deliveryKey);
+      return job;
+    }
+    function stored(job: ClaimedMercadoPagoWebhook) {
+      return prisma.mercadoPagoLiveWebhookEvent.findUniqueOrThrow({
+        where: { clientId_deliveryKey: { clientId: job.clientId, deliveryKey: job.deliveryKey } },
+      });
+    }
+    function issuanceRow() {
+      return prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: issuance.issuanceId } });
+    }
+    return { ...f, issuance, inbox, sandbox, processor, read, approval, notice, claim, delivery, stored, issuanceRow };
   }
 
   async function ledger(receivableId: string) {
@@ -314,6 +378,204 @@ suite('provider payment ledger (disposable PostgreSQL)', () => {
     await useCase.register(f.actor, f.registration);
     await expect(f.repository.issue(f.actor, f.input)).rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
     expect(f.create).not.toHaveBeenCalled();
+  });
+
+  it('processes only the live inbox and commits concurrent approvals exactly once', async () => {
+    const f = await settlementFixture();
+    const first = f.notice();
+    const second = f.notice();
+    await f.sandbox.enqueue(first);
+    expect(await f.inbox.claim(f.clientId, randomUUID())).toBeNull();
+    await Promise.all([f.inbox.enqueue(first), f.inbox.enqueue(first), f.inbox.enqueue(second)]);
+    const jobs = await Promise.all([f.claim(), f.claim()]);
+    expect(new Set(jobs.map((job) => job.deliveryKey)).size).toBe(2);
+    expect(await f.inbox.claim(f.clientId, randomUUID())).toBeNull();
+
+    expect(await Promise.all(jobs.map((job) => f.processor.execute(job)))).toEqual([true, true]);
+    const events = await Promise.all(jobs.map((job) => f.stored(job)));
+    expect(events.map((event) => event.resultCode).sort()).toEqual(['LEDGER_APPLIED', 'LEDGER_DUPLICATE']);
+    for (const event of events) {
+      expect(event.processedAt).toBeInstanceOf(Date);
+      expect(event.matchedIssuanceId).toBe(f.issuance.issuanceId);
+    }
+    const state = await ledger(f.receivable.id);
+    expect(state.receivable).toMatchObject({ receivedInCents: 10_000, status: 'PAID', version: 2 });
+    expect(state.payments).toHaveLength(1);
+    expect(state.payments[0]).toMatchObject({ requestId: f.issuance.issuanceId, method: 'PIX' });
+    expect(await f.issuanceRow()).toMatchObject({
+      status: 'SETTLED', copyAndPasteCiphertext: null, expiresAt: null,
+    });
+    expect(await prisma.mercadoPagoWebhookEvent.count({ where: { clientId: f.clientId, processedAt: null } })).toBe(1);
+  }, 30_000);
+
+  it('does not commit a payment if the processing lease expired during provider I/O', async () => {
+    const f = await settlementFixture();
+    const job = await f.delivery();
+    f.read.mockImplementationOnce(async (input) => {
+      await prisma.mercadoPagoLiveWebhookEvent.update({
+        where: { clientId_deliveryKey: { clientId: job.clientId, deliveryKey: job.deliveryKey } },
+        data: { leaseExpiresAt: new Date(Date.now() - 1000) },
+      });
+      return { status: 'APPROVED', payment: f.approval(input.eventId) };
+    });
+    expect(await f.processor.execute(job)).toBe(false);
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+    expect(await f.issuanceRow()).toMatchObject({ status: 'PENDING' });
+    const replacement = await f.claim();
+    expect(replacement.deliveryKey).toBe(job.deliveryKey);
+    expect(replacement.leaseToken).not.toBe(job.leaseToken);
+    expect(await f.processor.execute(replacement)).toBe(true);
+    expect(await f.stored(replacement)).toMatchObject({ resultCode: 'LEDGER_APPLIED', attempts: 1 });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(1);
+  });
+
+  it('rolls back the live inbox, reservation, charge and ledger as one transaction', async () => {
+    const f = await settlementFixture();
+    const job = await f.delivery();
+    const failure = vi.spyOn(PrismaReceivableRepository.prototype, 'createPayment')
+      .mockRejectedValueOnce(new Error('Injected live payment failure'));
+    await expect(f.processor.execute(job)).rejects.toThrow('Injected live payment failure');
+    failure.mockRestore();
+    expect(await f.stored(job)).toMatchObject({ processedAt: null, reviewRequiredAt: null, attempts: 0 });
+    expect(await f.issuanceRow()).toMatchObject({ status: 'PENDING' });
+    expect(await ledger(f.receivable.id)).toMatchObject({
+      receivable: { receivedInCents: 0, status: 'OPEN', version: 1 }, payments: [],
+    });
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'LEDGER_APPLIED', attempts: 1 });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(1);
+  });
+
+  it('retains a refund after settlement without automatically reversing or reapplying the ledger', async () => {
+    const f = await settlementFixture();
+    const approved = await f.delivery();
+    expect(await f.processor.execute(approved)).toBe(true);
+    const refund = await f.delivery();
+    f.read.mockResolvedValueOnce({ status: 'REFUNDED' });
+    expect(await f.processor.execute(refund)).toBe(true);
+    expect(await f.stored(refund)).toMatchObject({ resultCode: 'VERIFIED_REFUNDED', processedAt: null });
+    expect((await f.stored(refund)).reviewRequiredAt).toBeInstanceOf(Date);
+    expect(await f.issuanceRow()).toMatchObject({
+      status: 'REVIEW_REQUIRED', settlementReviewCode: 'VERIFIED_REFUNDED', copyAndPasteCiphertext: null,
+    });
+    const late = await f.delivery();
+    expect(await f.processor.execute(late)).toBe(true);
+    expect(await f.stored(late)).toMatchObject({ resultCode: 'ISSUANCE_REVIEW_REQUIRED', processedAt: null });
+    expect(await ledger(f.receivable.id)).toMatchObject({
+      receivable: { receivedInCents: 10_000, status: 'PAID', version: 2 },
+    });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(1);
+  });
+
+  it('blocks an earlier approval after refund evidence and does not allow a generic confirmation to bypass the inbox', async () => {
+    const f = await settlementFixture();
+    const approval = await f.delivery();
+    const prepared = await f.inbox.prepare(approval);
+    if (prepared.kind !== 'READY') throw new Error('Fixture preparation failed');
+    const refund = await f.delivery();
+    f.read.mockResolvedValueOnce({ status: 'REFUNDED' });
+    expect(await f.processor.execute(refund)).toBe(true);
+    expect(await f.inbox.settle(approval, {
+      kind: 'CHECKED', binding: prepared.binding, stamp: prepared.stamp,
+      observation: { status: 'APPROVED', payment: f.approval(approval.deliveryKey) },
+    })).toBe(true);
+    expect(await f.stored(approval)).toMatchObject({ resultCode: 'ISSUANCE_REVIEW_REQUIRED' });
+    expect(await useCase.execute(f.approval(approval.deliveryKey))).toBe('REVIEW_REQUIRED');
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('retains unknown identities and provider outages for retry, never trying another seller', async () => {
+    const f = await settlementFixture();
+    const unknown = f.notice('987654321');
+    await f.inbox.enqueue(unknown);
+    const missing = await f.claim();
+    expect(await f.processor.execute(missing)).toBe(true);
+    expect(f.read).not.toHaveBeenCalled();
+    expect(await f.stored(missing)).toMatchObject({
+      resultCode: 'UNMATCHED_PAYMENT', attempts: 1, processedAt: null, reviewRequiredAt: null,
+    });
+    const outage = await f.delivery();
+    f.read.mockRejectedValueOnce(new MercadoPagoError('REQUEST_FAILED', 503));
+    expect(await f.processor.execute(outage)).toBe(true);
+    expect(await f.stored(outage)).toMatchObject({
+      resultCode: 'PROVIDER_UNAVAILABLE', attempts: 1, processedAt: null, reviewRequiredAt: null,
+    });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('refuses a sandbox or inconsistent approval even when the identifiers are otherwise correct', async () => {
+    const f = await settlementFixture();
+    const job = await f.delivery();
+    f.read.mockResolvedValueOnce({ status: 'APPROVED', payment: { ...f.approval(job.deliveryKey), liveMode: false } });
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'INVALID_PROVIDER_PAYMENT', processedAt: null });
+    expect(await f.issuanceRow()).toMatchObject({
+      status: 'REVIEW_REQUIRED', settlementReviewCode: 'INVALID_PROVIDER_PAYMENT',
+    });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('retains a changed receivable for review and does not apply a stale settlement', async () => {
+    const f = await settlementFixture();
+    await prisma.receivable.update({
+      where: { id: f.receivable.id }, data: { version: 2, notes: 'Changed after issuance' },
+    });
+    const job = await f.delivery();
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'LEDGER_REVIEW_REQUIRED', processedAt: null });
+    expect(await f.issuanceRow()).toMatchObject({
+      status: 'REVIEW_REQUIRED', settlementReviewCode: 'LEDGER_REVIEW_REQUIRED',
+    });
+    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: f.issuance.issuanceId } }))
+      .toMatchObject({ reviewReason: 'RECEIVABLE_CHANGED', paymentId: null });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('records owner changes without consulting another seller token', async () => {
+    const f = await settlementFixture();
+    const successor = await prisma.user.create({
+      data: { name: 'Fixture successor', email: randomUUID() + '@example.invalid', emailVerifiedAt: new Date() },
+    });
+    users.push(successor.id);
+    await prisma.organization.update({
+      where: { id: f.actor.organizationId }, data: { ownerId: successor.id },
+    });
+    const job = await f.delivery();
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(f.read).not.toHaveBeenCalled();
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'OWNER_CHANGED', processedAt: null });
+    expect(await f.issuanceRow()).toMatchObject({ status: 'REVIEW_REQUIRED', settlementReviewCode: 'OWNER_CHANGED' });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('never reopens a closed issuance when a pending event arrives or auto-applies a late approval', async () => {
+    const f = await settlementFixture();
+    const closed = await f.delivery();
+    f.read.mockResolvedValueOnce({ status: 'CLOSED' });
+    expect(await f.processor.execute(closed)).toBe(true);
+    expect(await f.issuanceRow()).toMatchObject({ status: 'CLOSED', copyAndPasteCiphertext: null });
+    const pending = await f.delivery();
+    f.read.mockResolvedValueOnce({ status: 'PENDING' });
+    expect(await f.processor.execute(pending)).toBe(true);
+    expect(await f.issuanceRow()).toMatchObject({ status: 'CLOSED' });
+    const late = await f.delivery();
+    expect(await f.processor.execute(late)).toBe(true);
+    expect(await f.stored(late)).toMatchObject({ resultCode: 'APPROVAL_AFTER_CLOSURE', processedAt: null });
+    expect(await f.issuanceRow()).toMatchObject({
+      status: 'REVIEW_REQUIRED', settlementReviewCode: 'APPROVAL_AFTER_CLOSURE',
+    });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('still settles a valid live payment after subscription access expires', async () => {
+    const f = await settlementFixture();
+    await prisma.organizationTrial.update({
+      where: { organizationId: f.actor.organizationId }, data: { revokedAt: new Date() },
+    });
+    const job = await f.delivery();
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'LEDGER_APPLIED' });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(1);
   });
 
   it('commits one ledger entry and one version advance despite concurrent duplicate delivery', async () => {
