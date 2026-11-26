@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 
 import { PrismaMercadoPagoConnectionRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoConnectionRepository.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
@@ -159,7 +160,7 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     const exchange = vi.spyOn(f.client, 'exchangeCode').mockImplementation(async (code, verifier) => {
       expect(code).toBe(input.code);
       expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
-      expect(await f.readAttempt()).toMatchObject({ consumedAt: expect.any(Date), verifierCiphertext: null });
+      expect(await f.readAttempt()).toMatchObject({ consumedAt: asymmetric.any(Date), verifierCiphertext: null });
       return f.credentials;
     });
     expect(await f.repository.complete(f.identity, input)).toEqual({
@@ -183,7 +184,7 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     const { input } = await f.start();
     const exchange = vi.spyOn(f.client, 'exchangeCode').mockRejectedValue(new Error('fixture timeout'));
     await expect(f.repository.complete(f.identity, input)).rejects.toThrow('MERCADO_PAGO_UNAVAILABLE');
-    expect(await f.readAttempt()).toMatchObject({ consumedAt: expect.any(Date), verifierCiphertext: null });
+    expect(await f.readAttempt()).toMatchObject({ consumedAt: asymmetric.any(Date), verifierCiphertext: null });
     await expect(f.repository.complete(f.identity, input)).rejects.toThrow('MERCADO_PAGO_OAUTH_INVALID');
     expect(exchange).toHaveBeenCalledTimes(1);
   });
@@ -253,7 +254,7 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     await f.repository.disconnect(f.actor);
     const row = await f.readConnection();
     expect(row).toMatchObject({
-      disconnectedAt: expect.any(Date),
+      disconnectedAt: asymmetric.any(Date),
       expiresAt: null,
       accessTokenCiphertext: null,
       refreshTokenCiphertext: null,

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { InAppNotificationRepository } from '../../domain/repositories/inAppNotification.repository.js';
 
 import { ListInAppNotificationsUseCase } from './listInAppNotifications.useCase.js';
@@ -45,11 +46,11 @@ describe('in-app notification read use cases', () => {
 
     await f.one.execute({ ...actor, id: 'id' });
 
-    expect(f.repository.markRead).toHaveBeenCalledWith({ ...actor, id: 'id', now: expect.any(Date) });
+    expect(f.repository.markRead).toHaveBeenCalledWith({ ...actor, id: 'id', now: asymmetric.any(Date) });
 
     await f.all.execute(actor);
 
-    expect(f.repository.markAllRead).toHaveBeenCalledWith({ ...actor, now: expect.any(Date) });
+    expect(f.repository.markAllRead).toHaveBeenCalledWith({ ...actor, now: asymmetric.any(Date) });
   });
 
   it('returns not found for a notification outside the scoped repository', async () => {

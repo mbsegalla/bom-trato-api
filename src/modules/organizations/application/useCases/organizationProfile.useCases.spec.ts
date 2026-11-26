@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { ObjectStorage } from '../../../../shared/storage/objectStorage.port.js';
 import type { UpdateBillingCustomerNameUseCase } from '../../../billing/application/useCases/updateBillingCustomerName.useCase.js';
 import { Organization } from '../../domain/entities/organization.entity.js';
-import type { OrganizationLogoImageProcessor } from '../ports/organizationLogoImage.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
 
 import { GetOrganizationProfileUseCase } from './getOrganizationProfile.useCase.js';
@@ -40,7 +40,7 @@ function fixture(hasLogo = true) {
       operation(tx, policy),
   );
   const processor = { readTeam, withTeam } as unknown as OrganizationTeamApplicationService;
-  const put = vi.fn().mockResolvedValue(undefined);
+  const put = vi.fn<ObjectStorage['put']>().mockResolvedValue(undefined);
   const remove = vi.fn().mockResolvedValue(undefined);
   const publicUrl = vi.fn((key: string) => 'https://cdn.example.invalid/' + key);
   const storage = { put, delete: remove, publicUrl } as unknown as ObjectStorage;
@@ -104,7 +104,7 @@ describe('organization profile and logo operations', () => {
     expect(f.updateBilling).toHaveBeenCalledWith({ organizationId: 'org', name: 'New company' });
     expect(f.updateBilling.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]);
     expect(f.assertOwner).toHaveBeenCalledTimes(2);
-    expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ name: 'New company' }));
+    expect(f.saveOrganization).toHaveBeenCalledWith(asymmetric.objectContaining({ name: 'New company' }));
   });
 
   it('does not call billing when updating business details without a name change', async () => {
@@ -142,7 +142,7 @@ describe('organization profile and logo operations', () => {
   it('stores a versioned logo before persisting the new key and removes the previous object after commit', async () => {
     const f = fixture();
     const profile = await f.upload.execute(params, upload);
-    const key = f.put.mock.calls[0][0].key as string;
+    const key = f.put.mock.calls[0][0].key;
     expect(key).toMatch(/^organizations\/org\/logo\/[a-f0-9-]+\.webp$/);
     expect(f.put).toHaveBeenCalledWith({
       key,
@@ -150,7 +150,7 @@ describe('organization profile and logo operations', () => {
       contentType: 'image/webp',
       cacheControl: 'public, max-age=31536000, immutable',
     });
-    expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ logoKey: key }));
+    expect(f.saveOrganization).toHaveBeenCalledWith(asymmetric.objectContaining({ logoKey: key }));
     expect(f.remove).toHaveBeenCalledExactlyOnceWith(previous);
     expect(f.put.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]);
     expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]);
@@ -188,13 +188,13 @@ describe('organization profile and logo operations', () => {
   it('returns the committed profile even if previous-logo cleanup fails', async () => {
     const f = fixture();
     f.remove.mockRejectedValue(new Error('cleanup failure'));
-    await expect(f.upload.execute(params, upload)).resolves.toMatchObject({ logoUrl: expect.any(String) });
+    await expect(f.upload.execute(params, upload)).resolves.toMatchObject({ logoUrl: asymmetric.any(String) });
   });
 
   it('removes the persisted logo before attempting best effort deletion', async () => {
     const f = fixture();
     expect(await f.removeLogo.execute(params)).toMatchObject({ logoUrl: null });
-    expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ logoKey: null }));
+    expect(f.saveOrganization).toHaveBeenCalledWith(asymmetric.objectContaining({ logoKey: null }));
     expect(f.remove).toHaveBeenCalledExactlyOnceWith(previous);
     expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]);
   });

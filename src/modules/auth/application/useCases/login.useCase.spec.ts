@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { User } from '../../../users/domain/entities/user.entity.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
@@ -69,10 +70,10 @@ describe('LoginUseCase', () => {
     expect(f.repository.revokeByToken).toHaveBeenCalledWith({
       tokenHash: 'hashed:' + previous,
       reason: 'SESSION_REPLACED',
-      now: expect.any(Date),
+      now: asymmetric.any(Date),
     });
     expect(f.repository.startSession).toHaveBeenCalledWith({
-      session: expect.objectContaining({ id: 'session', userId: 'user', userAgent: 'fixture' }),
+      session: asymmetric.objectContaining({ id: 'session', userId: 'user', userAgent: 'fixture' }),
       expectedPasswordHash: 'hash',
       refreshHash: 'hashed:' + result.refreshToken,
     });

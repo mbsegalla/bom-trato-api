@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { ObjectStorage } from '../../../../shared/storage/objectStorage.port.js';
 import type { ReviewInvitationView, ReviewRepository } from '../../domain/repositories/review.repository.js';
 
@@ -94,17 +95,17 @@ describe('review invitation use cases', () => {
     const result = await f.submit.execute('fixture-token', { rating: 5, comment: null });
 
     expect(f.submitVerifiedReview).toHaveBeenCalledWith({
-      id: expect.any(String),
+      id: asymmetric.any(String),
       tokenHash: 'hash',
       rating: 5,
       comment: null,
-      now: expect.any(Date),
+      now: asymmetric.any(Date),
     });
     expect(result).toEqual({
       reviewerDisplayName: 'Cliente P.',
       rating: 5,
       comment: null,
-      createdAt: expect.any(Date),
+      createdAt: asymmetric.any(Date),
       verified: true,
       professionalSlug: 'fixture',
     });

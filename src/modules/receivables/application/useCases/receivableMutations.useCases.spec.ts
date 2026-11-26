@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { ReceivablePayment } from '../../domain/entities/receivablePayment.entity.js';
 
 import { now, params, receivableFixture, receivableState } from './support/receivable.fixture.js';
@@ -142,7 +143,7 @@ describe('receivable mutations', () => {
     expect(result.payment).toMatchObject({
       id: payment.id,
       amountInCents: 3000,
-      reversedAt: expect.any(Date),
+      reversedAt: asymmetric.any(Date),
       reversedById: params.userId,
       reversalReason: 'Fixture reversal',
     });

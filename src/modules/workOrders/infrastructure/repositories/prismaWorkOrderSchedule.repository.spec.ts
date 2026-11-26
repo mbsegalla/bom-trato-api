@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 
 import { PrismaWorkOrderScheduleRepository } from './prismaWorkOrderSchedule.repository.js';
@@ -47,7 +48,7 @@ describe('PrismaWorkOrderScheduleRepository', () => {
       items: [{ id: row.id, assignedToName: 'Fixture professional', late: true }],
     });
     expect(f.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: {
           organizationId: 'org',
           assignedToId: 'worker',
@@ -71,14 +72,14 @@ describe('PrismaWorkOrderScheduleRepository', () => {
 
     expect(f.findMany).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
-        where: expect.objectContaining({ AND: [lateWhere] }),
+      asymmetric.objectContaining({
+        where: asymmetric.objectContaining({ AND: [lateWhere] }),
       }),
     );
     expect(f.findMany).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({
-        where: expect.objectContaining({ NOT: lateWhere }),
+      asymmetric.objectContaining({
+        where: asymmetric.objectContaining({ NOT: lateWhere }),
       }),
     );
   });

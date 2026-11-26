@@ -35,7 +35,12 @@ describe('BrasilApiAddressProvider', () => {
       result.city = 'Changed';
       expect((await provider.findByPostalCode('38400000'))?.city).toBe('Uberlandia');
       expect(fetch).toHaveBeenCalledTimes(1);
-      expect(String(fetch.mock.calls[0][0])).toBe('https://brasilapi.com.br/api/cep/v1/38400000');
+      expect(fetch.mock.calls[0][0]).toBeInstanceOf(URL);
+      const requestedUrl = fetch.mock.calls[0][0];
+      if (!(requestedUrl instanceof URL)) {
+        throw new Error('Expected a URL request');
+      }
+      expect(requestedUrl.href).toBe('https://brasilapi.com.br/api/cep/v1/38400000');
       now += 7 * 86400000;
       await provider.findByPostalCode('38400000');
       expect(fetch).toHaveBeenCalledTimes(2);

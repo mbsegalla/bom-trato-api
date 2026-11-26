@@ -6,6 +6,7 @@ import { CreateQuoteShareUseCase } from '../../../src/modules/quotes/application
 import { RevokeQuoteShareUseCase } from '../../../src/modules/quotes/application/useCases/revokeQuoteShare.useCase.js';
 import { QuoteShareError } from '../../../src/modules/quotes/domain/errors/quoteShare.error.js';
 import { QuoteSharesController } from '../../../src/modules/quotes/presentation/http/controllers/quoteShares.controller.js';
+import { readJsonObject, readJsonString } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/quotes/' + itemId + '/share';
@@ -57,13 +58,13 @@ describe('quoteShares HTTP contracts', () => {
       .set('Authorization', 'Bearer fixture')
       .send({ version: 2, expiresAt })
       .expect(201);
-    const url = new URL(response.body.data.url);
+    const url = new URL(readJsonString(readJsonObject(readJsonObject(response.body).data).url));
 
     expect(url.origin).toBe('https://app.example.invalid');
     expect(url.pathname).toBe('/quote-share');
     expect(url.search).toBe('');
     expect(url.hash).toBe('#token=' + token);
-    expect(response.body.data).not.toHaveProperty('token');
+    expect(readJsonObject(response.body).data).not.toHaveProperty('token');
     expect(response.headers['cache-control']).toContain('no-store');
     expect(create).toHaveBeenCalledWith({ ...actor, quoteId: itemId, version: 2 }, expiresAt);
   });

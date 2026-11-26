@@ -6,6 +6,7 @@ import { ListBrazilianCitiesUseCase } from '../../../src/modules/address/applica
 import { ListBrazilianStatesUseCase } from '../../../src/modules/address/application/useCases/listBrazilianStates.useCase.js';
 import { AddressError } from '../../../src/modules/address/domain/errors/address.error.js';
 import { AddressController } from '../../../src/modules/address/presentation/http/controllers/address.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture } from '../support/http.fixture.js';
 
 describe('address HTTP routes', () => {
@@ -40,8 +41,8 @@ describe('address HTTP routes', () => {
       .set('Authorization', 'Bearer fixture')
       .expect(200);
 
-    expect(response.body.data).toHaveLength(27);
-    expect(response.body.success).toBe(true);
+    expect(readJsonObject(response.body).data).toHaveLength(27);
+    expect(readJsonObject(response.body).success).toBe(true);
   });
 
   it('maps missing postal codes and upstream failures to the correct HTTP status', async () => {
@@ -58,7 +59,7 @@ describe('address HTTP routes', () => {
         .set('Authorization', 'Bearer fixture')
         .expect(status);
 
-      expect(response.body.error.code).toBe(code);
+      expect(readJsonObject(readJsonObject(response.body).error).code).toBe(code);
     }
   });
 });

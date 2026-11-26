@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { RegisterUserParams } from '../../domain/repositories/auth.repository.js';
 
 import { authFixture, google, now, user } from './support/prismaAuth.fixture.js';
@@ -78,8 +79,8 @@ describe('PrismaAuthRepository identity persistence', () => {
 
     expect((await repository.registerFederated(input)).id).toBe(user.id);
     expect(db.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
+      asymmetric.objectContaining({
+        data: asymmetric.objectContaining({
           id: user.id,
           passwordHash: null,
           emailVerifiedAt: now,

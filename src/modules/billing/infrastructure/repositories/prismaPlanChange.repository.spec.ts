@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { PlanChange, type PlanChangeProps } from '../../domain/entities/planChange.entity.js';
 import { BillingWork } from '../events/billing.events.js';
@@ -43,7 +44,7 @@ function fixture() {
   const update = vi.fn().mockResolvedValue(state);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const count = vi.fn().mockResolvedValue(3);
-  const lock = vi.fn().mockResolvedValue([]);
+  const lock = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([]);
   const price = vi.fn().mockResolvedValue(null);
   const tx = { planChange: { findUniqueOrThrow, update }, organizationMember: { count }, $queryRaw: lock };
   const transaction = vi.fn(async (operation: (value: typeof tx) => Promise<unknown>) => operation(tx));
@@ -112,7 +113,7 @@ describe('PrismaPlanChangeRepository', () => {
     expect(f.count).toHaveBeenCalledWith({ where: { organizationId: 'org' } });
     expect(f.update).toHaveBeenCalledWith({
       where: { id: 'change' },
-      data: { activeOrganizationId: 'org', status: 'PROCESSING', startedAt: expect.any(Date) },
+      data: { activeOrganizationId: 'org', status: 'PROCESSING', startedAt: asymmetric.any(Date) },
     });
     expect(f.lock.mock.invocationCallOrder[0]).toBeLessThan(f.count.mock.invocationCallOrder[0]);
     expect(f.update.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]);
@@ -138,8 +139,8 @@ describe('PrismaPlanChangeRepository', () => {
 
     await f.repository.save(change);
     expect(f.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'PROCESSING', activeOrganizationId: 'org' }),
+      asymmetric.objectContaining({
+        data: asymmetric.objectContaining({ status: 'PROCESSING', activeOrganizationId: 'org' }),
       }),
     );
     expect(f.notify).not.toHaveBeenCalled();
@@ -148,8 +149,8 @@ describe('PrismaPlanChangeRepository', () => {
     await f.repository.save(change);
 
     expect(f.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'APPLIED', activeOrganizationId: null }),
+      asymmetric.objectContaining({
+        data: asymmetric.objectContaining({ status: 'APPLIED', activeOrganizationId: null }),
       }),
     );
     expect(f.notify).toHaveBeenCalledWith(BillingWork.CONFIRMATIONS);
@@ -172,7 +173,7 @@ describe('PrismaPlanChangeRepository', () => {
     expect(f.findUnique).toHaveBeenNthCalledWith(1, { where: { id: 'change' } });
     expect(f.findUnique).toHaveBeenNthCalledWith(2, { where: { activeOrganizationId: 'org' } });
     expect(f.findMany).toHaveBeenCalledWith({
-      where: { activeOrganizationId: { not: null }, nextCheckAt: { lte: expect.any(Date) } },
+      where: { activeOrganizationId: { not: null }, nextCheckAt: { lte: asymmetric.any(Date) } },
       orderBy: [{ nextCheckAt: 'asc' }, { id: 'asc' }],
       take: 5,
     });

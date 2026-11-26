@@ -41,15 +41,15 @@ credentials or customer data into this environment.
 - [ ] Complete OAuth, disconnect/reconnect and credential expiry/rotation.
 - [ ] Issue a sandbox charge, compare the amount and provider reference.
 - [ ] Recover an uncertain create with the original reference; verify that
-  ambiguous or missing results never create another charge.
+      ambiguous or missing results never create another charge.
 - [ ] Deliver correctly signed, invalid, duplicate and out-of-order webhooks.
 - [ ] Restart the worker during a claim; verify recovery and review evidence.
 - [ ] Verify approved, pending, rejected, canceled and refunded test outcomes,
-  QR invalidation and unchanged real ledger.
+      QR invalidation and unchanged real ledger.
 - [ ] Validate owner-only UI, organization switching, expired codes and
-  stale receivable state in the browser.
+      stale receivable state in the browser.
 - [ ] Confirm provider API capabilities, event signature behavior, fees,
-  settlement account and operational recovery with the actual application.
+      settlement account and operational recovery with the actual application.
 
 ## Production activation remains blocked
 

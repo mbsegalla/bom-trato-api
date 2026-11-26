@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto';
 import type { Request } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../../test/support/asymmetricMatchers.js';
 import type { MercadoPagoLiveWebhookRepository } from '../../../application/ports/mercadoPagoLiveWebhookRepository.port.js';
 
 import { MercadoPagoLiveWebhookController } from './mercadoPagoLiveWebhook.controller.js';
@@ -51,8 +52,8 @@ describe('live Mercado Pago webhook intake', () => {
       clientId,
       paymentId,
       requestId,
-      deliveryKey: expect.stringMatching(/^[a-f0-9]{64}$/),
-      signedAt: expect.any(Date),
+      deliveryKey: asymmetric.stringMatching(/^[a-f0-9]{64}$/),
+      signedAt: asymmetric.any(Date),
     });
   });
 

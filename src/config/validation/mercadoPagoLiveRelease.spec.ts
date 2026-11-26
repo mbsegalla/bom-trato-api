@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { readJsonObject } from '../../../test/support/testJson.js';
 import { appConfig } from '../app.config.js';
 import { authConfig } from '../auth.config.js';
 import { databaseConfig } from '../database.config.js';
@@ -285,7 +286,9 @@ describe('configuration factories with validated environment', () => {
   function configure(overrides: Record<string, string | undefined> = {}) {
     // Isolate all schema-managed values from CI/developer environment variables.
     const values: Record<string, string | undefined> = { ...base, ...overrides };
-    for (const key of Object.keys(envValidationSchema.describe().keys ?? {})) {
+    const description: unknown = envValidationSchema.describe();
+    const keys = readJsonObject(description).keys;
+    for (const key of Object.keys(readJsonObject(keys ?? {}))) {
       vi.stubEnv(key, values[key]);
     }
   }

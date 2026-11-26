@@ -22,7 +22,7 @@ const row = {
 
 function fixture() {
   const findUnique = vi.fn().mockResolvedValue(null);
-  const findMany = vi.fn().mockResolvedValue([]);
+  const findMany = vi.fn<(args: { select: Record<string, unknown> }) => Promise<unknown[]>>().mockResolvedValue([]);
   const repository = new PrismaAutomationEventRepository({
     organizationMember: { findUnique },
     notificationOutbox: { findMany },

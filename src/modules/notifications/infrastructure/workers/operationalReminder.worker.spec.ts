@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import type { NotificationOutbox } from '../../application/ports/notificationOutbox.port.js';
 
 import { OperationalReminderWorker } from './operationalReminder.worker.js';
 
@@ -75,13 +75,13 @@ describe('OperationalReminderWorker', () => {
     await run(f.worker);
 
     expect(f.quotes).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ status: 'SENT', sentAt: { lte: new Date(now.getTime() - 48 * 3600000) } }),
+      asymmetric.objectContaining({
+        where: asymmetric.objectContaining({ status: 'SENT', sentAt: { lte: new Date(now.getTime() - 48 * 3600000) } }),
         take: 500,
       }),
     );
     expect(f.orders).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: {
           status: 'SCHEDULED',
           assignedToId: { not: null },
@@ -91,7 +91,7 @@ describe('OperationalReminderWorker', () => {
     );
     expect(f.receivables).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: {
           status: { in: ['OPEN', 'PARTIALLY_PAID'] },
           dueAt: { gt: now, lte: new Date(now.getTime() + 24 * 3600000) },
@@ -100,7 +100,7 @@ describe('OperationalReminderWorker', () => {
     );
     expect(f.receivables).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: {
           status: { in: ['OPEN', 'PARTIALLY_PAID'] },
           dueAt: { lt: now },
@@ -127,7 +127,7 @@ describe('OperationalReminderWorker', () => {
 
     expect(f.createMany).toHaveBeenNthCalledWith(1, {
       data: [
-        expect.objectContaining({
+        asymmetric.objectContaining({
           key: 'quote-follow-up/quote',
           organizationId: 'org',
           userId: 'owner',
@@ -139,7 +139,7 @@ describe('OperationalReminderWorker', () => {
     });
     expect(f.createMany).toHaveBeenNthCalledWith(2, {
       data: [
-        expect.objectContaining({
+        asymmetric.objectContaining({
           key: 'work-order-reminder/order/' + tomorrow.toISOString(),
           organizationId: 'org',
           userId: 'worker',
@@ -149,11 +149,11 @@ describe('OperationalReminderWorker', () => {
       skipDuplicates: true,
     });
     expect(f.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         key: 'automation/work-order-reminder/order/' + tomorrow.toISOString(),
         recipient: order.customerEmail,
         expiresAt: tomorrow,
-        content: expect.objectContaining({ type: 'WORK_ORDER_REMINDER', scheduledStartAt: tomorrow.toISOString() }),
+        content: asymmetric.objectContaining({ type: 'WORK_ORDER_REMINDER', scheduledStartAt: tomorrow.toISOString() }),
       }),
     );
   });
@@ -187,18 +187,18 @@ describe('OperationalReminderWorker', () => {
 
     expect(f.enqueue).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         key: 'automation/receivable-due-soon/receivable/' + tomorrow.toISOString(),
         expiresAt: tomorrow,
-        content: expect.objectContaining({ type: 'RECEIVABLE_DUE_SOON', amountDueInCents: 7000 }),
+        content: asymmetric.objectContaining({ type: 'RECEIVABLE_DUE_SOON', amountDueInCents: 7000 }),
       }),
     );
     expect(f.enqueue).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         key: 'automation/receivable-overdue/overdue/' + yesterday.toISOString(),
         expiresAt: new Date(now.getTime() + 24 * 3600000),
-        content: expect.objectContaining({ type: 'RECEIVABLE_OVERDUE', amountDueInCents: 7000 }),
+        content: asymmetric.objectContaining({ type: 'RECEIVABLE_OVERDUE', amountDueInCents: 7000 }),
       }),
     );
   });

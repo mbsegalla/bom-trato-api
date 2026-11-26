@@ -6,5 +6,8 @@ import type {
 
 export abstract class MercadoPagoSandboxPixRepository {
   abstract read(actor: MercadoPagoSandboxPixActor): Promise<MercadoPagoSandboxPixView>;
-  abstract issue(actor: MercadoPagoSandboxPixActor, input: CreateMercadoPagoSandboxPixInput): Promise<MercadoPagoSandboxPixView>;
+  abstract issue(
+    actor: MercadoPagoSandboxPixActor,
+    input: CreateMercadoPagoSandboxPixInput,
+  ): Promise<MercadoPagoSandboxPixView>;
 }

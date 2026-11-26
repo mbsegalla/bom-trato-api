@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { readTrialLifecycleNotification } from '../policies/prismaTrialLifecycle.policy.js';
 
 import { TrialLifecycleWorker } from './trialLifecycle.worker.js';
@@ -12,7 +13,7 @@ const notification = { key: 'fixture-key', recipient: 'fixture@example.invalid' 
 >;
 
 function fixture(workerEnabled = true, trialLifecycleEnabled = true) {
-  const findMany = vi.fn().mockResolvedValue([]);
+  const findMany = vi.fn<(args: { where: { id?: { gt: string } } }) => Promise<unknown[]>>().mockResolvedValue([]);
   const findUnique = vi.fn().mockResolvedValue(null);
   const execute = vi.fn().mockResolvedValue(0);
   const db = { organizationTrial: { findMany }, notificationOutbox: { findUnique }, $executeRaw: execute };
@@ -49,13 +50,13 @@ describe('TrialLifecycleWorker', () => {
     await f.worker.run();
 
     expect(f.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
+      asymmetric.objectContaining({
+        where: asymmetric.objectContaining({
           convertedAt: null,
           revokedAt: null,
           organizationId: { not: null },
-          startsAt: { lte: expect.any(Date) },
-          expiresAt: { gt: expect.any(Date) },
+          startsAt: { lte: asymmetric.any(Date) },
+          expiresAt: { gt: asymmetric.any(Date) },
           owner: { disabledAt: null, emailVerifiedAt: { not: null } },
         }),
         take: 100,
@@ -70,7 +71,7 @@ describe('TrialLifecycleWorker', () => {
     f.findMany.mockResolvedValueOnce([{ id: 'trial' }]);
     await f.worker.run();
 
-    expect(read).toHaveBeenCalledWith(expect.anything(), 'trial', expect.any(Date));
+    expect(read).toHaveBeenCalledWith(asymmetric.anything(), 'trial', asymmetric.any(Date));
     expect(f.findUnique).toHaveBeenCalledWith({ where: { key: notification.key }, select: { id: true } });
     expect(f.enqueue).toHaveBeenCalledExactlyOnceWith(notification);
   });

@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { MercadoPagoWebhookRepository } from '../../application/ports/mercadoPagoWebhookRepository.port.js';
-import type { ClaimedMercadoPagoWebhook, MercadoPagoWebhookOutcome } from '../../domain/types/mercadoPagoWebhook.types.js';
+import type {
+  ClaimedMercadoPagoWebhook,
+  MercadoPagoWebhookOutcome,
+} from '../../domain/types/mercadoPagoWebhook.types.js';
 import { MercadoPagoError } from '../providers/mercadoPago/mercadoPagoClient.js';
 import { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 
@@ -32,7 +35,9 @@ export class ProcessMercadoPagoWebhookService {
     }
 
     const prepared = await this.repository.prepare(job);
-    if (prepared.kind !== 'READY') return prepared;
+    if (prepared.kind !== 'READY') {
+      return prepared;
+    }
 
     const { binding, connectedAt, accessToken } = prepared.access;
 

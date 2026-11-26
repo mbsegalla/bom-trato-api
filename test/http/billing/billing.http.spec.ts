@@ -11,6 +11,7 @@ import { ResumeSubscriptionUseCase } from '../../../src/modules/billing/applicat
 import { StartCheckoutUseCase } from '../../../src/modules/billing/application/useCases/startCheckout.useCase.js';
 import { BillingError } from '../../../src/modules/billing/domain/errors/billing.error.js';
 import { BillingController } from '../../../src/modules/billing/presentation/http/controllers/billing.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/billing';
@@ -108,7 +109,7 @@ describe('billing HTTP contracts', () => {
       .set('Authorization', 'Bearer fixture')
       .expect(200);
 
-    expect(response.body.data).toEqual({ items: [], nextCursor: null });
+    expect(readJsonObject(response.body).data).toEqual({ items: [], nextCursor: null });
     expect(invoices).toHaveBeenCalledWith({ ...actor, cursor: itemId, limit: 12 });
   });
 

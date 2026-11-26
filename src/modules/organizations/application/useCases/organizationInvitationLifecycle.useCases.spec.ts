@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { OrganizationInvitation } from '../../domain/entities/organizationInvitation.entity.js';
 import type { OrganizationInvitationRepository } from '../../domain/repositories/organizationInvitation.repository.js';
 import type { OrganizationMemberRepository } from '../../domain/repositories/organizationMember.repository.js';
@@ -112,11 +113,11 @@ describe('organization invitation and membership lifecycle', () => {
     });
     expect(result.invitation).not.toHaveProperty('tokenHash');
     expect(f.invitations.create.mock.calls[0][0].snapshot().tokenHash).toBe(token.hash);
-    expect(f.consume).toHaveBeenCalledWith({ organizationId: 'org', now: expect.any(Date) });
+    expect(f.consume).toHaveBeenCalledWith({ organizationId: 'org', now: asymmetric.any(Date) });
     expect(f.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         recipient: 'member@example.invalid',
-        content: expect.objectContaining({
+        content: asymmetric.objectContaining({
           type: 'ORGANIZATION_INVITATION',
           token: token.value,
         }),
@@ -161,10 +162,10 @@ describe('organization invitation and membership lifecycle', () => {
     f.currentActor.email = 'member@example.invalid';
 
     expect(await useCase.execute(params)).toEqual({ organizationId: 'org' });
-    expect(f.run).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' }, expect.any(Function));
+    expect(f.run).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' }, asymmetric.any(Function));
     expect(f.members.add).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' });
     expect(f.notify).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         userId: 'owner',
         organizationId: 'org',
         type: 'ORGANIZATION_MEMBER_JOINED',

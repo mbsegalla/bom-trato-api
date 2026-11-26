@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { Lead } from '../../domain/entities/lead.entity.js';
 import type { LeadRepository } from '../../domain/repositories/lead.repository.js';
 import type { LeadReadContext, LeadTransaction, LeadUnitOfWork } from '../ports/leadUnitOfWork.port.js';
@@ -73,7 +74,7 @@ describe('lead management use cases', () => {
     const f = fixture();
     const contacted = await new MarkLeadContactedUseCase(f.service).execute(actor);
 
-    expect(contacted).toMatchObject({ status: 'CONTACTED', contactedAt: expect.any(Date), convertedQuoteId: null });
+    expect(contacted).toMatchObject({ status: 'CONTACTED', contactedAt: asymmetric.any(Date), convertedQuoteId: null });
     expect(f.leads.save.mock.calls[0][0].snapshot()).toEqual(contacted);
 
     f.leads.findById.mockResolvedValueOnce(contacted);
@@ -82,7 +83,7 @@ describe('lead management use cases', () => {
 
     expect(archived).toMatchObject({
       status: 'ARCHIVED',
-      archivedAt: expect.any(Date),
+      archivedAt: asymmetric.any(Date),
       contactedAt: contacted.contactedAt,
     });
     expect(f.leads.save.mock.calls[1][0].snapshot()).toEqual(archived);

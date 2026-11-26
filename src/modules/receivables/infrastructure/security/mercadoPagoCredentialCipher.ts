@@ -23,7 +23,12 @@ export class MercadoPagoCredentialCipher {
     cipher.setAAD(this.aad(context));
     const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
 
-    return ['v1', iv.toString('base64url'), cipher.getAuthTag().toString('base64url'), encrypted.toString('base64url')].join('.');
+    return [
+      'v1',
+      iv.toString('base64url'),
+      cipher.getAuthTag().toString('base64url'),
+      encrypted.toString('base64url'),
+    ].join('.');
   }
 
   open(context: readonly string[], payload: string): string {

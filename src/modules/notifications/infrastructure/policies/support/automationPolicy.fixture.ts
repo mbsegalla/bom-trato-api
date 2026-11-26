@@ -65,17 +65,25 @@ interface AutomationFixture {
 
 export function automationFixture(): AutomationFixture {
   const db: AutomationFixtureDatabase = {
-    $queryRaw: vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([{ id: trial.organizationId }]),
+    $queryRaw: vi
+      .fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>()
+      .mockResolvedValue([{ id: trial.organizationId }]),
     organization: { findUnique: vi.fn().mockResolvedValue({ trial, subscriptions: [] }) },
     organizationTrial: { findUnique: vi.fn().mockResolvedValue(trialRow) },
     organizationMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
     subscription: { findFirst: vi.fn().mockResolvedValue(null) },
     billingInvoice: { findFirst: vi.fn().mockResolvedValue(null) },
     notificationOutbox: { count: vi.fn().mockResolvedValue(0) },
-    quoteShare: { findFirst: vi.fn().mockResolvedValue({ quoteVersion: 2, quote: { version: 2, status: 'SENT', validUntil: future } }) },
+    quoteShare: {
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({ quoteVersion: 2, quote: { version: 2, status: 'SENT', validUntil: future } }),
+    },
     quote: { findFirst: vi.fn().mockResolvedValue(null) },
     workOrder: { findFirst: vi.fn().mockResolvedValue({ status: 'SCHEDULED', scheduledStartAt: future }) },
-    professionalReviewInvitation: { findFirst: vi.fn().mockResolvedValue({ workOrder: { status: 'COMPLETED', professionalReview: null } }) },
+    professionalReviewInvitation: {
+      findFirst: vi.fn().mockResolvedValue({ workOrder: { status: 'COMPLETED', professionalReview: null } }),
+    },
     receivable: { findFirst: vi.fn().mockResolvedValue({ status: 'PARTIALLY_PAID', dueAt: future }) },
   };
 

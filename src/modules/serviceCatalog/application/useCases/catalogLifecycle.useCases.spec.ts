@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { CatalogService } from '../../domain/entities/catalogService.entity.js';
 import type { CatalogServiceRepository } from '../../domain/repositories/catalogService.repository.js';
@@ -65,7 +66,7 @@ describe('catalog lifecycle use cases', () => {
     const f = fixture();
 
     expect(await new ArchiveCatalogServiceUseCase(f.service).execute(params)).toMatchObject({
-      archivedAt: expect.any(Date),
+      archivedAt: asymmetric.any(Date),
     });
     await expect(new UpdateCatalogServiceUseCase(f.service).execute(params, { amountInCents: 2000 })).rejects.toThrow(
       'CATALOG_SERVICE_ARCHIVED',

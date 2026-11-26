@@ -95,38 +95,57 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   MERCADO_PAGO_SANDBOX_PIX_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_LIVE_PIX_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED: Joi.boolean().default(false),
-  MERCADO_PAGO_LIVE_PILOT_ORGANIZATION_ID: Joi.string().pattern(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/).optional(),
-  MERCADO_PAGO_LIVE_PILOT_ACCOUNT_ID: Joi.string().pattern(/^[1-9]\d{0,29}$/).optional(),
+  MERCADO_PAGO_LIVE_PILOT_ORGANIZATION_ID: Joi.string()
+    .pattern(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+    .optional(),
+  MERCADO_PAGO_LIVE_PILOT_ACCOUNT_ID: Joi.string()
+    .pattern(/^[1-9]\d{0,29}$/)
+    .optional(),
   MERCADO_PAGO_LIVE_PILOT_MAX_AMOUNT_IN_CENTS: Joi.number().integer().min(1).max(10000).optional(),
   MERCADO_PAGO_LIVE_WEBHOOK_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_LIVE_WEBHOOK_WORKER_ENABLED: Joi.boolean().default(false),
-  MERCADO_PAGO_LIVE_WEBHOOK_SECRET: Joi.string().min(16).max(2048).pattern(/^[\x21-\x7E]+$/).when('MERCADO_PAGO_LIVE_WEBHOOK_ENABLED', {
-    is: true,
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
+  MERCADO_PAGO_LIVE_WEBHOOK_SECRET: Joi.string()
+    .min(16)
+    .max(2048)
+    .pattern(/^[\x21-\x7E]+$/)
+    .when('MERCADO_PAGO_LIVE_WEBHOOK_ENABLED', {
+      is: true,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
   MERCADO_PAGO_WEBHOOK_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_WEBHOOK_WORKER_ENABLED: Joi.boolean().default(false),
-  MERCADO_PAGO_WEBHOOK_SECRET: Joi.string().min(16).max(2048).pattern(/^[\x21-\x7E]+$/).when('MERCADO_PAGO_WEBHOOK_ENABLED', {
-    is: true,
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  MERCADO_PAGO_CLIENT_ID: Joi.string().pattern(/^[1-9]\d{0,29}$/).when('MERCADO_PAGO_ENABLED', {
-    is: true,
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  MERCADO_PAGO_CLIENT_SECRET: Joi.string().max(2048).pattern(/^[\x21-\x7E]+$/).when('MERCADO_PAGO_ENABLED', {
-    is: true,
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  MERCADO_PAGO_ENCRYPTION_KEY: Joi.string().pattern(/^[a-fA-F0-9]{64}$/).when('MERCADO_PAGO_ENABLED', {
-    is: true,
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
+  MERCADO_PAGO_WEBHOOK_SECRET: Joi.string()
+    .min(16)
+    .max(2048)
+    .pattern(/^[\x21-\x7E]+$/)
+    .when('MERCADO_PAGO_WEBHOOK_ENABLED', {
+      is: true,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
+  MERCADO_PAGO_CLIENT_ID: Joi.string()
+    .pattern(/^[1-9]\d{0,29}$/)
+    .when('MERCADO_PAGO_ENABLED', {
+      is: true,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
+  MERCADO_PAGO_CLIENT_SECRET: Joi.string()
+    .max(2048)
+    .pattern(/^[\x21-\x7E]+$/)
+    .when('MERCADO_PAGO_ENABLED', {
+      is: true,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
+  MERCADO_PAGO_ENCRYPTION_KEY: Joi.string()
+    .pattern(/^[a-fA-F0-9]{64}$/)
+    .when('MERCADO_PAGO_ENABLED', {
+      is: true,
+      then: Joi.required(),
+      otherwise: Joi.optional(),
+    }),
 
   NOTIFICATION_WORKER_ENABLED: Joi.boolean().default(true),
 
@@ -246,16 +265,21 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
 
   // Explicit operator attestation is a release gate, not proof that external
   // homologation happened. Never default any production switch to true.
-  if (env.MERCADO_PAGO_LIVE_PIX_ENABLED && (
-    env.NODE_ENV !== NodeEnvironment.PRODUCTION ||
-    !env.MERCADO_PAGO_ENABLED || !env.MERCADO_PAGO_LIVE_MODE ||
-    !env.MERCADO_PAGO_LIVE_WEBHOOK_ENABLED || !env.MERCADO_PAGO_LIVE_WEBHOOK_WORKER_ENABLED ||
-    env.MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED !== true ||
-    !env.MERCADO_PAGO_LIVE_PILOT_ORGANIZATION_ID ||
-    !env.MERCADO_PAGO_LIVE_PILOT_ACCOUNT_ID ||
-    env.MERCADO_PAGO_LIVE_PILOT_MAX_AMOUNT_IN_CENTS === undefined
-  )) {
-    throw new Error('Mercado Pago live Pix requires approved production homologation, live intake/worker and an explicit bounded organization/seller pilot');
+  if (
+    env.MERCADO_PAGO_LIVE_PIX_ENABLED &&
+    (env.NODE_ENV !== NodeEnvironment.PRODUCTION ||
+      !env.MERCADO_PAGO_ENABLED ||
+      !env.MERCADO_PAGO_LIVE_MODE ||
+      !env.MERCADO_PAGO_LIVE_WEBHOOK_ENABLED ||
+      !env.MERCADO_PAGO_LIVE_WEBHOOK_WORKER_ENABLED ||
+      env.MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED !== true ||
+      !env.MERCADO_PAGO_LIVE_PILOT_ORGANIZATION_ID ||
+      !env.MERCADO_PAGO_LIVE_PILOT_ACCOUNT_ID ||
+      env.MERCADO_PAGO_LIVE_PILOT_MAX_AMOUNT_IN_CENTS === undefined)
+  ) {
+    throw new Error(
+      'Mercado Pago live Pix requires approved production homologation, live intake/worker and an explicit bounded organization/seller pilot',
+    );
   }
 
   if (env.MERCADO_PAGO_SANDBOX_PIX_ENABLED && (!env.MERCADO_PAGO_ENABLED || env.MERCADO_PAGO_LIVE_MODE)) {

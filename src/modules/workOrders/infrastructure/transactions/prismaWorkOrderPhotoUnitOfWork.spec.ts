@@ -10,7 +10,9 @@ function fixture() {
   const organization = vi.fn().mockResolvedValue({ id: 'org' });
   const member = vi.fn().mockResolvedValue(null);
   const workOrder = vi.fn().mockResolvedValue(null);
-  const query = vi.fn().mockResolvedValue([{ id: 'org' }]);
+  const query = vi
+    .fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue([{ id: 'org' }]);
   const db = {
     organization: { findUnique: organization },
     organizationMember: { findUnique: member },

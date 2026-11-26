@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { CURRENT_PRIVACY_NOTICE_VERSION, CURRENT_TERMS_VERSION } from '../../../legal/domain/legalDocuments.js';
 import { User } from '../../../users/domain/entities/user.entity.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
@@ -105,7 +106,7 @@ describe('LoginWithGoogleUseCase', () => {
 
     expect(await f.useCase.execute({ ...input, ...legal })).toMatchObject({ accessToken: 'access', expiresIn: 900 });
     expect(f.auth.registerFederated).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         userId: 'user',
         email: 'user@example.invalid',
         identity: {
@@ -114,11 +115,11 @@ describe('LoginWithGoogleUseCase', () => {
           provider: 'GOOGLE',
           providerAccountId: profile.subject,
         },
-        legalAcceptance: expect.objectContaining({ ...legal, source: 'GOOGLE_REGISTER' }),
+        legalAcceptance: asymmetric.objectContaining({ ...legal, source: 'GOOGLE_REGISTER' }),
       }),
     );
     expect(f.auth.startFederatedSession).toHaveBeenCalledWith({
-      session: expect.objectContaining({ id: 'session', userId: 'user' }),
+      session: asymmetric.objectContaining({ id: 'session', userId: 'user' }),
       refreshHash: 'refresh-hash',
     });
   });

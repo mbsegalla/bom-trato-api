@@ -8,6 +8,7 @@ import { PrismaService } from '../../../src/infrastructure/database/prisma.servi
 import { BillingWork } from '../../../src/modules/billing/infrastructure/events/billing.events.js';
 import type { BillingWorkerNotifier } from '../../../src/modules/billing/infrastructure/events/billingWorkerNotifier.service.js';
 import { PrismaBillingWebhookRepository } from '../../../src/modules/billing/infrastructure/repositories/prismaBillingWebhook.repository.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
 const suite = url === undefined ? describe.skip : describe;
@@ -81,7 +82,7 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
     expect(await repository.settleEvent(claimed, 'COMPLETE')).toBe(true);
     expect(await repository.settleEvent(claimed, 'COMPLETE')).toBe(false);
     expect(await prisma.stripeWebhookEvent.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({
-      processedAt: expect.any(Date),
+      processedAt: asymmetric.any(Date),
       attempts: 0,
       leaseToken: null,
       failedAt: null,
@@ -142,7 +143,7 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
     expect(await repository.settleEvent(job, 'RETRY', 'FIXTURE_EXHAUSTED')).toBe(true);
     expect(await prisma.stripeWebhookEvent.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({
       attempts: 25,
-      failedAt: expect.any(Date),
+      failedAt: asymmetric.any(Date),
       processedAt: null,
       lastErrorCode: 'FIXTURE_EXHAUSTED',
     });

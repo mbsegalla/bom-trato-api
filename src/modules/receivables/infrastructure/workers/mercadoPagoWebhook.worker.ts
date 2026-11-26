@@ -29,7 +29,9 @@ export class MercadoPagoWebhookWorker implements OnModuleDestroy {
       return Promise.resolve();
     }
 
-    if (this.running !== undefined) return this.running;
+    if (this.running !== undefined) {
+      return this.running;
+    }
 
     this.running = this.drain(this.config.clientId)
       .catch(() => {
@@ -45,7 +47,9 @@ export class MercadoPagoWebhookWorker implements OnModuleDestroy {
   private async drain(clientId: string): Promise<void> {
     for (let processed = 0; processed < 10 && !this.stopping; processed++) {
       const job = await this.repository.claim(clientId, randomUUID());
-      if (job === null) return;
+      if (job === null) {
+        return;
+      }
 
       if (!(await this.processor.execute(job))) {
         this.logger.warn('Mercado Pago webhook lease expired; completion was not acknowledged');

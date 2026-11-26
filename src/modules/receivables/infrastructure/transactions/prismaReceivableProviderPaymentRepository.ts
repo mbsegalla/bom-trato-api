@@ -72,7 +72,9 @@ export class PrismaReceivableProviderPaymentRepository extends ReceivableProvide
         // Once the dedicated live issuer reserves a receivable, no generic
         // registration can introduce another charge while the POST is in flight.
         const liveReservation = await db.mercadoPagoLivePix.findUnique({
-          where: { receivableId_organizationId: { receivableId: params.receivableId, organizationId: params.organizationId } },
+          where: {
+            receivableId_organizationId: { receivableId: params.receivableId, organizationId: params.organizationId },
+          },
           select: { id: true },
         });
         if (liveReservation !== null) {
@@ -171,7 +173,9 @@ export async function confirmRegisteredProviderPayment(
   payment: VerifiedProviderPayment,
   now = new Date(),
 ): Promise<ProviderPaymentResult> {
-  if (payment.liveMode !== true) return 'IGNORED_TEST';
+  if (payment.liveMode !== true) {
+    return 'IGNORED_TEST';
+  }
   assertVerifiedProviderPayment(payment, now);
   const reference = externalReference(payment);
   const charge = await db.receivableProviderCharge.findFirst({

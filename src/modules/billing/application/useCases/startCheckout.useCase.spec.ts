@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { BillingRepository, CheckoutAttemptState } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
@@ -97,7 +98,7 @@ describe('StartCheckoutUseCase', () => {
     const f = fixture();
 
     await expect(f.useCase.execute(actor)).resolves.toEqual({ attemptId: 'attempt', clientSecret: 'fixture-secret' });
-    expect(f.run).toHaveBeenCalledWith('organization:org', expect.any(Function));
+    expect(f.run).toHaveBeenCalledWith('organization:org', asymmetric.any(Function));
     expect(f.repository.attachCheckout).toHaveBeenCalledWith('attempt', 'cs_fixture');
     expect(f.gateway.createCheckout).not.toHaveBeenCalled();
   });
@@ -130,7 +131,7 @@ describe('StartCheckoutUseCase', () => {
     const result = await f.useCase.execute(actor);
 
     expect(f.repository.createCheckout).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         id: result.attemptId,
         organizationId: 'org',
         planPriceId: 'price',
@@ -138,9 +139,9 @@ describe('StartCheckoutUseCase', () => {
       }),
     );
     expect(f.gateway.createCheckout).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         customerId: 'cus_fixture',
-        attempt: expect.objectContaining({ id: result.attemptId }),
+        attempt: asymmetric.objectContaining({ id: result.attemptId }),
       }),
     );
     expect(f.repository.attachCheckout).toHaveBeenCalledWith(result.attemptId, 'cs_new');
@@ -172,7 +173,7 @@ describe('StartCheckoutUseCase', () => {
     f.gateway.findCustomer.mockResolvedValueOnce('cus_recovered');
 
     await expect(f.useCase.execute(actor)).resolves.toEqual({ attemptId: 'attempt', clientSecret: 'fixture-secret' });
-    expect(f.repository.markCustomerCreation).toHaveBeenCalledWith('customer', expect.any(Date));
+    expect(f.repository.markCustomerCreation).toHaveBeenCalledWith('customer', asymmetric.any(Date));
     expect(f.gateway.findCustomer).toHaveBeenCalledWith(requested);
     expect(f.repository.setCustomerId).toHaveBeenCalledWith('customer', 'cus_recovered');
     expect(f.gateway.createCustomer).not.toHaveBeenCalled();
@@ -224,7 +225,7 @@ describe('StartCheckoutUseCase', () => {
     expect(f.repository.handleDeletedCustomer).toHaveBeenCalledWith({
       organizationId: 'org',
       stripeCustomerId: 'cus_deleted',
-      deletedAt: expect.any(Date),
+      deletedAt: asymmetric.any(Date),
     });
     expect(f.repository.setCustomerId).toHaveBeenCalledWith('customer', 'cus_replacement');
     expect(f.gateway.snapshot).toHaveBeenCalledWith('cus_replacement');
@@ -348,7 +349,7 @@ describe('StartCheckoutUseCase', () => {
     f.repository.pendingCheckout.mockResolvedValueOnce(null);
     f.gateway.createCheckout.mockResolvedValueOnce({ stripeSessionId: 'cs_ambiguous', ...result });
     await expect(f.useCase.execute(actor)).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');
-    expect(f.repository.attachCheckout).toHaveBeenCalledWith(expect.any(String), 'cs_ambiguous');
+    expect(f.repository.attachCheckout).toHaveBeenCalledWith(asymmetric.any(String), 'cs_ambiguous');
     expect(f.repository.createCheckout).toHaveBeenCalledTimes(1);
   });
 });

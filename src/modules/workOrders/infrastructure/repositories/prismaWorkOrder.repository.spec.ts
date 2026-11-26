@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Quote } from '../../../quotes/domain/entities/quote.entity.js';
 import { QuoteItem } from '../../../quotes/domain/entities/quoteItem.entity.js';
@@ -36,7 +37,9 @@ function fixture() {
   const findFirst = vi.fn().mockResolvedValue(null);
   const findMany = vi.fn().mockResolvedValue([]);
   const create = vi.fn().mockResolvedValue(undefined);
-  const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+  const updateMany = vi
+    .fn<(args: Prisma.WorkOrderUpdateManyArgs) => Promise<{ count: number }>>()
+    .mockResolvedValue({ count: 1 });
   const createStatus = vi.fn().mockResolvedValue(undefined);
   const createSchedule = vi.fn().mockResolvedValue(undefined);
   const listStatus = vi.fn().mockResolvedValue([]);
@@ -109,13 +112,13 @@ describe('PrismaWorkOrderRepository', () => {
 
     expect(f.findFirst).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { quoteId: 'quote', organizationId: 'org' },
       }),
     );
     expect(f.findFirst).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { id: 'unknown', organizationId: 'org' },
       }),
     );
@@ -159,7 +162,7 @@ describe('PrismaWorkOrderRepository', () => {
 
     expect(f.updateMany).toHaveBeenCalledWith({
       where: { id: 'order', organizationId: 'org', version: 1 },
-      data: expect.objectContaining({ status: 'SCHEDULED', version: 2, assignedToId: 'worker' }),
+      data: asymmetric.objectContaining({ status: 'SCHEDULED', version: 2, assignedToId: 'worker' }),
     });
     expect(f.updateMany.mock.calls[0][0].data).not.toHaveProperty('totalInCents');
     expect(f.createSchedule).toHaveBeenCalledWith({

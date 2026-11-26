@@ -28,8 +28,13 @@ import { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPa
 import type { MercadoPagoLivePaymentObservation } from '../providers/mercadoPago/mercadoPagoPix.types.js';
 
 import { MercadoPagoCredentialService } from './mercadoPagoCredentialService.js';
-import { applyLivePixObservation, bindingFrom, markLivePixReview, matchesBinding } from './mercadoPagoLiveSettlement.js';
 import type { BoundIssuance } from './mercadoPagoLiveSettlement.js';
+import {
+  applyLivePixObservation,
+  bindingFrom,
+  markLivePixReview,
+  matchesBinding,
+} from './mercadoPagoLiveSettlement.js';
 
 type Result =
   | { kind: 'FOUND'; paymentId: string; observation: MercadoPagoLivePaymentObservation }
@@ -61,9 +66,13 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
   }
 
   private get recoveryEnabled(): boolean {
-    return this.config.enabled && this.config.workerEnabled &&
-      this.runtime.liveMode && this.runtime.client !== null &&
-      this.config.clientId === this.runtime.clientId;
+    return (
+      this.config.enabled &&
+      this.config.workerEnabled &&
+      this.runtime.liveMode &&
+      this.runtime.client !== null &&
+      this.config.clientId === this.runtime.clientId
+    );
   }
 
   read(actor: MercadoPagoLivePixActor): Promise<MercadoPagoLivePixView> {
@@ -77,23 +86,37 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
           where: { id: actor.receivableId, organizationId: actor.organizationId },
           select: { version: true, status: true, currency: true, amountInCents: true, receivedInCents: true },
         });
-        if (receivable === null) throw new ReceivingSettingsError('RECEIVABLE_NOT_FOUND');
+        if (receivable === null) {
+          throw new ReceivingSettingsError('RECEIVABLE_NOT_FOUND');
+        }
 
         const row = await this.find(db, actor);
-        if (row !== null && row.issuedById !== actor.userId) return conflict();
+        if (row !== null && row.issuedById !== actor.userId) {
+          return conflict();
+        }
 
         const now = new Date();
-        const available = this.runtime.liveMode && this.runtime.client !== null &&
+        const available =
+          this.runtime.liveMode &&
+          this.runtime.client !== null &&
           (row !== null || this.runtime.livePixAllowed(actor.organizationId));
         const connection = await this.currentConnection(db, actor, row, now);
         const operating = access.hasPlatformAccess && !access.billingNeedsReconciliation;
-        const bindingValid = row !== null && row.externalPaymentId !== null &&
+        const bindingValid =
+          row !== null &&
+          row.externalPaymentId !== null &&
           matchesBinding(row, bindingFrom(row, { clientId: row.clientId, paymentId: row.externalPaymentId }));
-        const canPresent = row !== null &&
+        const canPresent =
+          row !== null &&
           this.runtime.livePixAllowed(actor.organizationId, row.accountId, row.amountInCents) &&
-          this.recoveryEnabled && operating &&
-          connection !== null && connection.decision === 'REUSE' && bindingValid &&
-          row !== null && row.providerCharge !== null && row.providerCharge.reviewReason === null &&
+          this.recoveryEnabled &&
+          operating &&
+          connection !== null &&
+          connection.decision === 'REUSE' &&
+          bindingValid &&
+          row !== null &&
+          row.providerCharge !== null &&
+          row.providerCharge.reviewReason === null &&
           row.providerCharge.paymentId === null;
         let status: LivePixViewStatus = livePixViewStatus(row, receivable, canPresent, now);
         let copyAndPaste: string | null = null;
@@ -103,57 +126,80 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
               ['live-pix', row.organizationId, row.clientId, row.accountId, row.id],
               row.copyAndPasteCiphertext,
             );
-            if (isValidSandboxDynamicPix(code, row.amountInCents)) copyAndPaste = code;
+            if (isValidSandboxDynamicPix(code, row.amountInCents)) {
+              copyAndPaste = code;
+            }
           } catch {
             // Failed decryption must never expose a stale or corrupt code.
           }
         }
-        if (status === 'PENDING' && copyAndPaste === null) status = 'REVIEW_REQUIRED';
+        if (status === 'PENDING' && copyAndPaste === null) {
+          status = 'REVIEW_REQUIRED';
+        }
 
         const latest = row === null ? null : await this.latest(db, row.id);
         const next = row === null ? null : nextLivePixRecoveryAt(row, latest);
-        const event = row === null ? null : await db.mercadoPagoLiveWebhookEvent.findFirst({
-          where: {
-            clientId: row.clientId,
-            OR: [
-              { matchedIssuanceId: row.id },
-              ...(row.externalPaymentId === null ? [] : [
-                { matchedIssuanceId: null, paymentId: row.externalPaymentId },
-              ]),
-            ],
-          },
-          orderBy: [{ receivedAt: 'desc' }, { deliveryKey: 'desc' }],
-          select: { resultCode: true },
-        });
-        const priorCharge = row === null ? await db.receivableProviderCharge.findFirst({
-          where: { organizationId: actor.organizationId, receivableId: actor.receivableId },
-          select: { id: true },
-        }) : null;
+        const event =
+          row === null
+            ? null
+            : await db.mercadoPagoLiveWebhookEvent.findFirst({
+                where: {
+                  clientId: row.clientId,
+                  OR: [
+                    { matchedIssuanceId: row.id },
+                    ...(row.externalPaymentId === null
+                      ? []
+                      : [{ matchedIssuanceId: null, paymentId: row.externalPaymentId }]),
+                  ],
+                },
+                orderBy: [{ receivedAt: 'desc' }, { deliveryKey: 'desc' }],
+                select: { resultCode: true },
+              });
+        const priorCharge =
+          row === null
+            ? await db.receivableProviderCharge.findFirst({
+                where: { organizationId: actor.organizationId, receivableId: actor.receivableId },
+                select: { id: true },
+              })
+            : null;
 
-        const unresolved = row === null ? await db.mercadoPagoLivePix.findFirst({
-          where: { organizationId: actor.organizationId, status: { in: ['RESERVED', 'PENDING', 'REVIEW_REQUIRED'] } },
-          select: { id: true },
-        }) : null;
+        const unresolved =
+          row === null
+            ? await db.mercadoPagoLivePix.findFirst({
+                where: {
+                  organizationId: actor.organizationId,
+                  status: { in: ['RESERVED', 'PENDING', 'REVIEW_REQUIRED'] },
+                },
+                select: { id: true },
+              })
+            : null;
 
         return {
           organizationId: actor.organizationId,
           receivableId: actor.receivableId,
           receivableVersion: receivable.version,
           available,
-          canIssue: row === null && priorCharge === null && unresolved === null &&
-            this.recoveryEnabled && operating && connection !== null &&
+          canIssue:
+            row === null &&
+            priorCharge === null &&
+            unresolved === null &&
+            this.recoveryEnabled &&
+            operating &&
+            connection !== null &&
             this.runtime.livePixAllowed(actor.organizationId, connection.accountId, sandboxPixBalance(receivable)),
-          canRecover: row !== null && this.recoveryEnabled && operating && connection !== null &&
-            next !== null && next <= now,
+          canRecover:
+            row !== null && this.recoveryEnabled && operating && connection !== null && next !== null && next <= now,
           status,
           issuanceId: row?.id ?? null,
           amountInCents: row?.amountInCents ?? null,
           paymentId: row?.externalPaymentId ?? null,
-          expiresAt: status === 'PENDING' ? row?.expiresAt ?? null : null,
+          expiresAt: status === 'PENDING' ? (row?.expiresAt ?? null) : null,
           copyAndPaste,
-          reviewCode: row?.settlementReviewCode ?? (status === 'REVIEW_REQUIRED' ? row?.resultCode ?? null : null),
-          lastRecoveryCode: latest?.resultCode === 'IN_PROGRESS' && latest.leaseExpiresAt <= now
-            ? 'ABANDONED' : latest?.resultCode ?? null,
+          reviewCode: row?.settlementReviewCode ?? (status === 'REVIEW_REQUIRED' ? (row?.resultCode ?? null) : null),
+          lastRecoveryCode:
+            latest?.resultCode === 'IN_PROGRESS' && latest.leaseExpiresAt <= now
+              ? 'ABANDONED'
+              : (latest?.resultCode ?? null),
           nextRecoveryAt: next !== null && next > now ? next : null,
           lastWebhookCode: event?.resultCode ?? null,
           liveMode: true,
@@ -163,13 +209,20 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
     );
   }
 
-  async recover(actor: MercadoPagoLivePixActor, input: RecoverMercadoPagoLivePixInput): Promise<MercadoPagoLivePixView> {
+  async recover(
+    actor: MercadoPagoLivePixActor,
+    input: RecoverMercadoPagoLivePixInput,
+  ): Promise<MercadoPagoLivePixView> {
     const view = await this.read(actor);
-    if (!view.canRecover || view.issuanceId !== input.issuanceId) return conflict();
+    if (!view.canRecover || view.issuanceId !== input.issuanceId) {
+      return conflict();
+    }
 
     const { client } = this.runtime.requireEnabled();
     const access = await this.credentials.accessForOwner(actor);
-    if (!access.liveMode || !this.recoveryEnabled) return conflict();
+    if (!access.liveMode || !this.recoveryEnabled) {
+      return conflict();
+    }
 
     const claim = await organizationTransaction<RecoveryClaim>(
       this.prisma,
@@ -178,21 +231,34 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
       async (db) => {
         await assertReceivingSettingsOwner(db, actor, true);
         const now = new Date();
-        if (!(await this.sessionCurrent(db, actor, now))) return conflict();
+        if (!(await this.sessionCurrent(db, actor, now))) {
+          return conflict();
+        }
         const row = await this.find(db, actor);
-        if (row === null || row.id !== input.issuanceId || row.issuedById !== actor.userId || row.accountId !== access.accountId) {
+        if (
+          row === null ||
+          row.id !== input.issuanceId ||
+          row.issuedById !== actor.userId ||
+          row.accountId !== access.accountId
+        ) {
           return conflict();
         }
 
-        if (nextLivePixRecoveryAt(row, await this.latest(db, row.id)) > now) return conflict();
+        if (nextLivePixRecoveryAt(row, await this.latest(db, row.id)) > now) {
+          return conflict();
+        }
         const connection = await this.currentConnection(db, actor, row, now);
-        if (connection === null || connection.decision !== 'REUSE' || connection.accessTokenCiphertext === null) return conflict();
+        if (connection === null || connection.decision !== 'REUSE' || connection.accessTokenCiphertext === null) {
+          return conflict();
+        }
 
         const token = this.runtime.cipher.open(
           ['credential', row.organizationId, row.clientId, 'true', row.accountId, 'access'],
           connection.accessTokenCiphertext,
         );
-        if (token !== access.accessToken) return conflict();
+        if (token !== access.accessToken) {
+          return conflict();
+        }
 
         await db.mercadoPagoLivePixRecovery.updateMany({
           where: { issuanceId: row.id, resultCode: 'IN_PROGRESS', leaseExpiresAt: { lte: now } },
@@ -200,7 +266,10 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
         });
         const attempt = await db.mercadoPagoLivePixRecovery.create({
           data: {
-            id: randomUUID(), issuanceId: row.id, startedById: actor.userId, startedAt: now,
+            id: randomUUID(),
+            issuanceId: row.id,
+            startedById: actor.userId,
+            startedAt: now,
             leaseExpiresAt: new Date(now.getTime() + LIVE_PIX_RECOVERY_LEASE_MS),
           },
         });
@@ -223,27 +292,36 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
         result = await client.searchLivePix(request);
       } else {
         result = {
-          kind: 'FOUND', paymentId: claim.row.externalPaymentId,
+          kind: 'FOUND',
+          paymentId: claim.row.externalPaymentId,
           observation: await client.readLivePix({ ...request, paymentId: claim.row.externalPaymentId }),
         };
       }
     } catch (error: unknown) {
       result = {
-        kind: error instanceof MercadoPagoError && error.code !== 'REQUEST_FAILED'
-          ? 'INVALID_PROVIDER_PAYMENT' : 'PROVIDER_UNAVAILABLE',
+        kind:
+          error instanceof MercadoPagoError && error.code !== 'REQUEST_FAILED'
+            ? 'INVALID_PROVIDER_PAYMENT'
+            : 'PROVIDER_UNAVAILABLE',
       };
     }
 
     try {
       await this.finish(actor, claim, result);
     } catch (error: unknown) {
-      if (error instanceof LeaseLost) return this.read(actor);
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+      if (error instanceof LeaseLost) {
+        return this.read(actor);
+      }
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
       // Binding collision rolls back all writes. Preserve the review evidence.
       try {
         await this.finish(actor, claim, { kind: 'BINDING_CONFLICT' });
       } catch (retryError: unknown) {
-        if (!(retryError instanceof LeaseLost)) throw retryError;
+        if (!(retryError instanceof LeaseLost)) {
+          throw retryError;
+        }
       }
     }
 
@@ -259,11 +337,16 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
         const now = new Date();
         const attempt = await db.mercadoPagoLivePixRecovery.findFirst({
           where: {
-            id: claim.id, issuanceId: claim.row.id, startedById: actor.userId,
-            resultCode: 'IN_PROGRESS', leaseExpiresAt: { gt: now },
+            id: claim.id,
+            issuanceId: claim.row.id,
+            startedById: actor.userId,
+            resultCode: 'IN_PROGRESS',
+            leaseExpiresAt: { gt: now },
           },
         });
-        if (attempt === null) throw new LeaseLost();
+        if (attempt === null) {
+          throw new LeaseLost();
+        }
 
         let row = await this.find(db, actor);
         let authorized = false;
@@ -271,21 +354,30 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
           await assertReceivingSettingsOwner(db, actor, true);
           authorized = await this.sessionCurrent(db, actor, now);
         } catch (error: unknown) {
-          if (!(error instanceof ReceivingSettingsError)) throw error;
+          if (!(error instanceof ReceivingSettingsError)) {
+            throw error;
+          }
         }
-        const connection = authorized && row !== null && row.issuedById === actor.userId
-          ? await this.currentConnection(db, actor, row, now) : null;
+        const connection =
+          authorized && row !== null && row.issuedById === actor.userId
+            ? await this.currentConnection(db, actor, row, now)
+            : null;
 
         let code: string;
         let paymentId: string | null = null;
         if (
-          !this.recoveryEnabled || row === null || connection === null ||
+          !this.recoveryEnabled ||
+          row === null ||
+          connection === null ||
           connection.decision !== 'REUSE' ||
           connection.connectedAt.getTime() !== claim.connectedAt.getTime() ||
           connection.updatedAt.getTime() !== claim.updatedAt.getTime() ||
-          row.id !== claim.row.id || row.issuedById !== claim.row.issuedById ||
-          row.clientId !== claim.row.clientId || row.accountId !== claim.row.accountId ||
-          row.receivableVersion !== claim.row.receivableVersion || row.amountInCents !== claim.row.amountInCents ||
+          row.id !== claim.row.id ||
+          row.issuedById !== claim.row.issuedById ||
+          row.clientId !== claim.row.clientId ||
+          row.accountId !== claim.row.accountId ||
+          row.receivableVersion !== claim.row.receivableVersion ||
+          row.amountInCents !== claim.row.amountInCents ||
           row.externalPaymentId !== claim.row.externalPaymentId ||
           row.providerChargeId !== claim.row.providerChargeId
         ) {
@@ -296,20 +388,27 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
             await markLivePixReview(db, row, code);
           } else if (code === 'NOT_FOUND' && row.status === 'RESERVED') {
             await db.mercadoPagoLivePix.update({
-              where: { id: row.id }, data: { status: 'REVIEW_REQUIRED', resultCode: 'UNCERTAIN_CREATION' },
+              where: { id: row.id },
+              data: { status: 'REVIEW_REQUIRED', resultCode: 'UNCERTAIN_CREATION' },
             });
           }
-        } else if (!/^[1-9]\d{0,29}$/.test(result.paymentId) ||
-          (row.externalPaymentId !== null && row.externalPaymentId !== result.paymentId)) {
+        } else if (
+          !/^[1-9]\d{0,29}$/.test(result.paymentId) ||
+          (row.externalPaymentId !== null && row.externalPaymentId !== result.paymentId)
+        ) {
           code = 'INVALID_PROVIDER_PAYMENT';
           await markLivePixReview(db, row, code);
         } else {
           paymentId = result.paymentId;
           if (row.externalPaymentId === null) {
             const collision = await db.receivableProviderCharge.findUnique({
-              where: { provider_externalAccountId_externalPaymentId: {
-                provider: 'mercado-pago', externalAccountId: row.accountId, externalPaymentId: paymentId,
-              } },
+              where: {
+                provider_externalAccountId_externalPaymentId: {
+                  provider: 'mercado-pago',
+                  externalAccountId: row.accountId,
+                  externalPaymentId: paymentId,
+                },
+              },
               select: { id: true },
             });
             if (collision !== null) {
@@ -319,18 +418,27 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
             } else {
               await db.receivableProviderCharge.create({
                 data: {
-                  id: row.id, organizationId: row.organizationId, receivableId: row.receivableId,
-                  provider: 'mercado-pago', externalAccountId: row.accountId, externalPaymentId: paymentId,
-                  expectedAmountInCents: row.amountInCents, receivableVersion: row.receivableVersion,
+                  id: row.id,
+                  organizationId: row.organizationId,
+                  receivableId: row.receivableId,
+                  provider: 'mercado-pago',
+                  externalAccountId: row.accountId,
+                  externalPaymentId: paymentId,
+                  expectedAmountInCents: row.amountInCents,
+                  receivableVersion: row.receivableVersion,
                   registeredById: row.issuedById,
                 },
               });
               row = await db.mercadoPagoLivePix.update({
                 where: { id: row.id },
                 data: {
-                  status: 'REVIEW_REQUIRED', resultCode: row.resultCode ?? 'UNCERTAIN_CREATION',
-                  externalPaymentId: paymentId, providerChargeId: row.id, recoveredAt: now,
-                  copyAndPasteCiphertext: null, expiresAt: null,
+                  status: 'REVIEW_REQUIRED',
+                  resultCode: row.resultCode ?? 'UNCERTAIN_CREATION',
+                  externalPaymentId: paymentId,
+                  providerChargeId: row.id,
+                  recoveredAt: now,
+                  copyAndPasteCiphertext: null,
+                  expiresAt: null,
                 },
                 include: { providerCharge: true },
               });
@@ -348,7 +456,9 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
           where: { id: claim.id, resultCode: 'IN_PROGRESS', leaseExpiresAt: { gt: completedAt } },
           data: { resultCode: code, paymentId, completedAt },
         });
-        if (settled.count !== 1) throw new LeaseLost();
+        if (settled.count !== 1) {
+          throw new LeaseLost();
+        }
       },
       this.errors(),
     );
@@ -370,14 +480,17 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
 
   private find(db: Prisma.TransactionClient, actor: MercadoPagoLivePixActor) {
     return db.mercadoPagoLivePix.findUnique({
-      where: { receivableId_organizationId: { receivableId: actor.receivableId, organizationId: actor.organizationId } },
+      where: {
+        receivableId_organizationId: { receivableId: actor.receivableId, organizationId: actor.organizationId },
+      },
       include: { providerCharge: true },
     });
   }
 
   private latest(db: Prisma.TransactionClient, issuanceId: string) {
     return db.mercadoPagoLivePixRecovery.findFirst({
-      where: { issuanceId }, orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      where: { issuanceId },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     });
   }
 
@@ -398,8 +511,14 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
     now: Date,
   ) {
     const clientId = this.runtime.clientId;
-    if (!this.runtime.liveMode || this.runtime.client === null || !clientId ||
-      (issuance !== null && issuance.clientId !== clientId)) return null;
+    if (
+      !this.runtime.liveMode ||
+      this.runtime.client === null ||
+      !clientId ||
+      (issuance !== null && issuance.clientId !== clientId)
+    ) {
+      return null;
+    }
 
     const row = await db.mercadoPagoConnection.findUnique({
       where: { organizationId_liveMode: { organizationId: actor.organizationId, liveMode: true } },
@@ -414,8 +533,11 @@ export class PrismaMercadoPagoLivePixReviewRepository extends MercadoPagoLivePix
       attempt !== null && attempt.liveMode && attempt.expiresAt > now,
       now,
     );
-    return row !== null && (issuance === null || row.accountId === issuance.accountId) &&
-      decision !== 'RECONNECT_REQUIRED' ? { ...row, decision } : null;
+    return row !== null &&
+      (issuance === null || row.accountId === issuance.accountId) &&
+      decision !== 'RECONNECT_REQUIRED'
+      ? { ...row, decision }
+      : null;
   }
 
   private errors() {

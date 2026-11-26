@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { NotificationContent } from '../../application/types/notification.types.js';
 import { TrialLifecycleStage } from '../../domain/policies/trialLifecycle.policy.js';
 
@@ -54,7 +55,7 @@ describe('notification provider template contracts', () => {
   it('binds the invitation link to its token and organization', () => {
     const variables = map({ type: 'ORGANIZATION_INVITATION', token, organizationName: common.organizationName });
     assertAction(variables, '/organization-invitations/accept', token);
-    expect(variables).toMatchObject({ ORGANIZATION_NAME: common.organizationName, EXPIRES_AT: expect.any(String) });
+    expect(variables).toMatchObject({ ORGANIZATION_NAME: common.organizationName, EXPIRES_AT: asymmetric.any(String) });
   });
 
   it.each(['PAYMENT_FAILED', 'PAYMENT_ACTION_REQUIRED', 'SUBSCRIPTION_CANCELED'] as const)(
@@ -163,7 +164,7 @@ describe('notification provider template contracts', () => {
       trialExpiresAt: expiresAt.toISOString(),
     });
     for (const key of ['SUBJECT', 'PREVIEW_TEXT', 'EYEBROW', 'TITLE', 'DESCRIPTION', 'HIGHLIGHT', 'ACTION_LABEL']) {
-      expect(variables[key]).toEqual(expect.any(String));
+      expect(variables[key]).toEqual(asymmetric.any(String));
       expect(String(variables[key]).length).toBeGreaterThan(0);
     }
     const url = new URL(String(variables.ACTION_URL));

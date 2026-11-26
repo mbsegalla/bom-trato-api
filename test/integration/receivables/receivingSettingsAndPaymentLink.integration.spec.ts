@@ -10,6 +10,7 @@ import { PrismaReceivablePaymentLinkRepository } from '../../../src/modules/rece
 import { PrismaReceivablePixChargeRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivablePixChargeRepository.js';
 import { PrismaReceivableUnitOfWork } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivableUnitOfWork.js';
 import { PrismaReceivingSettingsRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivingSettingsRepository.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
@@ -185,7 +186,7 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
       merchantName: 'FIXTURE MERCHANT',
       amountInCents: 10_000,
       currency: 'brl',
-      copyAndPaste: expect.any(String),
+      copyAndPaste: asymmetric.any(String),
       expiresAt: link.expiresAt,
     });
     expect(publicLink.copyAndPaste).toContain('fixture@example.invalid');

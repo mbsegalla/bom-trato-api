@@ -46,7 +46,10 @@ interface RecoveryClaim {
 
 type RecoveryResult =
   | { status: SandboxPixVerifiedStatus; paymentId: string }
-  | { status: Exclude<SandboxPixRecoveryStatus, SandboxPixVerifiedStatus | 'IN_PROGRESS' | 'ABANDONED'>; paymentId: null };
+  | {
+      status: Exclude<SandboxPixRecoveryStatus, SandboxPixVerifiedStatus | 'IN_PROGRESS' | 'ABANDONED'>;
+      paymentId: null;
+    };
 
 function conflict(): never {
   throw new ReceivingSettingsError('MERCADO_PAGO_PIX_CONFLICT');
@@ -80,37 +83,47 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
           lastWebhook: null,
         };
 
-        if (row === null || row.issuedById !== actor.userId) return empty;
+        if (row === null || row.issuedById !== actor.userId) {
+          return empty;
+        }
 
         const latest = await this.latest(db, row.id);
         const now = new Date();
         const next = sandboxRecoveryNextAt(row, latest);
         const connection = await this.currentConnection(db, actor, row, now);
-        const webhook = row.externalPaymentId === null ? null : await db.mercadoPagoWebhookEvent.findFirst({
-          where: {
-            clientId: row.clientId,
-            paymentId: row.externalPaymentId,
-            matchedIssuanceId: row.id,
-            OR: [{ processedAt: { not: null } }, { reviewRequiredAt: { not: null } }],
-          },
-          orderBy: [{ receivedAt: 'desc' }, { deliveryKey: 'desc' }],
-          select: { resultCode: true, receivedAt: true },
-        });
+        const webhook =
+          row.externalPaymentId === null
+            ? null
+            : await db.mercadoPagoWebhookEvent.findFirst({
+                where: {
+                  clientId: row.clientId,
+                  paymentId: row.externalPaymentId,
+                  matchedIssuanceId: row.id,
+                  OR: [{ processedAt: { not: null } }, { reviewRequiredAt: { not: null } }],
+                },
+                orderBy: [{ receivedAt: 'desc' }, { deliveryKey: 'desc' }],
+                select: { resultCode: true, receivedAt: true },
+              });
 
         return {
           ...empty,
           issuanceId: row.id,
-          canRecover: connection !== null && access.hasPlatformAccess && !access.billingNeedsReconciliation && next <= now,
+          canRecover:
+            connection !== null && access.hasPlatformAccess && !access.billingNeedsReconciliation && next <= now,
           nextRecoveryAt: next > now ? next : null,
-          lastAttempt: latest === null ? null : {
-            status: sandboxRecoveryViewStatus(latest, now),
-            startedAt: latest.startedAt,
-            completedAt: latest.completedAt,
-            paymentId: latest.paymentId,
-          },
-          lastWebhook: webhook !== null && isSandboxVerifiedStatus(webhook.resultCode)
-            ? { status: webhook.resultCode, receivedAt: webhook.receivedAt }
-            : null,
+          lastAttempt:
+            latest === null
+              ? null
+              : {
+                  status: sandboxRecoveryViewStatus(latest, now),
+                  startedAt: latest.startedAt,
+                  completedAt: latest.completedAt,
+                  paymentId: latest.paymentId,
+                },
+          lastWebhook:
+            webhook !== null && isSandboxVerifiedStatus(webhook.resultCode)
+              ? { status: webhook.resultCode, receivedAt: webhook.receivedAt }
+              : null,
         };
       },
       this.errors(),
@@ -123,12 +136,16 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
   ): Promise<MercadoPagoSandboxPixRecoveryView> {
     const view = await this.read(actor);
 
-    if (!view.canRecover || view.issuanceId !== input.issuanceId) return conflict();
+    if (!view.canRecover || view.issuanceId !== input.issuanceId) {
+      return conflict();
+    }
 
     const { client } = this.runtime.requireEnabled();
     const access = await this.credentials.accessForOwner(actor);
 
-    if (access.liveMode || !this.runtime.sandboxPixAvailable) return conflict();
+    if (access.liveMode || !this.runtime.sandboxPixAvailable) {
+      return conflict();
+    }
 
     // Commit an owner-authorized audit claim before any search/read at the provider.
     const claim = await organizationTransaction<RecoveryClaim>(
@@ -138,24 +155,37 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
       async (db) => {
         await assertReceivingSettingsOwner(db, actor, true);
         const now = new Date();
-        if (!(await this.sessionCurrent(db, actor, now))) return conflict();
+        if (!(await this.sessionCurrent(db, actor, now))) {
+          return conflict();
+        }
         const row = await this.issuance(db, actor);
 
-        if (row === null || row.id !== input.issuanceId || row.issuedById !== actor.userId || row.accountId !== access.accountId) {
+        if (
+          row === null ||
+          row.id !== input.issuanceId ||
+          row.issuedById !== actor.userId ||
+          row.accountId !== access.accountId
+        ) {
           return conflict();
         }
 
         const latest = await this.latest(db, row.id);
-        if (sandboxRecoveryNextAt(row, latest) > now) return conflict();
+        if (sandboxRecoveryNextAt(row, latest) > now) {
+          return conflict();
+        }
 
         const connection = await this.currentConnection(db, actor, row, now);
-        if (connection === null || connection.accessTokenCiphertext === null || connection.decision !== 'REUSE') return conflict();
+        if (connection === null || connection.accessTokenCiphertext === null || connection.decision !== 'REUSE') {
+          return conflict();
+        }
 
         const currentToken = this.runtime.cipher.open(
           ['credential', row.organizationId, row.clientId, 'false', row.accountId, 'access'],
           connection.accessTokenCiphertext,
         );
-        if (currentToken !== access.accessToken) return conflict();
+        if (currentToken !== access.accessToken) {
+          return conflict();
+        }
 
         await db.mercadoPagoSandboxPixRecovery.updateMany({
           where: { issuanceId: row.id, status: 'IN_PROGRESS', leaseExpiresAt: { lte: now } },
@@ -205,15 +235,17 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
         result = { status: `VERIFIED_${status}`, paymentId };
       } else {
         const found = await client.searchSandboxPix(request);
-        result = found.kind === 'FOUND'
-          ? { status: `VERIFIED_${found.status}`, paymentId: found.paymentId }
-          : { status: found.kind, paymentId: null };
+        result =
+          found.kind === 'FOUND'
+            ? { status: `VERIFIED_${found.status}`, paymentId: found.paymentId }
+            : { status: found.kind, paymentId: null };
       }
     } catch (error: unknown) {
       result = {
-        status: error instanceof MercadoPagoError && error.code !== 'REQUEST_FAILED'
-          ? 'INVALID_PROVIDER_PAYMENT'
-          : 'PROVIDER_UNAVAILABLE',
+        status:
+          error instanceof MercadoPagoError && error.code !== 'REQUEST_FAILED'
+            ? 'INVALID_PROVIDER_PAYMENT'
+            : 'PROVIDER_UNAVAILABLE',
         paymentId: null,
       };
     }
@@ -221,7 +253,9 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
     try {
       await this.finish(actor, claim, result);
     } catch (error: unknown) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
       // A concurrent external identity binding can fail the unique constraint.
       // The transaction rolled back; keep a review record rather than overwrite.
       await this.finish(actor, claim, { status: 'BINDING_CONFLICT', paymentId: null });
@@ -246,12 +280,15 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
           await assertReceivingSettingsOwner(db, actor, true);
           authorized = await this.sessionCurrent(db, actor, now);
         } catch (error: unknown) {
-          if (!(error instanceof ReceivingSettingsError)) throw error;
+          if (!(error instanceof ReceivingSettingsError)) {
+            throw error;
+          }
         }
 
-        const connection = authorized && row !== null && row.issuedById === actor.userId
-          ? await this.currentConnection(db, actor, row, now)
-          : null;
+        const connection =
+          authorized && row !== null && row.issuedById === actor.userId
+            ? await this.currentConnection(db, actor, row, now)
+            : null;
 
         if (
           connection === null ||
@@ -277,7 +314,9 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
             select: { id: true },
           });
 
-          if (collision !== null) outcome = { status: 'BINDING_CONFLICT', paymentId: null };
+          if (collision !== null) {
+            outcome = { status: 'BINDING_CONFLICT', paymentId: null };
+          }
         }
 
         // Compare-and-set the original unexpired claim before touching the issuance.
@@ -292,11 +331,16 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
           data: { status: outcome.status, completedAt: new Date(), paymentId: outcome.paymentId },
         });
 
-        if (settled.count !== 1 || row === null || outcome.status === 'CONNECTION_CHANGED') return;
+        if (settled.count !== 1 || row === null || outcome.status === 'CONNECTION_CHANGED') {
+          return;
+        }
 
-        const shouldHide = outcome.paymentId !== null
-          ? outcome.status !== 'VERIFIED_PENDING' || row.status !== 'PENDING'
-          : outcome.status === 'AMBIGUOUS' || outcome.status === 'INVALID_PROVIDER_PAYMENT' || outcome.status === 'BINDING_CONFLICT';
+        const shouldHide =
+          outcome.paymentId !== null
+            ? outcome.status !== 'VERIFIED_PENDING' || row.status !== 'PENDING'
+            : outcome.status === 'AMBIGUOUS' ||
+              outcome.status === 'INVALID_PROVIDER_PAYMENT' ||
+              outcome.status === 'BINDING_CONFLICT';
 
         if (shouldHide) {
           await db.mercadoPagoSandboxPix.updateMany({
@@ -320,7 +364,9 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
 
   private issuance(db: Prisma.TransactionClient, actor: MercadoPagoSandboxPixActor) {
     return db.mercadoPagoSandboxPix.findUnique({
-      where: { receivableId_organizationId: { receivableId: actor.receivableId, organizationId: actor.organizationId } },
+      where: {
+        receivableId_organizationId: { receivableId: actor.receivableId, organizationId: actor.organizationId },
+      },
     });
   }
 
@@ -348,7 +394,9 @@ export class PrismaMercadoPagoSandboxPixRecoveryRepository extends MercadoPagoSa
     binding: RecoveryBinding,
     now: Date,
   ) {
-    if (!this.runtime.sandboxPixAvailable || this.runtime.clientId !== binding.clientId) return null;
+    if (!this.runtime.sandboxPixAvailable || this.runtime.clientId !== binding.clientId) {
+      return null;
+    }
     const connection = await db.mercadoPagoConnection.findUnique({
       where: { organizationId_liveMode: { organizationId: actor.organizationId, liveMode: false } },
     });

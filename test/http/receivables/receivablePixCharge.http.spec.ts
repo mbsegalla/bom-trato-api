@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { GetReceivablePixChargeUseCase } from '../../../src/modules/receivables/application/useCases/getReceivablePixCharge.useCase.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
 import { ReceivablePixChargeController } from '../../../src/modules/receivables/presentation/http/controllers/receivablePixCharge.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receivables/' + itemId + '/pix-charge';
@@ -53,6 +54,6 @@ describe('static Pix charge HTTP contracts', () => {
 
     const response = await request(fixture.server).get(route).set('Authorization', 'Bearer fixture').expect(status);
 
-    expect(response.body.data).toBeUndefined();
+    expect(readJsonObject(response.body).data).toBeUndefined();
   });
 });

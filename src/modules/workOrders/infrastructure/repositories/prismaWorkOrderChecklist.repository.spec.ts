@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { WorkOrderChecklistItem } from '../../domain/entities/workOrderChecklistItem.entity.js';
 
@@ -82,7 +83,7 @@ describe('PrismaWorkOrderChecklistRepository', () => {
     expect(f.create).toHaveBeenCalledWith({ data: item.snapshot() });
     expect(f.updateMany).toHaveBeenCalledWith({
       where: { ...scope, id: 'item', version: 1 },
-      data: expect.objectContaining({
+      data: asymmetric.objectContaining({
         completed: true,
         completedAt: now,
         completedById: 'worker',

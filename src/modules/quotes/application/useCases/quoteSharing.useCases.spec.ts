@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import { Quote } from '../../domain/entities/quote.entity.js';
 import { QuoteItem } from '../../domain/entities/quoteItem.entity.js';
@@ -56,7 +57,7 @@ function quote(status: 'DRAFT' | 'SENT' = 'SENT', customerEmail: string | null =
 function privateFixture(value = quote(), permissions = { ...access }) {
   const findById = vi.fn().mockResolvedValue(value.snapshot());
   const revokeForQuote = vi.fn().mockResolvedValue(undefined);
-  const create = vi.fn().mockResolvedValue(undefined);
+  const create = vi.fn<QuoteTransaction['shares']['create']>().mockResolvedValue(undefined);
   const enqueue = vi.fn().mockResolvedValue(undefined);
   const findOrganization = vi.fn().mockResolvedValue({ name: 'Fixture company', autoQuoteFollowUpEnabled: true });
   const findLatestChangeRequest = vi.fn().mockResolvedValue(null);
@@ -108,8 +109,8 @@ function publicFixture() {
   });
   const findOrganization = vi.fn().mockResolvedValue({ name: 'Fixture company', ownerId: actor.userId });
   const enqueue = vi.fn().mockResolvedValue(undefined);
-  const createOrder = vi.fn().mockResolvedValue(undefined);
-  const createReceivable = vi.fn().mockResolvedValue(undefined);
+  const createOrder = vi.fn<PublicQuoteTransaction['workOrders']['create']>().mockResolvedValue(undefined);
+  const createReceivable = vi.fn<PublicQuoteTransaction['receivables']['create']>().mockResolvedValue(undefined);
   const platform = { hasAccess: true, source: 'TRIAL' as const, billingNeedsReconciliation: false };
   const tx = {
     access: platform,
@@ -155,7 +156,7 @@ describe('quote share and document operations', () => {
     expect(result).toMatchObject({
       quoteVersion: 1,
       expiresAt: expiry,
-      token: expect.stringMatching(/^[a-f0-9]{64}$/),
+      token: asymmetric.stringMatching(/^[a-f0-9]{64}$/),
     });
     const stored = f.create.mock.calls[0][0].snapshot();
     expect(stored).toMatchObject({ id: result.id, tokenHash: f.security.hash(result.token), quoteId: params.quoteId });
@@ -163,7 +164,7 @@ describe('quote share and document operations', () => {
     expect(f.revokeForQuote).toHaveBeenCalledWith(params.quoteId, now);
     expect(f.revokeForQuote.mock.invocationCallOrder[0]).toBeLessThan(f.create.mock.invocationCallOrder[0]);
     expect(f.enqueue).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         key: 'automation/quote-follow-up/' + result.id,
         recipient: email,
         availableAt: new Date(now.getTime() + 2 * 86400000),
@@ -175,7 +176,7 @@ describe('quote share and document operations', () => {
           organizationName: 'Fixture company',
           quoteTitle: 'Fixture service',
         },
-        automation: expect.objectContaining({ organizationId: 'org', entityId: 'quote', contextId: result.id }),
+        automation: asymmetric.objectContaining({ organizationId: 'org', entityId: 'quote', contextId: result.id }),
       }),
     );
   });
@@ -254,10 +255,10 @@ describe('quote share and document operations', () => {
     const useCase = new GenerateQuotePdfUseCase(f.service, { generate });
     expect(await useCase.execute(params)).toEqual({ content, filename: 'quote-quote-v1.pdf' });
     expect(generate).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         organizationName: 'Fixture company',
         generatedAt: now,
-        quote: expect.objectContaining({ id: 'quote', version: 1 }),
+        quote: asymmetric.objectContaining({ id: 'quote', version: 1 }),
       }),
     );
     f.findOrganization.mockResolvedValue(null);
@@ -272,7 +273,7 @@ describe('quote share and document operations', () => {
       organizationName: 'Fixture company',
       hasPlatformAccess: false,
     });
-    expect(f.run).toHaveBeenCalledWith(f.issued.hash, expect.any(Function));
+    expect(f.run).toHaveBeenCalledWith(f.issued.hash, asymmetric.any(Function));
     expect(f.findByHash).toHaveBeenCalledWith(f.issued.hash);
     expect(f.findById).toHaveBeenCalledWith('quote');
   });
@@ -334,11 +335,11 @@ describe('quote share and document operations', () => {
       amountInCents: 2500,
     });
     expect(f.enqueue).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         type: 'QUOTE_APPROVED',
         userId: 'owner',
         organizationId: 'org',
-        href: expect.stringMatching(/^\/work-orders\//),
+        href: asymmetric.stringMatching(/^\/work-orders\//),
       }),
     );
     await expect(f.service.decide(f.issued.token, 1, 'DECLINED')).rejects.toThrow('QUOTE_SHARE_ALREADY_DECIDED');
@@ -349,7 +350,9 @@ describe('quote share and document operations', () => {
     expect(await f.service.decide(f.issued.token, 1, 'DECLINED')).toMatchObject({ status: 'DECLINED', version: 2 });
     expect(f.createOrder).not.toHaveBeenCalled();
     expect(f.createReceivable).not.toHaveBeenCalled();
-    expect(f.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type: 'QUOTE_DECLINED', href: '/quotes/quote' }));
+    expect(f.enqueue).toHaveBeenCalledWith(
+      asymmetric.objectContaining({ type: 'QUOTE_DECLINED', href: '/quotes/quote' }),
+    );
   });
 
   it.each(['Please change the amount', 'x'.repeat(300)])(
@@ -362,7 +365,7 @@ describe('quote share and document operations', () => {
       expect(f.saveChangeRequest.mock.calls[0][0].snapshot()).toMatchObject({ changeRequestMessage: message });
       const preview = message.length > 280 ? message.slice(0, 279) + '…' : message;
       expect(f.enqueue).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({
+        asymmetric.objectContaining({
           type: 'QUOTE_CHANGE_REQUESTED',
           message: 'Fixture customer: "' + preview + '"',
           href: '/quotes/quote',

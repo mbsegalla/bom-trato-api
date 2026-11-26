@@ -66,7 +66,12 @@ export function verifyMercadoPagoWebhook(
   const timestamp = parts.get('ts');
   const signature = parts.get('v1');
 
-  if (!timestamp || !signature || !/^(?:[1-9]\d{9}|[1-9]\d{12})$/.test(timestamp) || !/^[a-fA-F0-9]{64}$/.test(signature)) {
+  if (
+    !timestamp ||
+    !signature ||
+    !/^(?:[1-9]\d{9}|[1-9]\d{12})$/.test(timestamp) ||
+    !/^[a-fA-F0-9]{64}$/.test(signature)
+  ) {
     return null;
   }
 

@@ -6,20 +6,20 @@ import { afterAll, afterEach, beforeAll, describe, expect, vi } from 'vitest';
 
 import { PrismaService } from '../../../../src/infrastructure/database/prisma.service.js';
 import { ConfirmReceivableProviderPaymentUseCase } from '../../../../src/modules/receivables/application/useCases/confirmReceivableProviderPayment.useCase.js';
+import { pixCrc16 } from '../../../../src/modules/receivables/domain/policies/receivablePixCharge.policy.js';
+import type { ClaimedMercadoPagoWebhook } from '../../../../src/modules/receivables/domain/types/mercadoPagoWebhook.types.js';
 import type {
   RegisterProviderChargeInput,
-  VerifiedProviderPayment
+  VerifiedProviderPayment,
 } from '../../../../src/modules/receivables/domain/types/receivableProviderPayment.types.js';
-import { pixCrc16 } from '../../../../src/modules/receivables/domain/policies/receivablePixCharge.policy.js';
 import { MercadoPagoConnectionRuntime } from '../../../../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 import { MercadoPagoCredentialService } from '../../../../src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.js';
 import { PrismaMercadoPagoLivePixRepository } from '../../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixRepository.js';
 import { PrismaMercadoPagoLivePixReviewRepository } from '../../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixReviewRepository.js';
 import { PrismaMercadoPagoLiveWebhookRepository } from '../../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLiveWebhookRepository.js';
 import { PrismaMercadoPagoWebhookRepository } from '../../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
-import { ProcessMercadoPagoLiveWebhookService } from '../../../../src/modules/receivables/infrastructure/workers/processMercadoPagoLiveWebhook.service.js';
-import type { ClaimedMercadoPagoWebhook } from '../../../../src/modules/receivables/domain/types/mercadoPagoWebhook.types.js';
 import { PrismaReceivableProviderPaymentRepository } from '../../../../src/modules/receivables/infrastructure/transactions/prismaReceivableProviderPaymentRepository.js';
+import { ProcessMercadoPagoLiveWebhookService } from '../../../../src/modules/receivables/infrastructure/workers/processMercadoPagoLiveWebhook.service.js';
 
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
 // Keep Vitest's internal suite collector types out of the exported declaration.
@@ -34,7 +34,9 @@ export function paymentIntegrationSuite(name: string, callback: () => void): voi
 }
 
 function disposableDatabaseUrl(): string {
-  if (!url) throw new Error('Missing dedicated payment integration database URL');
+  if (!url) {
+    throw new Error('Missing dedicated payment integration database URL');
+  }
   const parsed = new URL(url);
 
   // Never read DATABASE_URL or write fixtures to a deployment database.
@@ -67,7 +69,9 @@ export function createPaymentFixture() {
 
   afterEach(async () => {
     vi.restoreAllMocks();
-    if (!prisma) return;
+    if (!prisma) {
+      return;
+    }
 
     const ids = webhookClientIds.splice(0);
 
@@ -108,7 +112,7 @@ export function createPaymentFixture() {
       data: {
         name: 'Fixture owner',
         email: randomUUID() + '@example.invalid',
-        emailVerifiedAt: now
+        emailVerifiedAt: now,
       },
     });
     users.push(user.id);
@@ -117,7 +121,7 @@ export function createPaymentFixture() {
       data: {
         name: 'Fixture organization',
         ownerId: user.id,
-        setupCompletedAt: now
+        setupCompletedAt: now,
       },
     });
     organizations.push(organization.id);
@@ -153,7 +157,7 @@ export function createPaymentFixture() {
         ...totals,
         status: 'APPROVED',
         sentAt: now,
-        decidedAt: now
+        decidedAt: now,
       },
     });
     const workOrder = await prisma.workOrder.create({
@@ -164,13 +168,13 @@ export function createPaymentFixture() {
         ...snapshot,
         workOrderId: workOrder.id,
         amountInCents: 10_000,
-        dueAt: now
+        dueAt: now,
       },
     });
     const actor = {
       organizationId: organization.id,
       userId: user.id,
-      receivableId: receivable.id
+      receivableId: receivable.id,
     };
     const registration: RegisterProviderChargeInput = {
       provider: 'fixture-provider',
@@ -195,7 +199,7 @@ export function createPaymentFixture() {
       actor,
       registration,
       payment,
-      receivable
+      receivable,
     };
   }
 
@@ -263,24 +267,12 @@ export function createPaymentFixture() {
         connectedAt: now,
         expiresAt,
         accessTokenCiphertext: runtime.cipher.seal(
-          [
-            'credential',
-            actor.organizationId,
-            clientId,
-            'true',
-            accountId,
-            'access'
-          ], accessToken,
+          ['credential', actor.organizationId, clientId, 'true', accountId, 'access'],
+          accessToken,
         ),
         refreshTokenCiphertext: runtime.cipher.seal(
-          [
-            'credential',
-            actor.organizationId,
-            clientId,
-            'true',
-            accountId,
-            'refresh'
-          ], 'fixture-refresh',
+          ['credential', actor.organizationId, clientId, 'true', accountId, 'refresh'],
+          'fixture-refresh',
         ),
       },
     });
@@ -330,7 +322,7 @@ export function createPaymentFixture() {
       clientId,
       accountId,
       paymentId,
-      runtime
+      runtime,
     };
   }
 
@@ -379,7 +371,9 @@ export function createPaymentFixture() {
     }
     async function claim(): Promise<ClaimedMercadoPagoWebhook> {
       const job = await inbox.claim(f.clientId, randomUUID());
-      if (job === null) throw new Error('Fixture live event was not claimed');
+      if (job === null) {
+        throw new Error('Fixture live event was not claimed');
+      }
       return job;
     }
     async function delivery() {
@@ -412,7 +406,7 @@ export function createPaymentFixture() {
       claim,
       delivery,
       stored,
-      issuanceRow
+      issuanceRow,
     };
   }
 

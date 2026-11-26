@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 
@@ -8,7 +9,14 @@ import { PostgresBillingLock } from './postgresBillingLock.js';
 const key = 'organization:11111111-1111-4111-8111-111111111111';
 
 function fixture() {
-  const createMany = vi.fn().mockResolvedValue({ count: 1 });
+  const createMany = vi
+    .fn<
+      (args: {
+        data: { key: string; token: string; acquiredAt: Date; leaseUntil: Date }[];
+        skipDuplicates: boolean;
+      }) => Promise<{ count: number }>
+    >()
+    .mockResolvedValue({ count: 1 });
   const findUnique = vi.fn().mockResolvedValue(null);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
@@ -52,7 +60,7 @@ describe('PostgresBillingLock', () => {
 
     await expect(f.lock.run(key, () => Promise.reject(error))).rejects.toBe(error);
     expect(f.updateMany).toHaveBeenCalledExactlyOnceWith({
-      where: { key, token: expect.any(String) },
+      where: { key, token: asymmetric.any(String) },
       data: { recoveryRequired: true },
     });
     expect(f.deleteMany).not.toHaveBeenCalled();
@@ -87,12 +95,12 @@ describe('PostgresBillingLock', () => {
         key,
         token: 'old-token',
         recoveryRequired: false,
-        leaseUntil: { lte: expect.any(Date) },
+        leaseUntil: { lte: asymmetric.any(Date) },
       },
       data: {
-        token: expect.any(String),
-        acquiredAt: expect.any(Date),
-        leaseUntil: expect.any(Date),
+        token: asymmetric.any(String),
+        acquiredAt: asymmetric.any(Date),
+        leaseUntil: asymmetric.any(Date),
       },
     });
   });
@@ -162,8 +170,8 @@ describe('PostgresBillingLock', () => {
     await vi.advanceTimersByTimeAsync(11_000);
     await expect(result).resolves.toBe(true);
     expect(f.updateMany).toHaveBeenCalledExactlyOnceWith({
-      where: { key, token: expect.any(String), recoveryRequired: false },
-      data: { leaseUntil: expect.any(Date) },
+      where: { key, token: asymmetric.any(String), recoveryRequired: false },
+      data: { leaseUntil: asymmetric.any(Date) },
     });
   });
 

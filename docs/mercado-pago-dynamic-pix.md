@@ -59,5 +59,6 @@ A PostgreSQL concurrency/rollback test and real sandbox homologation are
 still required before enabling issuance.
 
 Official references:
+
 - [Pix via Payments API](https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/integration-configuration/integrate-pix)
 - [OAuth token renewal](https://www.mercadopago.com.br/developers/pt/docs/security/oauth/renewal)

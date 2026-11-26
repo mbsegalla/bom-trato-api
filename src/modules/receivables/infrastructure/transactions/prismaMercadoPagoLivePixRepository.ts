@@ -16,8 +16,8 @@ import { assertLivePixInput } from '../../domain/policies/mercadoPagoLivePix.pol
 import { decideMercadoPagoCredentialAccess } from '../../domain/policies/mercadoPagoRefresh.policy.js';
 import {
   isValidSandboxDynamicPix,
-  sandboxPixBalance,
   SANDBOX_PIX_EXPIRY_MS,
+  sandboxPixBalance,
 } from '../../domain/policies/mercadoPagoSandboxPix.policy.js';
 import { assertReceivingSettingsOwner } from '../access/assertReceivingSettingsOwner.js';
 import { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
@@ -51,7 +51,10 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
     super();
   }
 
-  async issue(actor: MercadoPagoLivePixActor, input: IssueMercadoPagoLivePixInput): Promise<MercadoPagoLivePixIssuance> {
+  async issue(
+    actor: MercadoPagoLivePixActor,
+    input: IssueMercadoPagoLivePixInput,
+  ): Promise<MercadoPagoLivePixIssuance> {
     assertLivePixInput(input);
     if (!this.runtime.livePixAllowed(actor.organizationId)) {
       throw new ReceivingSettingsError('MERCADO_PAGO_UNAVAILABLE');
@@ -61,10 +64,14 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
 
     // A repeated request never retries an uncertain provider create.
     const existing = await this.read(actor);
-    if (existing !== null) return existing;
+    if (existing !== null) {
+      return existing;
+    }
 
     const access = await this.credentials.accessForOwner(actor);
-    if (!access.liveMode || !this.runtime.livePixAllowed(actor.organizationId, access.accountId)) return conflict();
+    if (!access.liveMode || !this.runtime.livePixAllowed(actor.organizationId, access.accountId)) {
+      return conflict();
+    }
 
     const reservation = await organizationTransaction(
       this.prisma,
@@ -73,18 +80,26 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
       async (db) => {
         await assertReceivingSettingsOwner(db, actor, true);
         const now = new Date();
-        if (!(await this.sessionCurrent(db, actor, now))) return conflict();
+        if (!(await this.sessionCurrent(db, actor, now))) {
+          return conflict();
+        }
         const previous = await this.find(db, actor);
         if (previous !== null) {
-          if (previous.issuedById !== actor.userId) return conflict();
+          if (previous.issuedById !== actor.userId) {
+            return conflict();
+          }
           return null;
         }
 
         const receivable = await this.receivable(db, actor);
         // The remaining-balance and BR Code invariants are identical in both modes.
         const amountInCents = sandboxPixBalance(receivable);
-        if (receivable.version !== input.version ||
-          !this.runtime.livePixAllowed(actor.organizationId, access.accountId, amountInCents)) return conflict();
+        if (
+          receivable.version !== input.version ||
+          !this.runtime.livePixAllowed(actor.organizationId, access.accountId, amountInCents)
+        ) {
+          return conflict();
+        }
 
         // Only one unresolved live reservation per pilot organization. Review
         // evidence is not an authorization to collect from another customer.
@@ -92,7 +107,9 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
           where: { organizationId: actor.organizationId, status: { in: ['RESERVED', 'PENDING', 'REVIEW_REQUIRED'] } },
           select: { id: true },
         });
-        if (unresolved !== null) return conflict();
+        if (unresolved !== null) {
+          return conflict();
+        }
 
         // A legacy/other provider charge is not evidence that it is safe to
         // issue another payment for the same receivable.
@@ -100,16 +117,22 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
           where: { organizationId: actor.organizationId, receivableId: actor.receivableId },
           select: { id: true },
         });
-        if (priorCharge !== null) return conflict();
+        if (priorCharge !== null) {
+          return conflict();
+        }
 
         const connection = await this.currentConnection(db, actor, clientId, access.accountId, now);
-        if (connection === null || connection.accessTokenCiphertext === null) return conflict();
+        if (connection === null || connection.accessTokenCiphertext === null) {
+          return conflict();
+        }
 
         const currentToken = this.runtime.cipher.open(
           ['credential', actor.organizationId, clientId, 'true', access.accountId, 'access'],
           connection.accessTokenCiphertext,
         );
-        if (currentToken !== access.accessToken) return conflict();
+        if (currentToken !== access.accessToken) {
+          return conflict();
+        }
 
         const row = await db.mercadoPagoLivePix.create({
           data: {
@@ -158,7 +181,9 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
     try {
       await this.finalize(actor, reservation.row, reservation.connectedAt, result);
     } catch (error: unknown) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error;
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
 
       // Any competing provider identity/charge binding rolled back the full
       // transaction. Retain the reservation without adopting that payment.
@@ -166,10 +191,11 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
         this.prisma,
         actor.organizationId,
         'write',
-        (db) => db.mercadoPagoLivePix.updateMany({
-          where: { id: reservation.row.id, organizationId: actor.organizationId, status: 'RESERVED' },
-          data: { status: 'REVIEW_REQUIRED', resultCode: 'BINDING_CONFLICT' },
-        }),
+        (db) =>
+          db.mercadoPagoLivePix.updateMany({
+            where: { id: reservation.row.id, organizationId: actor.organizationId, status: 'RESERVED' },
+            data: { status: 'REVIEW_REQUIRED', resultCode: 'BINDING_CONFLICT' },
+          }),
         this.errors(),
       );
     }
@@ -199,15 +225,20 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
           current.accountId !== reservation.accountId ||
           current.amountInCents !== reservation.amountInCents ||
           current.receivableVersion !== reservation.receivableVersion
-        ) return;
+        ) {
+          return;
+        }
 
-        const identity = result !== null && result.liveMode === true &&
+        const identity =
+          result !== null &&
+          result.liveMode === true &&
           /^[1-9]\d{0,29}$/.test(result.paymentId) &&
           result.accountId === reservation.accountId &&
           result.issuanceId === reservation.id &&
           result.amountInCents === reservation.amountInCents &&
           result.currency === 'brl'
-          ? result : null;
+            ? result
+            : null;
 
         if (identity === null) {
           await db.mercadoPagoLivePix.update({
@@ -240,21 +271,28 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
           await assertReceivingSettingsOwner(db, actor, true);
           authorized = await this.sessionCurrent(db, actor, now);
         } catch (error: unknown) {
-          if (!(error instanceof ReceivingSettingsError)) throw error;
+          if (!(error instanceof ReceivingSettingsError)) {
+            throw error;
+          }
         }
 
         const connection = authorized
           ? await this.currentConnection(db, actor, reservation.clientId, reservation.accountId, now)
           : null;
         const receivable = await this.receivable(db, actor);
-        const fresh = connection !== null && connection.connectedAt.getTime() === connectedAt.getTime() &&
+        const fresh =
+          connection !== null &&
+          connection.connectedAt.getTime() === connectedAt.getTime() &&
           receivable.version === reservation.receivableVersion &&
           sandboxPixBalance(receivable) === reservation.amountInCents;
-        const pending = identity.kind === 'PENDING' && fresh &&
+        const pending =
+          identity.kind === 'PENDING' &&
+          fresh &&
           identity.expiresAt.getTime() > now.getTime() &&
           identity.expiresAt.getTime() <= reservation.requestedExpiresAt.getTime() + 1000 &&
           isValidSandboxDynamicPix(identity.copyAndPaste, reservation.amountInCents)
-          ? identity : null;
+            ? identity
+            : null;
 
         await db.mercadoPagoLivePix.update({
           where: { id: reservation.id },
@@ -263,12 +301,19 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
             providerChargeId: charge.id,
             status: pending !== null ? 'PENDING' : 'REVIEW_REQUIRED',
             resultCode: pending !== null ? 'VERIFIED_PENDING' : fresh ? 'VERIFIED_REVIEW_REQUIRED' : 'SNAPSHOT_CHANGED',
-            copyAndPasteCiphertext: pending !== null
-              ? this.runtime.cipher.seal(
-                ['live-pix', reservation.organizationId, reservation.clientId, reservation.accountId, reservation.id],
-                pending.copyAndPaste,
-              )
-              : null,
+            copyAndPasteCiphertext:
+              pending !== null
+                ? this.runtime.cipher.seal(
+                    [
+                      'live-pix',
+                      reservation.organizationId,
+                      reservation.clientId,
+                      reservation.accountId,
+                      reservation.id,
+                    ],
+                    pending.copyAndPaste,
+                  )
+                : null,
             expiresAt: pending?.expiresAt ?? null,
           },
         });
@@ -286,8 +331,12 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
       async (db) => {
         await assertReceivingSettingsOwner(db, actor, false);
         const row = await this.find(db, actor);
-        if (row === null) return null;
-        if (row.issuedById !== actor.userId) return conflict();
+        if (row === null) {
+          return null;
+        }
+        if (row.issuedById !== actor.userId) {
+          return conflict();
+        }
         return { issuanceId: row.id, providerChargeId: row.providerChargeId, status: row.status };
       },
       this.errors(),
@@ -296,7 +345,9 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
 
   private find(db: Prisma.TransactionClient, actor: MercadoPagoLivePixActor) {
     return db.mercadoPagoLivePix.findUnique({
-      where: { receivableId_organizationId: { receivableId: actor.receivableId, organizationId: actor.organizationId } },
+      where: {
+        receivableId_organizationId: { receivableId: actor.receivableId, organizationId: actor.organizationId },
+      },
     });
   }
 
@@ -305,7 +356,9 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
       where: { id: actor.receivableId, organizationId: actor.organizationId },
       select: { version: true, status: true, currency: true, amountInCents: true, receivedInCents: true },
     });
-    if (row === null) throw new ReceivingSettingsError('RECEIVABLE_NOT_FOUND');
+    if (row === null) {
+      throw new ReceivingSettingsError('RECEIVABLE_NOT_FOUND');
+    }
     return row;
   }
 
@@ -327,7 +380,9 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
     accountId: string,
     now: Date,
   ) {
-    if (!this.runtime.livePixAllowed(actor.organizationId, accountId) || this.runtime.clientId !== clientId) return null;
+    if (!this.runtime.livePixAllowed(actor.organizationId, accountId) || this.runtime.clientId !== clientId) {
+      return null;
+    }
     const row = await db.mercadoPagoConnection.findUnique({
       where: { organizationId_liveMode: { organizationId: actor.organizationId, liveMode: true } },
     });

@@ -6,6 +6,7 @@ import type { RemoteInvoice, RemoteSubscription } from '../../../src/modules/bil
 import { BillingWork } from '../../../src/modules/billing/infrastructure/events/billing.events.js';
 import type { BillingWorkerNotifier } from '../../../src/modules/billing/infrastructure/events/billingWorkerNotifier.service.js';
 import { PrismaBillingRepository } from '../../../src/modules/billing/infrastructure/repositories/prismaBilling.repository.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
 
 databaseSuite('billing persistence (disposable PostgreSQL)', () => {
@@ -313,7 +314,7 @@ databaseSuite('billing persistence (disposable PostgreSQL)', () => {
     expect(await db.prisma.checkoutAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).toMatchObject({
       status: 'COMPLETE',
       activeOrganizationId: null,
-      stripeSessionId: expect.any(String),
+      stripeSessionId: asymmetric.any(String),
     });
     expect(await f.readCustomer()).toMatchObject({ nextReconcileAt: f.end, invoiceHistorySyncedAt: f.now });
     expect(f.scheduleChanged).toHaveBeenCalledWith(BillingWork.RECONCILIATION);

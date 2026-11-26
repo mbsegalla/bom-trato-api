@@ -5,6 +5,7 @@ import { ResolveReviewInvitationUseCase } from '../../../src/modules/reviews/app
 import { SubmitReviewUseCase } from '../../../src/modules/reviews/application/useCases/submitReview.useCase.js';
 import { ReviewError } from '../../../src/modules/reviews/domain/errors/review.error.js';
 import { PublicReviewsController } from '../../../src/modules/reviews/presentation/http/controllers/publicReviews.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture } from '../support/http.fixture.js';
 
 const token = 'a'.repeat(64);
@@ -71,7 +72,7 @@ describe('public review HTTP routes', () => {
 
     expect(response.headers['cache-control']).toBe('no-store');
     expect(submit).toHaveBeenCalledWith(token, { rating: 5, comment: 'Fixture' });
-    expect(response.body.data).toMatchObject({ rating: 5, verified: true });
+    expect(readJsonObject(response.body).data).toMatchObject({ rating: 5, verified: true });
   });
 
   it('maps unknown, expired and consumed invitations without returning private data', async () => {
@@ -84,7 +85,7 @@ describe('public review HTTP routes', () => {
 
       const response = await request(fixture.server).post('/api/public/reviews/resolve').send({ token }).expect(status);
 
-      expect(response.body.error.code).toBe(code);
+      expect(readJsonObject(readJsonObject(response.body).error).code).toBe(code);
       expect(JSON.stringify(response.body)).not.toContain(token);
     }
   });

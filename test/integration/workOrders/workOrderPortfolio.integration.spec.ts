@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 
 import { WORK_ORDER_PORTFOLIO_CONSENT_VERSION } from '../../../src/modules/workOrders/application/types/workOrderPortfolio.types.js';
 import { PrismaWorkOrderPortfolioRepository } from '../../../src/modules/workOrders/infrastructure/repositories/prismaWorkOrderPortfolio.repository.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
 
 import { createWorkOrderFixture } from './support/workOrder.fixture.js';
@@ -33,7 +34,7 @@ databaseSuite('portfolio consent and public photo privacy (disposable PostgreSQL
 
     expect(await repo.getPortalStatus(f.tokenHash)).toEqual({
       canAuthorize: true,
-      photos: expect.arrayContaining([
+      photos: asymmetric.arrayContaining([
         { id: f.before.id, consented: false, published: false },
         { id: f.after.id, consented: false, published: false },
       ]),
@@ -227,7 +228,7 @@ databaseSuite('portfolio consent and public photo privacy (disposable PostgreSQL
     );
     await f.repository.consent(f.tokenHash, { ...f.consent, signerName: 'New signer' });
     expect(await f.repository.getPortalStatus(f.tokenHash)).toMatchObject({
-      photos: expect.arrayContaining([{ id: f.before.id, consented: true, published: false }]),
+      photos: asymmetric.arrayContaining([{ id: f.before.id, consented: true, published: false }]),
     });
     expect(await db.prisma.workOrderPhoto.findUniqueOrThrow({ where: { id: f.before.id } })).toMatchObject({
       portfolioConsentName: 'New signer',
