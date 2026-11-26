@@ -53,9 +53,14 @@ describe('Mercado Pago credential renewal policy', () => {
 
   it('allows explicit reauthorization after the cooldown but not automatic refresh retry', () => {
     const past = new Date(now.getTime() - MERCADO_PAGO_REAUTHORIZE_COOLDOWN_MS);
+
     expect(isMercadoPagoRefreshCoolingDown(now, now)).toBe(true);
     expect(isMercadoPagoRefreshCoolingDown(past, now)).toBe(false);
     expect(isMercadoPagoRefreshCoolingDown(null, now)).toBe(false);
-    expect(decideMercadoPagoCredentialAccess({ ...row, refreshClaimId: 'uncertain', refreshStartedAt: past }, context, false, now)).toBe('RECONNECT_REQUIRED');
+    expect(decideMercadoPagoCredentialAccess({
+      ...row,
+      refreshClaimId: 'uncertain',
+      refreshStartedAt: past
+    }, context, false, now)).toBe('RECONNECT_REQUIRED');
   });
 });

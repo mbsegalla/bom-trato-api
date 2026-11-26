@@ -9,6 +9,7 @@ const token = () => new AuthActionToken('id', 'user', 'VERIFY_EMAIL', expiresAt,
 describe('AuthActionToken', () => {
   it('rejects use for another purpose without consuming the token', () => {
     const value = token();
+
     expect(() => value.consume('RESET_PASSWORD', now)).toThrow('INVALID_TOKEN');
     expect(() => value.consume('VERIFY_EMAIL', now)).not.toThrow();
   });
@@ -16,6 +17,7 @@ describe('AuthActionToken', () => {
   it('rejects replay and expiry at the boundary', () => {
     const value = token();
     value.consume('VERIFY_EMAIL', now);
+
     expect(() => value.consume('VERIFY_EMAIL', now)).toThrow('INVALID_TOKEN');
     expect(() => token().consume('VERIFY_EMAIL', expiresAt)).toThrow('INVALID_TOKEN');
   });

@@ -53,7 +53,14 @@ const view: WorkOrderRecurrenceView = {
   completedOn: '2026-11-25',
 };
 const page: WorkOrderRecurrenceListView = {
-  items: [{ workOrderId, customerId, customerName: 'Cliente', title: 'Limpeza', customerArchived: false, recurrence }],
+  items: [{
+    workOrderId,
+    customerId,
+    customerName: 'Cliente',
+    title: 'Limpeza',
+    customerArchived: false,
+    recurrence
+  }],
   page: 2,
   hasMore: true,
   today: view.today,
@@ -103,6 +110,7 @@ describe('work order recurrence HTTP contract', () => {
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
     app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+
     await app.init();
     server = app.getHttpServer();
   });
@@ -138,6 +146,7 @@ describe('work order recurrence HTTP contract', () => {
 
   it.each([true, false])('accepts explicit generation opt-in %s', async (autoGenerateEnabled) => {
     const body = { ...input, autoGenerateEnabled };
+
     const response = await request(server)
       .put(route)
       .set('Authorization', 'Bearer fixture')
@@ -187,13 +196,20 @@ describe('work order recurrence HTTP contract', () => {
     { ...input, userId },
   ])('rejects malformed configuration or caller-controlled audit fields', async (body) => {
     await request(server).put(route).set('Authorization', 'Bearer fixture').send(body).expect(400);
+
     expect(save).not.toHaveBeenCalled();
   });
 
   it('transforms pagination, trims the customer filter and returns the list contract', async () => {
     const response = await request(server)
       .get(listRoute)
-      .query({ page: '2', limit: '5', status: 'ACTIVE', visit: 'NEXT_SEVEN_DAYS', customerName: ' Cliente ' })
+      .query({
+        page: '2',
+        limit: '5',
+        status: 'ACTIVE',
+        visit: 'NEXT_SEVEN_DAYS',
+        customerName: ' Cliente '
+      })
       .set('Authorization', 'Bearer fixture')
       .expect('Cache-Control', 'private, no-store')
       .expect(200);
@@ -213,6 +229,7 @@ describe('work order recurrence HTTP contract', () => {
 
   it('applies the standard pagination defaults', async () => {
     await request(server).get(listRoute).set('Authorization', 'Bearer fixture').expect(200);
+
     expect(list).toHaveBeenCalledWith({ organizationId, userId }, expect.objectContaining({ page: 1, limit: 10 }));
   });
 
@@ -227,6 +244,7 @@ describe('work order recurrence HTTP contract', () => {
     { userId },
   ])('rejects unsupported list queries before the use case runs', async (query) => {
     await request(server).get(listRoute).query(query).set('Authorization', 'Bearer fixture').expect(400);
+
     expect(list).not.toHaveBeenCalled();
   });
 
@@ -234,6 +252,7 @@ describe('work order recurrence HTTP contract', () => {
     await request(server).get(route).expect(401);
     await request(server).put(route).send(input).expect(401);
     await request(server).get(listRoute).expect(401);
+
     expect(read).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
     expect(list).not.toHaveBeenCalled();

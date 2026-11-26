@@ -72,7 +72,11 @@ describe('work order photo HTTP contract', () => {
         { provide: GeneratePublicWorkOrderReportUseCase, useValue: { execute: async () => new Uint8Array() } },
         {
           provide: PublicPortfolioConsentUseCase,
-          useValue: { status: async () => ({}), consent: async () => ({}), revoke: async () => ({}) },
+          useValue: {
+            status: async () => ({}),
+            consent: async () => ({}),
+            revoke: async () => ({})
+          },
         },
         { provide: AcceptPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: publicContent } },
@@ -109,6 +113,7 @@ describe('work order photo HTTP contract', () => {
       }),
     );
     app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+
     await app.init();
     server = app.getHttpServer();
   });
@@ -189,14 +194,21 @@ describe('work order photo HTTP contract', () => {
       .expect(200);
 
     expect(response.body).toEqual(Buffer.from([1, 2, 3]));
-    expect(content).toHaveBeenCalledWith({ organizationId, workOrderId, userId, photoId });
+    expect(content).toHaveBeenCalledWith({
+      organizationId,
+      workOrderId,
+      userId,
+      photoId
+    });
 
     await request(server).get(`${route}/${photoId}/content`).expect(401);
+
     expect(content).toHaveBeenCalledOnce();
   });
 
   it('validates the public POST token and uses the real privacy/rate limit guard', async () => {
     const publicRoute = `/api/public/work-orders/photos/${photoId}/content`;
+
     const response = await request(server)
       .post(publicRoute)
       .send({ token })
@@ -213,6 +225,7 @@ describe('work order photo HTTP contract', () => {
 
     await request(server).post(publicRoute).send({ token: 'invalid' }).expect(400);
     await request(server).post(`${publicRoute}?token=${token}`).send({}).expect(400);
+
     expect(publicContent).toHaveBeenCalledOnce();
   });
 });

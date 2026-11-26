@@ -93,6 +93,7 @@ describe('work order checklist HTTP contract', () => {
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
     app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+
     await app.init();
     server = app.getHttpServer();
   });
@@ -151,6 +152,7 @@ describe('work order checklist HTTP contract', () => {
     { title: 'Tarefa', createdById: userId },
   ])('rejects invalid create payloads and unauthorized metadata', async (body) => {
     await request(server).post(route).set('Authorization', 'Bearer fixture').send(body).expect(400);
+
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -162,11 +164,18 @@ describe('work order checklist HTTP contract', () => {
       .expect(200);
 
     expect(update).toHaveBeenCalledWith(
-      { organizationId, workOrderId, userId, itemId, version: 1 },
+      {
+        organizationId,
+        workOrderId,
+        userId,
+        itemId,
+        version: 1
+      },
       { version: 1, completed: true },
     );
 
     const body = { items: [{ id: itemId, version: 1 }] };
+
     const response = await request(server)
       .patch(`${route}/reorder`)
       .set('Authorization', 'Bearer fixture')
@@ -193,6 +202,7 @@ describe('work order checklist HTTP contract', () => {
     { version: 1, completedAt: new Date().toISOString() },
   ])('rejects malformed updates and caller-supplied completion audit fields', async (body) => {
     await request(server).patch(`${route}/${itemId}`).set('Authorization', 'Bearer fixture').send(body).expect(400);
+
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -211,6 +221,7 @@ describe('work order checklist HTTP contract', () => {
     { items: Array.from({ length: 51 }, () => ({ id: itemId, version: 1 })) },
   ])('validates nested reorder items before invoking the use case', async (body) => {
     await request(server).patch(`${route}/reorder`).set('Authorization', 'Bearer fixture').send(body).expect(400);
+
     expect(reorder).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
   });
@@ -223,8 +234,16 @@ describe('work order checklist HTTP contract', () => {
       .expect(204);
 
     expect(response.text).toBe('');
-    expect(remove).toHaveBeenCalledWith({ organizationId, workOrderId, userId, itemId, version: 1 });
+    expect(remove).toHaveBeenCalledWith({
+      organizationId,
+      workOrderId,
+      userId,
+      itemId,
+      version: 1
+    });
+
     await request(server).delete(`${route}/${itemId}`).set('Authorization', 'Bearer fixture').send({}).expect(400);
+
     expect(remove).toHaveBeenCalledOnce();
   });
 

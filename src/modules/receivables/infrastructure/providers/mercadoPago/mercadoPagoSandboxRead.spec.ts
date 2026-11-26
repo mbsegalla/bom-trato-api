@@ -32,6 +32,7 @@ const response = {
 
 function fixture(payload: unknown, liveMode = false) {
   const transport = vi.fn<typeof fetch>().mockResolvedValue(Response.json(payload));
+
   return { transport, client: new MercadoPagoClient({ ...config, liveMode }, transport) };
 }
 
@@ -47,11 +48,23 @@ describe('authoritative sandbox Pix payment lookup', () => {
   });
 
   it('recognizes a verified test approval but not an unaccredited approval', async () => {
-    const approved = { ...response, status: 'approved', status_detail: 'accredited', date_approved: new Date().toISOString() };
+    const approved = {
+      ...response,
+      status: 'approved',
+      status_detail: 'accredited',
+      date_approved: new Date().toISOString()
+    };
+
     await expect(fixture(approved).client.readSandboxPix(input)).resolves.toBe('APPROVED');
-    await expect(fixture({ ...approved, status_detail: 'other' }).client.readSandboxPix(input)).resolves.toBe('REVIEW_REQUIRED');
+    await expect(fixture({
+      ...approved,
+      status_detail: 'other'
+    }).client.readSandboxPix(input)).resolves.toBe('REVIEW_REQUIRED');
     await expect(fixture({ ...approved, date_approved: 'bad' }).client.readSandboxPix(input)).rejects.toThrow('INVALID_RESPONSE');
-    await expect(fixture({ ...approved, transaction_amount_refunded: '1.00' }).client.readSandboxPix(input)).resolves.toBe('REFUNDED');
+    await expect(fixture({
+      ...approved,
+      transaction_amount_refunded: '1.00'
+    }).client.readSandboxPix(input)).resolves.toBe('REFUNDED');
   });
 
   it.each(['rejected', 'cancelled'])('recognizes closed test payments: %s', async (status) => {
@@ -74,6 +87,7 @@ describe('authoritative sandbox Pix payment lookup', () => {
 
   it('never reads with a live client', async () => {
     const { client, transport } = fixture(response, true);
+
     await expect(client.readSandboxPix(input)).rejects.toThrow('MODE_MISMATCH');
     expect(transport).not.toHaveBeenCalled();
   });
@@ -83,12 +97,16 @@ describe('authoritative live Pix observation (mock provider only)', () => {
   const liveInput = { ...input, eventId: 'delivery-key' };
   const approvedAt = new Date('2025-01-01T12:00:00-03:00');
   const approved = {
-    ...response, live_mode: true, status: 'approved', status_detail: 'accredited',
+    ...response,
+    live_mode: true,
+    status: 'approved',
+    status_detail: 'accredited',
     date_approved: approvedAt.toISOString(),
   };
 
   it('returns verified ledger evidence only for a bound, approved live Pix', async () => {
     const { client, transport } = fixture(approved, true);
+
     await expect(client.readLivePix(liveInput)).resolves.toEqual({
       status: 'APPROVED',
       payment: {
@@ -132,6 +150,7 @@ describe('authoritative live Pix observation (mock provider only)', () => {
 
   it('never reads a live payment through a test client', async () => {
     const { client, transport } = fixture(approved);
+
     await expect(client.readLivePix(liveInput)).rejects.toThrow('MODE_MISMATCH');
     expect(transport).not.toHaveBeenCalled();
   });

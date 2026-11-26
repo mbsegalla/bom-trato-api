@@ -17,7 +17,11 @@ import { ListWorkOrderChecklistUseCase } from './listWorkOrderChecklist.useCase.
 import { ReorderWorkOrderChecklistUseCase } from './reorderWorkOrderChecklist.useCase.js';
 import { UpdateWorkOrderChecklistItemUseCase } from './updateWorkOrderChecklistItem.useCase.js';
 
-const params = { organizationId: 'organization', workOrderId: 'work-order', userId: 'member' };
+const params = {
+  organizationId: 'organization',
+  workOrderId: 'work-order',
+  userId: 'member'
+};
 const changeParams = { ...params, itemId: 'first', version: 1 };
 const createdAt = new Date('2026-11-25T12:00:00.000Z');
 const completedAt = new Date('2026-11-25T13:00:00.000Z');
@@ -117,6 +121,7 @@ function setup(initial: WorkOrderChecklistItemProps[] = []) {
 describe('work order checklist items', () => {
   it('creates private, incomplete items with trimmed titles and independent versions', async () => {
     const fixture = setup();
+
     const result = await fixture.create.execute(params, { title: '  Verificar a instalação  ' });
 
     expect(result).toMatchObject({
@@ -149,6 +154,7 @@ describe('work order checklist items', () => {
 
   it('accepts the maximum title length and appends after gaps left by deletion', async () => {
     const fixture = setup([makeItem({ position: 4 })]);
+
     const result = await fixture.create.execute(params, { title: 'x'.repeat(200) });
 
     expect(result.title).toHaveLength(200);
@@ -168,6 +174,7 @@ describe('work order checklist items', () => {
 
   it('uses the authenticated actor for completion and preserves attribution on repeated completion', async () => {
     const fixture = setup([makeItem()]);
+
     const result = await fixture.update.execute({ ...changeParams, userId: 'technician' }, { completed: true });
 
     expect(result).toMatchObject({
@@ -179,7 +186,11 @@ describe('work order checklist items', () => {
 
     const repeated = await fixture.update.execute(
       { ...changeParams, version: 2, userId: 'another-member' },
-      { title: ' Verificar a instalação ', completed: true, visibleInPortal: true },
+      {
+        title: ' Verificar a instalação ',
+        completed: true,
+        visibleInPortal: true
+      },
     );
 
     expect(repeated.completedAt).toEqual(result.completedAt);
@@ -192,9 +203,15 @@ describe('work order checklist items', () => {
     'clears completion and attribution when reopening or renaming',
     async (input) => {
       const fixture = setup([makeItem({ completed: true, completedAt, completedById: 'technician' })]);
+
       const reopened = await fixture.update.execute(changeParams, input);
 
-      expect(reopened).toMatchObject({ completed: false, completedAt: null, completedById: null, version: 2 });
+      expect(reopened).toMatchObject({
+        completed: false,
+        completedAt: null,
+        completedById: null,
+        version: 2
+      });
 
       const completed = await fixture.update.execute(
         { ...changeParams, version: 2, userId: 'new-technician' },
@@ -316,7 +333,12 @@ describe('work order checklist access', () => {
     'allows read, hide and deletion when platform access is %s but rejects operational writes',
     async (scenario) => {
       const fixture = setup([
-        makeItem({ visibleInPortal: true, completed: true, completedAt, completedById: 'technician' }),
+        makeItem({
+          visibleInPortal: true,
+          completed: true,
+          completedAt,
+          completedById: 'technician'
+        }),
       ]);
       fixture.access.hasPlatformAccess = scenario !== 'expired';
       fixture.access.billingNeedsReconciliation = scenario === 'reconciliation';
@@ -342,8 +364,15 @@ describe('work order checklist access', () => {
           completed: true,
           visibleInPortal: false,
         }),
-      ).resolves.toMatchObject({ visibleInPortal: false, completedAt, completedById: 'technician', version: 2 });
+      ).resolves.toMatchObject({
+        visibleInPortal: false,
+        completedAt,
+        completedById: 'technician',
+        version: 2
+      });
+
       await fixture.delete.execute({ ...changeParams, version: 2 });
+
       expect(fixture.checklist.items).toEqual([]);
     },
   );
@@ -356,6 +385,7 @@ describe('work order checklist ordering', () => {
 
   it('returns the new order and only increments the versions of moved items', async () => {
     const fixture = setup([first, second, third]);
+
     const result = await fixture.reorder.execute(params, {
       items: [
         { id: 'third', version: 1 },

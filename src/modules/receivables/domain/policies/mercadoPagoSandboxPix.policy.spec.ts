@@ -1,28 +1,57 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertSandboxPixInput, isValidSandboxDynamicPix, sandboxPixBalance, sandboxPixStatus, SANDBOX_PIX_PROCESSING_MS } from './mercadoPagoSandboxPix.policy.js';
+import {
+  assertSandboxPixInput,
+  isValidSandboxDynamicPix,
+  sandboxPixBalance,
+  sandboxPixStatus,
+  SANDBOX_PIX_PROCESSING_MS
+} from './mercadoPagoSandboxPix.policy.js';
 import { pixCrc16 } from './receivablePixCharge.policy.js';
 
 const now = new Date('2026-11-25T15:00:00Z');
-const receivable = { version: 2, status: 'PARTIALLY_PAID', currency: 'brl', amountInCents: 50000, receivedInCents: 15000 };
+const receivable = {
+  version: 2,
+  status: 'PARTIALLY_PAID',
+  currency: 'brl',
+  amountInCents: 50000,
+  receivedInCents: 15000
+};
 const issuance = {
-  status: 'PENDING' as const, receivableVersion: 2, amountInCents: 35000, createdAt: now,
+  status: 'PENDING' as const,
+  receivableVersion: 2,
+  amountInCents: 35000,
+  createdAt: now,
   expiresAt: new Date(now.getTime() + 3600000),
 };
 const input = {
-  version: 2, testBuyerEmail: 'test@example.com', testDocumentType: 'CPF' as const,
-  testDocumentNumber: '19119119100', confirmed: true,
+  version: 2,
+  testBuyerEmail: 'test@example.com',
+  testDocumentType: 'CPF' as const,
+  testDocumentNumber: '19119119100',
+  confirmed: true,
 };
 
 function tlv(id: string, value: string): string {
   return id + String(value.length).padStart(2, '0') + value;
 }
 
-function code(amount: string | null = '350.00', template = tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test')): string {
+function code(
+  amount: string | null = '350.00',
+  template = tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test')
+): string {
   const payload = [
-    tlv('00', '01'), tlv('01', '12'), tlv('26', template), tlv('52', '0000'), tlv('53', '986'),
+    tlv('00', '01'),
+    tlv('01', '12'),
+    tlv('26', template),
+    tlv('52', '0000'),
+    tlv('53', '986'),
     ...(amount === null ? [] : [tlv('54', amount)]),
-    tlv('58', 'BR'), tlv('59', 'TEST'), tlv('60', 'SAO PAULO'), tlv('62', tlv('05', '***')), '6304',
+    tlv('58', 'BR'),
+    tlv('59', 'TEST'),
+    tlv('60', 'SAO PAULO'),
+    tlv('62', tlv('05', '***')),
+    '6304',
   ].join('');
   return payload + pixCrc16(payload);
 }
@@ -52,6 +81,7 @@ describe('sandbox Pix issuance policy', () => {
 
   it('preserves uncertainty and never treats a reserved attempt as unpaid or reusable', () => {
     const reserved = { ...issuance, status: 'RESERVED' as const, expiresAt: null };
+
     expect(sandboxPixStatus(null, receivable, true, now)).toBe('NOT_ISSUED');
     expect(sandboxPixStatus(reserved, receivable, true, now)).toBe('PROCESSING');
     expect(sandboxPixStatus(reserved, receivable, true, new Date(now.getTime() + SANDBOX_PIX_PROCESSING_MS))).toBe('REVIEW_REQUIRED');

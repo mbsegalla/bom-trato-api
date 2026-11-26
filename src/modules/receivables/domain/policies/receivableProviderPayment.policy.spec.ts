@@ -57,7 +57,12 @@ describe('provider payment confirmation policy', () => {
   });
 
   it('does not apply another event for an already linked payment, even after the version changes', () => {
-    const paid = { ...receivable, status: 'PAID' as const, version: 3, receivedInCents: 50000 };
+    const paid = {
+      ...receivable,
+      status: 'PAID' as const,
+      version: 3,
+      receivedInCents: 50000
+    };
     const replay = { ...payment, eventId: 'event-2' };
 
     expect(decideProviderPayment({ ...charge, paymentId: 'recorded' }, paid, 'owner', replay)).toEqual({

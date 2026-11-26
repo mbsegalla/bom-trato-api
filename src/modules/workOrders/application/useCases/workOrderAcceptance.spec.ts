@@ -33,7 +33,11 @@ import { GetPublicWorkOrderUseCase } from './getPublicWorkOrder.useCase.js';
 import { GetWorkOrderAcceptanceUseCase } from './getWorkOrderAcceptance.useCase.js';
 
 const now = new Date('2026-11-25T18:00:00.000Z');
-const params = { organizationId: 'organization', workOrderId: 'work-order', userId: 'member' };
+const params = {
+  organizationId: 'organization',
+  workOrderId: 'work-order',
+  userId: 'member'
+};
 const token = 'a'.repeat(64);
 
 class MemoryAcceptances extends WorkOrderAcceptanceRepository {
@@ -90,8 +94,20 @@ function setup() {
         position: 0,
       },
     ],
-    photos: [{ id: 'photo', stage: 'AFTER', caption: 'Foto dinâmica', width: 800, height: 600, createdAt: new Date() }],
-    checklistItems: [{ id: 'checklist', title: 'Tarefa dinâmica', completed: true, completedAt: new Date() }],
+    photos: [{
+      id: 'photo',
+      stage: 'AFTER',
+      caption: 'Foto dinâmica',
+      width: 800,
+      height: 600,
+      createdAt: new Date()
+    }],
+    checklistItems: [{
+      id: 'checklist',
+      title: 'Tarefa dinâmica',
+      completed: true,
+      completedAt: new Date()
+    }],
     receivables: [],
     timelineSource: { quoteApprovedAt: null, statusHistory: [], scheduleHistory: [] },
   };
@@ -132,6 +148,7 @@ function setup() {
         () => undefined,
         () => undefined,
       );
+
       return result;
     },
   };
@@ -171,12 +188,14 @@ function setup() {
 }
 
 beforeEach(() => vi.useFakeTimers({ now }));
+
 afterEach(() => vi.useRealTimers());
 
 describe('work order completion acceptance', () => {
   it('records the server snapshot and consent once without changing the completed work order', async () => {
     const fixture = setup();
     const previous = structuredClone(fixture.workOrder);
+
     const result = await fixture.accept.execute(token, fixture.input);
 
     expect(result).toEqual({ acceptedAt: now, completedAt: fixture.workOrder.completedAt });
@@ -196,6 +215,7 @@ describe('work order completion acceptance', () => {
         workOrder: { version: 4, completedAt: '2026-11-25T16:00:00.000Z' },
       },
     });
+
     const serialized = JSON.stringify(fixture.acceptances.records[0]);
     for (const excluded of [
       'Cliente privado',
@@ -213,6 +233,7 @@ describe('work order completion acceptance', () => {
 
   it('offers only the current snapshot and hides the supplied name from the public receipt', async () => {
     const fixture = setup();
+
     await expect(fixture.resolve.execute(token)).resolves.toMatchObject({
       acceptance: {
         canAccept: true,
@@ -222,11 +243,13 @@ describe('work order completion acceptance', () => {
         receipt: null,
       },
     });
+
     await fixture.accept.execute(token, fixture.input);
     fixture.access.hasAccess = false;
     fixture.access.billingNeedsReconciliation = true;
 
     const result = await fixture.resolve.execute(token);
+
     expect(result.acceptance).toEqual({
       canAccept: false,
       snapshotHash: null,
@@ -240,6 +263,7 @@ describe('work order completion acceptance', () => {
 
   it('replays the original evidence after plan expiry and organization rename without replacing it', async () => {
     const fixture = setup();
+
     const first = await fixture.accept.execute(token, fixture.input);
     const recorded = structuredClone(fixture.acceptances.records[0]);
     fixture.access.hasAccess = false;
@@ -258,12 +282,18 @@ describe('work order completion acceptance', () => {
     });
   });
 
-  it.each([{ signerName: 'Outro nome' }, { snapshotHash: 'b'.repeat(64) }, { consentVersion: '2' }])(
+  it.each([
+    { signerName: 'Outro nome' },
+    { snapshotHash: 'b'.repeat(64) },
+    { consentVersion: '2' }
+  ])(
     'does not replace existing evidence for a different replay %j',
     async (change) => {
       const fixture = setup();
+
       await fixture.accept.execute(token, fixture.input);
       const original = structuredClone(fixture.acceptances.records);
+
       await expect(fixture.accept.execute(token, { ...fixture.input, ...change })).rejects.toMatchObject({
         code: 'WORK_ORDER_ALREADY_ACCEPTED',
       });
@@ -273,11 +303,13 @@ describe('work order completion acceptance', () => {
 
   it('serializes simultaneous attempts into one receipt and rejects a different signer', async () => {
     const fixture = setup();
+
     const results = await Promise.all([
       fixture.accept.execute(token, fixture.input),
       fixture.accept.execute(token, fixture.input),
       fixture.accept.execute(token, { ...fixture.input, signerName: 'Maria da Silva' }),
     ]);
+
     expect(results[1]).toEqual(results[0]);
     expect(results[2]).toEqual(results[0]);
     expect(fixture.acceptances.records).toHaveLength(1);
@@ -291,6 +323,7 @@ describe('work order completion acceptance', () => {
     async (status) => {
       const fixture = setup();
       fixture.workOrder.status = status;
+
       await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
         code: 'WORK_ORDER_ACCEPTANCE_NOT_AVAILABLE',
       });
@@ -303,8 +336,10 @@ describe('work order completion acceptance', () => {
 
   it('requires a completion timestamp and refuses a receipt from a different work order version', async () => {
     const fixture = setup();
+
     await fixture.accept.execute(token, fixture.input);
     fixture.workOrder.version += 1;
+
     await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
       code: 'WORK_ORDER_ACCEPTANCE_NOT_AVAILABLE',
     });
@@ -312,7 +347,9 @@ describe('work order completion acceptance', () => {
       acceptance: { canAccept: false, receipt: null },
     });
     await expect(fixture.internal.execute(params)).resolves.toEqual({ receipt: null });
+
     fixture.workOrder.completedAt = null;
+
     await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
       code: 'WORK_ORDER_ACCEPTANCE_NOT_AVAILABLE',
     });
@@ -321,16 +358,21 @@ describe('work order completion acceptance', () => {
 
   it('keeps evidence for an earlier completion instead of treating it as acceptance of a later cycle', async () => {
     const fixture = setup();
+
     await fixture.accept.execute(token, fixture.input);
     fixture.workOrder.completedAt = new Date('2026-11-25T17:00:00.000Z');
     fixture.workOrder.version += 1;
+
     const result = await fixture.resolve.execute(token);
+
     expect(result.acceptance.canAccept).toBe(true);
     expect(result.acceptance.receipt).toBeNull();
     await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
       code: 'WORK_ORDER_ACCEPTANCE_SNAPSHOT_CONFLICT',
     });
+
     await fixture.accept.execute(token, { ...fixture.input, snapshotHash: result.acceptance.snapshotHash! });
+
     expect(fixture.acceptances.records).toHaveLength(2);
     expect(fixture.acceptances.records[0].workOrderVersion).toBe(4);
   });
@@ -357,6 +399,7 @@ describe('work order completion acceptance', () => {
       await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
         code: 'WORK_ORDER_ACCEPTANCE_SNAPSHOT_CONFLICT',
       });
+
       expect(fixture.acceptances.records).toHaveLength(0);
     },
   );
@@ -368,8 +411,14 @@ describe('work order completion acceptance', () => {
     fixture.workOrder.assignedToName = 'Outro responsável';
     fixture.workOrder.organization.logoKey = 'new/logo.webp';
     fixture.workOrder.receivables = [
-      { currency: 'BRL', amountInCents: 10000, receivedInCents: 5000, status: 'PARTIALLY_PAID' },
+      {
+        currency: 'BRL',
+        amountInCents: 10000,
+        receivedInCents: 5000,
+        status: 'PARTIALLY_PAID'
+      },
     ];
+
     await expect(fixture.accept.execute(token, fixture.input)).resolves.toMatchObject({ acceptedAt: now });
     expect(Object.keys(fixture.acceptances.records[0].snapshot).sort()).toEqual([
       'organizationName',
@@ -382,6 +431,7 @@ describe('work order completion acceptance', () => {
     'rejects a %s share before any initial acceptance or replay',
     async (scenario) => {
       const fixture = setup();
+
       await fixture.accept.execute(token, fixture.input);
       if (scenario === 'expired') {
         fixture.share.expiresAt = now;
@@ -401,6 +451,7 @@ describe('work order completion acceptance', () => {
       await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
         code: 'WORK_ORDER_SHARE_NOT_FOUND',
       });
+
       await expect(fixture.resolve.execute(token)).rejects.toMatchObject({ code: 'WORK_ORDER_SHARE_NOT_FOUND' });
       expect(fixture.acceptances.records).toHaveLength(1);
     },
@@ -418,6 +469,7 @@ describe('work order completion acceptance', () => {
       await expect(fixture.accept.execute(token, fixture.input)).rejects.toMatchObject({
         code: scenario === 'expired plan' ? 'SUBSCRIPTION_REQUIRED' : 'BILLING_RECONCILIATION_REQUIRED',
       });
+
       await expect(fixture.resolve.execute(token)).resolves.toMatchObject({
         acceptance: { canAccept: false, snapshotHash: null },
       });
@@ -438,6 +490,7 @@ describe('work order completion acceptance', () => {
     { snapshotHash: 'invalid' },
   ])('rejects invalid application inputs %j', async (change) => {
     const fixture = setup();
+
     await expect(async () =>
       fixture.accept.execute(token, { ...fixture.input, ...change } as AcceptWorkOrderInput),
     ).rejects.toMatchObject({ code: 'INVALID_WORK_ORDER_ACCEPTANCE_INPUT' });
@@ -446,10 +499,13 @@ describe('work order completion acceptance', () => {
 
   it('provides evidence only to verified members of the scoped organization, even without platform access', async () => {
     const fixture = setup();
+
     await fixture.accept.execute(token, fixture.input);
     fixture.memberAccess.hasPlatformAccess = false;
     fixture.memberAccess.billingNeedsReconciliation = true;
+
     const result = await fixture.internal.execute(params);
+
     expect(result.receipt?.signerName).toBe('Maria da Silva');
     expect(result.receipt).not.toHaveProperty('shareId');
     expect(result.receipt).not.toHaveProperty('organizationId');
@@ -459,9 +515,13 @@ describe('work order completion acceptance', () => {
     await expect(fixture.internal.execute({ ...params, workOrderId: 'other' })).rejects.toMatchObject({
       code: 'WORK_ORDER_NOT_FOUND',
     });
+
     fixture.memberAccess.verified = false;
+
     await expect(fixture.internal.execute(params)).rejects.toMatchObject({ code: 'VERIFIED_USER_REQUIRED' });
+
     fixture.memberAccess.isMember = false;
+
     await expect(fixture.internal.execute(params)).rejects.toMatchObject({ code: 'MEMBER_REQUIRED' });
   });
 });
@@ -474,11 +534,13 @@ describe('acceptance persistence boundaries', () => {
       $queryRaw: vi.fn(async (..._args: unknown[]) => {
         events.push('organization lock');
         fixture.share.revokedAt = now;
+
         return [{ id: params.organizationId }];
       }),
       workOrderShare: {
         findUnique: vi.fn(async () => {
           events.push('token revalidation');
+
           return structuredClone(fixture.share);
         }),
       },
@@ -488,6 +550,7 @@ describe('acceptance persistence boundaries', () => {
       workOrderShare: {
         findUnique: vi.fn(async () => {
           events.push('organization lookup');
+
           return { organizationId: params.organizationId };
         }),
       },
@@ -507,20 +570,29 @@ describe('acceptance persistence boundaries', () => {
 
   it('scopes receipt queries by organization, work order and completion and never stores the raw token', async () => {
     const fixture = setup();
+
     await fixture.accept.execute(token, fixture.input);
     const recorded = fixture.acceptances.records[0];
-    const row = { ...recorded, consent: true, snapshot: recorded.snapshot as unknown as Prisma.JsonValue };
+    const row = {
+      ...recorded,
+      consent: true,
+      snapshot: recorded.snapshot as unknown as Prisma.JsonValue
+    };
     const findFirst = vi.fn<Prisma.TransactionClient['workOrderAcceptance']['findFirst']>().mockResolvedValue(row);
     const create = vi.fn<Prisma.TransactionClient['workOrderAcceptance']['create']>().mockResolvedValue(row);
     const db = { workOrderAcceptance: { findFirst, create } } as unknown as Prisma.TransactionClient;
     const repository = new PrismaWorkOrderAcceptanceRepository(db, params.organizationId, params.workOrderId);
+
     await repository.findForCompletion(recorded.completedAt);
+
     expect(findFirst.mock.calls[0][0]?.where).toEqual({
       organizationId: params.organizationId,
       workOrderId: params.workOrderId,
       completedAt: recorded.completedAt,
     });
+
     await repository.create(WorkOrderAcceptance.restore(recorded));
+
     expect(create.mock.calls[0][0].data).toMatchObject({
       consent: true,
       signerName: 'Maria da Silva',

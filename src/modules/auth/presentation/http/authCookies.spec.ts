@@ -18,20 +18,42 @@ function fixture() {
     cookies: { '__Host-bomTratoCsrf': token, '__Host-bomTratoRefresh': refresh },
     get: (name: string) => name === 'origin' ? requestOrigin : name === 'x-csrf-token' ? header : undefined,
   }) as unknown as Request;
-  return { cookies, response, cookie, setHeader, clearCookie, request };
+
+  return {
+    cookies,
+    response,
+    cookie,
+    setHeader,
+    clearCookie,
+    request
+  };
 }
+
 describe('AuthCookies', () => {
   it('issues secure host-only cookies and binds the CSRF token to the current refresh credential', () => {
     const f = fixture();
     const token = f.cookies.setSession(f.response, 'fixture-refresh', new Date(Date.now() + 86400000));
+
     expect(f.cookie).toHaveBeenCalledWith('__Host-bomTratoRefresh', 'fixture-refresh', expect.objectContaining({
-      secure: true, httpOnly: true, sameSite: 'lax', path: '/',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
     }));
-    expect(f.cookie).toHaveBeenCalledWith('__Host-bomTratoCsrf', token, expect.objectContaining({ secure: true, httpOnly: true, maxAge: 3600000 }));
+    expect(f.cookie).toHaveBeenCalledWith(
+      '__Host-bomTratoCsrf',
+      token,
+      expect.objectContaining({
+        secure: true,
+        httpOnly: true,
+        maxAge: 3600000
+      })
+    );
     expect(() => f.cookies.assertCsrf(f.request(token))).not.toThrow();
     expect(() => f.cookies.assertCsrf(f.request(token, 'different-refresh'))).toThrow('Invalid CSRF token');
     expect(f.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
   });
+
   it('rejects mismatched origins, missing header, altered signature and expired tokens', () => {
     const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
     try {
@@ -47,9 +69,11 @@ describe('AuthCookies', () => {
       clock.mockRestore();
     }
   });
+
   it('clears both cookies with the same secure scope', () => {
     const f = fixture();
     f.cookies.clear(f.response);
+
     expect(f.clearCookie).toHaveBeenCalledWith('__Host-bomTratoRefresh', expect.objectContaining({ secure: true, path: '/' }));
     expect(f.clearCookie).toHaveBeenCalledWith('__Host-bomTratoCsrf', expect.objectContaining({ secure: true, path: '/' }));
   });

@@ -28,8 +28,10 @@ function fixture(results: unknown[], total = results.length, result: unknown = p
     .mockResolvedValueOnce(Response.json({ paging: { total, offset: 0, limit: 2 }, results }))
     .mockResolvedValueOnce(Response.json(result));
   const client = new MercadoPagoClient({
-    clientId: '123456789', clientSecret: 'fixture-secret',
-    redirectUri: 'https://example.com/mercado-pago/callback', liveMode,
+    clientId: '123456789',
+    clientSecret: 'fixture-secret',
+    redirectUri: 'https://example.com/mercado-pago/callback',
+    liveMode,
   }, transport);
 
   return { client, transport };
@@ -38,7 +40,12 @@ function fixture(results: unknown[], total = results.length, result: unknown = p
 describe('sandbox Pix recovery search', () => {
   it('searches only the immutable reference and separately verifies a single result', async () => {
     const { client, transport } = fixture([candidate]);
-    await expect(client.searchSandboxPix(input)).resolves.toEqual({ kind: 'FOUND', paymentId: '456789', status: 'PENDING' });
+
+    await expect(client.searchSandboxPix(input)).resolves.toEqual({
+      kind: 'FOUND',
+      paymentId: '456789',
+      status: 'PENDING'
+    });
     expect(transport).toHaveBeenNthCalledWith(
       1, expect.stringContaining('/v1/payments/search?external_reference=' + input.issuanceId),
       expect.objectContaining({ method: 'GET', headers: { Authorization: 'Bearer fixture-access' } }),
@@ -51,9 +58,12 @@ describe('sandbox Pix recovery search', () => {
 
   it('does not resolve an empty or ambiguous search into a payment', async () => {
     const empty = fixture([]);
+
     await expect(empty.client.searchSandboxPix(input)).resolves.toEqual({ kind: 'NOT_FOUND' });
     expect(empty.transport).toHaveBeenCalledTimes(1);
+
     const multiple = fixture([candidate, { ...candidate, id: 456790 }], 5);
+
     await expect(multiple.client.searchSandboxPix(input)).resolves.toEqual({ kind: 'AMBIGUOUS' });
     expect(multiple.transport).toHaveBeenCalledTimes(1);
   });
@@ -64,7 +74,12 @@ describe('sandbox Pix recovery search', () => {
       .rejects.toThrow('INVALID_RESPONSE');
   });
 
-  it.each([{ collector_id: 999999 }, { live_mode: true }, { transaction_amount: '350.02' }, { external_reference: 'wrong' }])(
+  it.each([
+    { collector_id: 999999 },
+    { live_mode: true },
+    { transaction_amount: '350.02' },
+    { external_reference: 'wrong' }
+  ])(
     'rejects a search hit whose authoritative payment is inconsistent: %j',
     async (patch) => {
       await expect(fixture([candidate], 1, { ...payment, ...patch }).client.searchSandboxPix(input)).rejects.toThrow();
@@ -73,6 +88,7 @@ describe('sandbox Pix recovery search', () => {
 
   it('does not query the provider in live mode', async () => {
     const { client, transport } = fixture([candidate], 1, payment, true);
+
     await expect(client.searchSandboxPix(input)).rejects.toThrow('MODE_MISMATCH');
     expect(transport).not.toHaveBeenCalled();
   });
@@ -83,19 +99,27 @@ describe('live Pix recovery search (mock provider only)', () => {
 
   it('requires live mode and verifies the unique result via individual lookup', async () => {
     const found = fixture([candidate], 1, { ...payment, live_mode: true }, true);
+
     await expect(found.client.searchLivePix(liveInput)).resolves.toEqual({
-      kind: 'FOUND', paymentId: '456789', observation: { status: 'PENDING' },
+      kind: 'FOUND',
+      paymentId: '456789',
+      observation: { status: 'PENDING' },
     });
     expect(found.transport).toHaveBeenCalledTimes(2);
+
     const mismatch = fixture([candidate], 1, payment, true);
+
     await expect(mismatch.client.searchLivePix(liveInput)).rejects.toThrow('MODE_MISMATCH');
+
     const sandbox = fixture([candidate]);
+
     await expect(sandbox.client.searchLivePix(liveInput)).rejects.toThrow('MODE_MISMATCH');
     expect(sandbox.transport).not.toHaveBeenCalled();
   });
 
   it('never uses an ambiguous search result to confirm a live charge', async () => {
     const ambiguous = fixture([candidate, { ...candidate, id: 456790 }], 2, payment, true);
+
     await expect(ambiguous.client.searchLivePix(liveInput)).resolves.toEqual({ kind: 'AMBIGUOUS' });
     expect(ambiguous.transport).toHaveBeenCalledTimes(1);
   });

@@ -8,6 +8,7 @@ import { createDisposableDatabaseFixture, databaseSuite } from '../support/dispo
 
 databaseSuite('public share rate limits (disposable PostgreSQL)', () => {
   const db = createDisposableDatabaseFixture();
+
   it('persists a bounded bucket, isolates scopes and resets an expired window', async () => {
     const secret = randomBytes(32).toString('hex');
     const ip = '192.0.2.1';
@@ -17,18 +18,24 @@ databaseSuite('public share rate limits (disposable PostgreSQL)', () => {
     const setHeader = vi.fn();
     const response = { setHeader } as unknown as Response;
     const limiter = new PostgresPublicShareRateLimit(db.prisma, secret, 'quote-share');
+
     await limiter.check(ip, response);
     await db.prisma.quoteShareRateLimit.update({ where: { key }, data: { count: 59 } });
     const results = await Promise.allSettled([limiter.check(ip, response), limiter.check(ip, response)]);
+
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
     await expect(limiter.check(ip, response)).rejects.toMatchObject({ status: 429 });
     expect(setHeader).toHaveBeenCalledWith('Retry-After', expect.stringMatching(/^\d+$/));
     expect((await db.prisma.quoteShareRateLimit.findUniqueOrThrow({ where: { key } })).count).toBe(61);
+
     await new PostgresPublicShareRateLimit(db.prisma, secret, 'work-order-share').check(ip, response);
+
     expect((await db.prisma.quoteShareRateLimit.findUniqueOrThrow({ where: { key: otherKey } })).count).toBe(1);
+
     await db.prisma.quoteShareRateLimit.update({ where: { key }, data: { expiresAt: new Date(Date.now() - 1000) } });
     await limiter.check(ip, response);
+
     expect((await db.prisma.quoteShareRateLimit.findUniqueOrThrow({ where: { key } })).count).toBe(1);
   });
 });

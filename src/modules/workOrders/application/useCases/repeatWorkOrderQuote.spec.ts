@@ -13,7 +13,11 @@ import { Quote } from '../../../../modules/quotes/domain/entities/quote.entity.j
 import { QuoteItem } from '../../../../modules/quotes/domain/entities/quoteItem.entity.js';
 import { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 
-const params = { organizationId: 'organization', userId: 'operator', quoteId: 'source-quote' };
+const params = {
+  organizationId: 'organization',
+  userId: 'operator',
+  quoteId: 'source-quote'
+};
 const originalTime = new Date('2026-01-01T12:00:00.000Z');
 
 class FixtureUnitOfWork extends QuoteUnitOfWork {
@@ -105,7 +109,11 @@ function setup() {
     source: 'SUBSCRIPTION',
     billingNeedsReconciliation: false,
   };
-  const currentCustomer = { ...customer, name: 'Cliente atualizado', email: 'updated@example.com' };
+  const currentCustomer = {
+    ...customer,
+    name: 'Cliente atualizado',
+    email: 'updated@example.com'
+  };
   const create = vi.fn<QuoteTransaction['quotes']['create']>().mockResolvedValue(undefined);
   const findById = vi.fn<QuoteTransaction['quotes']['findById']>().mockResolvedValue(source);
   const findByQuoteId = vi.fn<QuoteTransaction['workOrders']['findByQuoteId']>().mockResolvedValue(workOrder);
@@ -144,6 +152,7 @@ describe('repeat a completed service', () => {
     const fixture = setup();
     const sourceBefore = structuredClone(fixture.source);
     const orderBefore = structuredClone(fixture.workOrder);
+
     const result = await fixture.useCase.execute(params);
 
     expect(result).toMatchObject({
@@ -177,7 +186,9 @@ describe('repeat a completed service', () => {
       position: 0,
     });
     expect(result.items[1]).toMatchObject({ totalInCents: 1200, position: 1 });
+
     const originalIds = [...fixture.source.items, ...fixture.workOrder.items].map((item) => item.id);
+
     expect(new Set(result.items.map((item) => item.id)).size).toBe(2);
     expect(result.items.every((item) => !originalIds.includes(item.id))).toBe(true);
     expect(fixture.create).toHaveBeenCalledOnce();

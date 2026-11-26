@@ -147,7 +147,11 @@ describe('Mercado Pago live Pix transport (mock provider only)', () => {
     const { client, transport } = fixture({ ...response, live_mode: true }, true);
 
     await expect(client.createLivePix(input)).resolves.toMatchObject({
-      kind: 'PENDING', liveMode: true, issuanceId: input.issuanceId, accountId: input.accountId, paymentId: '456789',
+      kind: 'PENDING',
+      liveMode: true,
+      issuanceId: input.issuanceId,
+      accountId: input.accountId,
+      paymentId: '456789',
     });
     expect(transport).toHaveBeenCalledWith(
       'https://api.mercadopago.com/v1/payments',
@@ -165,6 +169,7 @@ describe('Mercado Pago live Pix transport (mock provider only)', () => {
 
   it('cannot create a live payment with a sandbox client', async () => {
     const { client, transport } = fixture(response);
+
     await expect(client.createLivePix(input)).rejects.toThrow('MODE_MISMATCH');
     expect(transport).not.toHaveBeenCalled();
   });
@@ -177,14 +182,21 @@ describe('Mercado Pago live Pix transport (mock provider only)', () => {
     { transaction_amount_refunded: 1 },
   ])('rejects inconsistent live responses: %j', async (patch) => {
     const { client } = fixture({ ...response, live_mode: true, ...patch }, true);
+
     await expect(client.createLivePix(input)).rejects.toThrow();
   });
 
   it('never treats creation approval as confirmed settlement', async () => {
     const { client } = fixture({ ...response, live_mode: true, status: 'approved' }, true);
+
     await expect(client.createLivePix(input)).resolves.toEqual({
-      kind: 'REVIEW_REQUIRED', paymentId: '456789', accountId: input.accountId,
-      issuanceId: input.issuanceId, amountInCents: input.amountInCents, currency: 'brl', liveMode: true,
+      kind: 'REVIEW_REQUIRED',
+      paymentId: '456789',
+      accountId: input.accountId,
+      issuanceId: input.issuanceId,
+      amountInCents: input.amountInCents,
+      currency: 'brl',
+      liveMode: true,
     });
   });
 });

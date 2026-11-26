@@ -18,7 +18,12 @@ function sign(ts = timestamp, id = paymentId, request = requestId): string {
 }
 
 function verify(overrides: Partial<Parameters<typeof verifyMercadoPagoWebhook>[0]> = {}) {
-  return verifyMercadoPagoWebhook({ originalUrl, signature: sign(), requestId, ...overrides }, clientId, secret, now);
+  return verifyMercadoPagoWebhook({
+    originalUrl,
+    signature: sign(),
+    requestId,
+    ...overrides
+  }, clientId, secret, now);
 }
 
 describe('Mercado Pago signed webhook delivery', () => {
@@ -39,6 +44,7 @@ describe('Mercado Pago signed webhook delivery', () => {
 
   it('supports both documented timestamp units and historical signed retries', () => {
     const ts = String(Math.floor(now.getTime() / 1000) - 86400);
+
     expect(verify({ signature: sign(ts) })?.signedAt).toEqual(new Date(now.getTime() - 86400000));
   });
 

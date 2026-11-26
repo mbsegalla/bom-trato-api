@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { assertLivePixInput } from './mercadoPagoLivePix.policy.js';
 
 const input = {
-  version: 1, buyerEmail: 'fixture@example.invalid', buyerDocumentType: 'CPF' as const,
-  buyerDocumentNumber: '19119119100', confirmed: true,
+  version: 1,
+  buyerEmail: 'fixture@example.invalid',
+  buyerDocumentType: 'CPF' as const,
+  buyerDocumentNumber: '19119119100',
+  confirmed: true,
 };
 
 describe('live Pix issuance admission', () => {

@@ -9,6 +9,7 @@ const session = () => AuthSession.start('session', 'user', start, 60, 120, 'a'.r
 describe('AuthSession', () => {
   it('enforces idle expiry at the exact boundary', () => {
     const value = session();
+
     expect(() => value.assertActive(at(59))).not.toThrow();
     expect(() => value.assertActive(at(60))).toThrow('INVALID_SESSION');
   });
@@ -17,7 +18,12 @@ describe('AuthSession', () => {
     const value = session();
     value.renew(at(50), 60);
     value.renew(at(100), 60);
-    expect(value.snapshot()).toMatchObject({ idleExpiresAt: at(120), absoluteExpiresAt: at(120), lastRefreshedAt: at(100) });
+
+    expect(value.snapshot()).toMatchObject({
+      idleExpiresAt: at(120),
+      absoluteExpiresAt: at(120),
+      lastRefreshedAt: at(100)
+    });
     expect(() => value.renew(at(120), 60)).toThrow('INVALID_SESSION');
   });
 
@@ -25,6 +31,7 @@ describe('AuthSession', () => {
     const value = session();
     value.revoke(at(10), 'LOGOUT');
     value.revoke(at(20), 'LOGOUT_ALL');
+
     expect(value.snapshot()).toMatchObject({ revokedAt: at(10), revocationReason: 'LOGOUT' });
     expect(() => value.assertActive(at(11))).toThrow('INVALID_SESSION');
   });
@@ -32,8 +39,11 @@ describe('AuthSession', () => {
   it('limits user agent data and returns detached snapshots', () => {
     const value = session();
     const snapshot = value.snapshot();
+
     expect(snapshot.userAgent).toHaveLength(300);
+
     snapshot.idleExpiresAt.setTime(0);
+
     expect(value.snapshot().idleExpiresAt).toEqual(at(60));
   });
 

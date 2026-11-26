@@ -13,13 +13,17 @@ describe('LogoutUseCase', () => {
       await useCase.execute({ refreshToken, reason: 'LOGOUT' });
     }
     expect(hashToken).not.toHaveBeenCalled();
+
     expect(revokeByToken).not.toHaveBeenCalled();
   });
+
   it('revokes only the hashed token using the requested revocation reason', async () => {
     const revokeByToken = vi.fn<AuthRepository['revokeByToken']>().mockResolvedValue(undefined);
     const hashToken = vi.fn().mockReturnValue('hash');
     const useCase = new LogoutUseCase({ revokeByToken } as unknown as AuthRepository, { hashToken } as unknown as AuthSecurity);
+
     await useCase.execute({ refreshToken: 'a'.repeat(43), reason: 'LOGOUT' });
+
     expect(revokeByToken).toHaveBeenCalledWith({ tokenHash: 'hash', reason: 'LOGOUT', now: expect.any(Date) });
   });
 });

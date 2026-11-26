@@ -17,11 +17,21 @@ function fixture() {
   const hashToken = vi.fn((value: string) => 'hash:' + value);
   const signAccess = vi.fn<AuthSecurity['signAccess']>().mockResolvedValue('signed-access');
   const policy: AuthPolicy = {
-    accessTtlSeconds: 900, idleTtlSeconds: 3600, absoluteTtlSeconds: 86400,
-    verificationTtlSeconds: 86400, resetTtlSeconds: 1800,
+    accessTtlSeconds: 900,
+    idleTtlSeconds: 3600,
+    absoluteTtlSeconds: 86400,
+    verificationTtlSeconds: 86400,
+    resetTtlSeconds: 1800,
   };
+
   return {
-    token, nextToken, expiresAt, rotate, newToken, hashToken, signAccess,
+    token,
+    nextToken,
+    expiresAt,
+    rotate,
+    newToken,
+    hashToken,
+    signAccess,
     useCase: new RefreshSessionUseCase(
       { rotate } as unknown as AuthRepository,
       { newToken, hashToken, signAccess } as unknown as AuthSecurity,
@@ -33,20 +43,27 @@ function fixture() {
 describe('RefreshSessionUseCase', () => {
   it('rotates only hashed credentials and signs the persisted session identity', async () => {
     const f = fixture();
+
     const result = await f.useCase.execute(f.token);
+
     expect(f.rotate).toHaveBeenCalledWith({
-      tokenHash: 'hash:' + f.token, nextHash: 'hash:' + f.nextToken,
-      now: expect.any(Date), idleSeconds: 3600,
+      tokenHash: 'hash:' + f.token,
+      nextHash: 'hash:' + f.nextToken,
+      now: expect.any(Date),
+      idleSeconds: 3600,
     });
     expect(f.signAccess).toHaveBeenCalledWith({ sub: 'user', sid: 'session' });
     expect(result).toMatchObject({
-      accessToken: 'signed-access', expiresIn: 900,
-      refreshToken: f.nextToken, refreshExpiresAt: f.expiresAt,
+      accessToken: 'signed-access',
+      expiresIn: 900,
+      refreshToken: f.nextToken,
+      refreshExpiresAt: f.expiresAt,
     });
   });
 
   it('rejects malformed tokens before accessing persistence or signing', async () => {
     const f = fixture();
+
     await expect(f.useCase.execute('invalid')).rejects.toThrow();
     expect(f.newToken).not.toHaveBeenCalled();
     expect(f.rotate).not.toHaveBeenCalled();
@@ -56,6 +73,7 @@ describe('RefreshSessionUseCase', () => {
   it('does not issue access credentials after a failed rotation', async () => {
     const f = fixture();
     f.rotate.mockRejectedValueOnce(new Error('rotation rejected'));
+
     await expect(f.useCase.execute(f.token)).rejects.toThrow('rotation rejected');
     expect(f.signAccess).not.toHaveBeenCalled();
   });

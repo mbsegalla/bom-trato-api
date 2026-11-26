@@ -9,6 +9,7 @@ describe('AuthSessionPolicy', () => {
 
   it('revokes only the oldest excess sessions to make room for a new login', () => {
     const sessions = Array.from({ length: 12 }, (_, i) => ({ id: String(i) }));
+
     expect(AuthSessionPolicy.sessionsToRevoke(sessions)).toEqual(['0', '1', '2']);
     expect(sessions).toHaveLength(12);
   });
