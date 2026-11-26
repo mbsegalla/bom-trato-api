@@ -80,3 +80,28 @@ The existing in-app notification center is the only delivery channel. No emails,
 ### Rollout
 
 Apply migration `20261126140000_add_recurring_service_reminders` and regenerate Prisma Client. Deploy the API and the updated frontend notification schema before enabling `WORK_ORDER_RECURRENCE_REMINDER_WORKER_ENABLED=true` in the API environment. The flag defaults to false for a safe rolling deployment, controls both the hourly worker and new draft notifications, and does not disable automatic draft generation itself. No new Resend template or dependencies are needed. Validate the migration, authorization and tenant isolation, duplicate inserts with multiple worker instances, rollback and realtime notification behavior before enabling in production.
+
+## Recurrence regression checks
+
+The HTTP contract suite uses Nest's real recurrence controllers, global validation, error filter and response interceptor with mocked application use cases. Worker tests exercise the real worker and use case with mocked repositories: disabled feature flags, Sao Paulo date boundaries, batch traversal and failure isolation. These do not replace a real database or authentication-guard integration test.
+
+After installing dependencies and generating Prisma Client, run:
+
+```bash
+pnpm exec vitest run test/workOrderRecurrence.http.spec.ts test/repeatWorkOrderQuote.spec.ts src/modules/workOrders/domain/policies/workOrderRecurrence.policy.spec.ts src/modules/workOrders/domain/policies/workOrderRecurrenceGeneration.policy.spec.ts src/modules/workOrders/domain/policies/workOrderRecurrenceReminder.policy.spec.ts src/modules/workOrders/domain/policies/workOrderRecurrenceVisit.policy.spec.ts src/modules/workOrders/infrastructure/workers/workOrderRecurrence.worker.spec.ts
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm build
+```
+
+On a disposable PostgreSQL instance with all migrations applied, verify the following before production enablement:
+
+- Cross-organization access cannot read, edit, generate or notify another organization's recurrence; unverified users and expired access cannot mutate it.
+- Two worker instances processing the same due plan create exactly one draft and one generation row, increment the version once and advance the date once.
+- A forced failure after draft creation rolls back the quote, its items/status history, generation row, notification and date advancement.
+- A stale PUT after generation returns a version conflict; paused or archived plans and blocked billing create no new records.
+- Re-running reminders creates no duplicate notification for the same owner/date/stage. Changing a planned date does not re-notify an already generated occurrence.
+- Notifications reach the correct organization's owner and open the source recurrence or generated quote in the updated frontend; no external customer email, payment or booking is created.
+
+Keep the reminder flag disabled until the full stack passes these checks. This checklist is a test plan, not a claim that a database run has already passed.
