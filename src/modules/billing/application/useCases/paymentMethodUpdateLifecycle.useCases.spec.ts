@@ -78,7 +78,7 @@ describe('payment method update lifecycle', () => {
     expect(f.lock.run).toHaveBeenCalledWith('organization:org', expect.any(Function));
     expect(f.gateway.snapshot).toHaveBeenCalledWith(state.stripeCustomerId);
 
-    const stored = f.repository.create.mock.calls[0]![0].snapshot();
+    const stored = f.repository.create.mock.calls[0][0].snapshot();
 
     expect(stored).toMatchObject({
       organizationId: actor.organizationId,
@@ -92,7 +92,7 @@ describe('payment method update lifecycle', () => {
     });
     expect(f.processor.process).toHaveBeenCalledWith(stored);
     expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.create.mock.invocationCallOrder[0]!,
+      f.repository.create.mock.invocationCallOrder[0],
     );
   });
 
@@ -112,10 +112,8 @@ describe('payment method update lifecycle', () => {
 
     await f.start.execute(actor);
 
-    expect(f.repository.save.mock.calls[0]![0].snapshot().status).toBe('CANCELED');
-    expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.create.mock.invocationCallOrder[0]!,
-    );
+    expect(f.repository.save.mock.calls[0][0].snapshot().status).toBe('CANCELED');
+    expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(f.repository.create.mock.invocationCallOrder[0]);
   });
 
   it('stops if authorization changes while waiting for the organization lock', async () => {

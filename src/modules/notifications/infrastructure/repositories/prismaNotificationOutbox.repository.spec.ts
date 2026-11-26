@@ -51,7 +51,7 @@ describe('PrismaNotificationOutbox', () => {
 
     await f.outbox.enqueue(input);
 
-    const call = f.createMany.mock.calls[0]![0];
+    const call = f.createMany.mock.calls[0][0];
     const row = call.data[0];
 
     expect(call.skipDuplicates).toBe(true);
@@ -72,7 +72,7 @@ describe('PrismaNotificationOutbox', () => {
       'https://app.example.invalid/verify-email#token=private-fixture-token',
     );
     expect(f.notify).toHaveBeenCalledTimes(1);
-    expect(f.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]!);
+    expect(f.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]);
   });
 
   it('does not wake the worker for duplicate or failed inserts', async () => {

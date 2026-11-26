@@ -86,7 +86,7 @@ describe('customer DTO validation and normalization', () => {
     ['defaultServiceAddress', 'x'.repeat(501)],
     ['organizationId', id],
   ])('rejects invalid customer %s', async (field, value) => {
-    await invalid(CreateCustomerDto, { ...customer, [field as string]: value }, field as string);
+    await invalid(CreateCustomerDto, { ...customer, [field]: value }, field);
   });
 
   it('rejects nonstring or null supplied update names', async () => {
@@ -141,7 +141,7 @@ describe('catalog DTO validation and normalization', () => {
     ['estimatedDurationMinutes', 2147483648],
     ['organizationId', id],
   ])('rejects invalid catalog %s', async (field, value) => {
-    await invalid(CreateCatalogServiceDto, { ...service, [field as string]: value }, field as string);
+    await invalid(CreateCatalogServiceDto, { ...service, [field]: value }, field);
   });
 
   it('accepts partial updates, zero price and explicit duration removal', async () => {
@@ -169,7 +169,7 @@ describe('catalog DTO validation and normalization', () => {
     ['estimatedDurationMinutes', 0],
     ['description', 1],
   ])('rejects invalid partial catalog %s', async (field, value) => {
-    await invalid(UpdateCatalogServiceDto, { [field as string]: value }, field as string);
+    await invalid(UpdateCatalogServiceDto, { [field]: value }, field);
   });
 
   it('normalizes the catalog search and rejects malformed filters', async () => {
@@ -218,7 +218,7 @@ describe('work order DTO validation and normalization', () => {
     ['serviceAddress', 1],
     ['serviceAddress', 'x'.repeat(501)],
   ])('rejects invalid work order planning %s', async (field, value) => {
-    await invalid(UpdateWorkOrderDto, { version: 1, [field as string]: value }, field as string);
+    await invalid(UpdateWorkOrderDto, { version: 1, [field]: value }, field);
   });
 
   it('distinguishes explicitly removing an assignment from omitting its required field', async () => {
@@ -297,7 +297,7 @@ describe('work order DTO validation and normalization', () => {
     ['visibleInPortal', null],
     ['objectKey', 'private'],
   ])('rejects invalid photo update %s', async (field, value) => {
-    await invalid(UpdateWorkOrderPhotoDto, { version: 1, [field as string]: value }, field as string);
+    await invalid(UpdateWorkOrderPhotoDto, { version: 1, [field]: value }, field);
   });
 
   it('rejects invalid upload caption types and excessive lengths', async () => {

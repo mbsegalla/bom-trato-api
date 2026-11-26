@@ -59,10 +59,10 @@ databaseSuite('onboarding provisioning and trial eligibility (disposable Postgre
 
     expect(organizations).toHaveLength(1);
 
-    const organization = organizations[0]!;
+    const organization = organizations[0];
 
     expect(organization).toMatchObject({
-      id: states[0]!.organizationId,
+      id: states[0].organizationId,
       creationKey: f.user.id,
       setupCompletedAt: null,
     });

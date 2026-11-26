@@ -35,7 +35,7 @@ describe('PublicWorkOrderFinancialPolicy', () => {
   });
 
   it('fails closed on mismatched currency, over-allocation, overpayment and invalid cents', () => {
-    const first = input.receivables[0]!;
+    const first = input.receivables[0];
     for (const patch of [
       { currency: 'usd' },
       { amountInCents: 10002 },

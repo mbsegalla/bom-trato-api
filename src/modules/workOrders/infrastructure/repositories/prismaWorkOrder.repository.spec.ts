@@ -161,7 +161,7 @@ describe('PrismaWorkOrderRepository', () => {
       where: { id: 'order', organizationId: 'org', version: 1 },
       data: expect.objectContaining({ status: 'SCHEDULED', version: 2, assignedToId: 'worker' }),
     });
-    expect(f.updateMany.mock.calls[0]![0].data).not.toHaveProperty('totalInCents');
+    expect(f.updateMany.mock.calls[0][0].data).not.toHaveProperty('totalInCents');
     expect(f.createSchedule).toHaveBeenCalledWith({
       data: {
         workOrderId: 'order',

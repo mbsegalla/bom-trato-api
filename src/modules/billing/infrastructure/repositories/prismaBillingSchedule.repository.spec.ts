@@ -34,7 +34,7 @@ describe('PrismaBillingScheduleRepository', () => {
     expect(await f.repository.nextRunAt(BillingWork.WEBHOOKS)).toBeNull();
     expect(await f.repository.nextRunAt(BillingWork.WEBHOOKS)).toBeNull();
 
-    const sql = (f.query.mock.calls[0]![0] as TemplateStringsArray).join('?');
+    const sql = (f.query.mock.calls[0][0] as TemplateStringsArray).join('?');
 
     expect(sql).toContain('GREATEST("nextAttemptAt", "leaseExpiresAt")');
     expect(sql).toContain('"processedAt" IS NULL');

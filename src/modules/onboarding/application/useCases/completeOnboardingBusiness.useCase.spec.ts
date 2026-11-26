@@ -63,7 +63,7 @@ describe('CompleteOnboardingBusinessUseCase', () => {
     expect(f.billingName.execute).toHaveBeenCalledWith({ organizationId, name: 'Fixture paid' });
     expect(f.repository.completeBusinessSetup).toHaveBeenCalledWith({ organizationId, userId, name: 'Fixture paid' });
     expect(f.billingName.execute.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.completeBusinessSetup.mock.invocationCallOrder[0]!,
+      f.repository.completeBusinessSetup.mock.invocationCallOrder[0],
     );
     expect(f.trial.execute).not.toHaveBeenCalled();
   });

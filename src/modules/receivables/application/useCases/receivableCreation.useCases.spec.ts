@@ -24,7 +24,7 @@ describe('CreateReceivableUseCase', () => {
       version: 1,
     });
     expect(f.findWorkOrder).toHaveBeenCalledWith(source.id);
-    expect(f.receivables.create.mock.calls[0]![0].snapshot()).toMatchObject({ id: result.id, amountInCents: 10000 });
+    expect(f.receivables.create.mock.calls[0][0].snapshot()).toMatchObject({ id: result.id, amountInCents: 10000 });
   });
 
   it('returns an existing full receivable without writing a duplicate', async () => {

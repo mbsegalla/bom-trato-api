@@ -30,7 +30,7 @@ vi.mock('pg', async () => {
   };
 });
 
-const config = { url: 'postgresql://fixture:fixture@localhost/fixture' } as ConfigType<typeof databaseConfig>;
+const config = { url: 'postgresql://fixture:fixture@localhost/fixture' };
 
 describe('NotificationRealtimeService', () => {
   afterEach(() => {
@@ -53,7 +53,7 @@ describe('NotificationRealtimeService', () => {
       expect(mocks.query).toHaveBeenCalledWith('LISTEN "' + IN_APP_NOTIFICATION_CHANNEL + '"');
       expect(events).toHaveBeenCalledWith({ comment: 'connected' });
 
-      const client = mocks.instances[0]!;
+      const client = mocks.instances[0];
       const notify = (payload: string, channel = IN_APP_NOTIFICATION_CHANNEL) =>
         client.emit('notification', { channel, payload });
 
@@ -102,7 +102,7 @@ describe('NotificationRealtimeService', () => {
     try {
       await service.onModuleInit();
 
-      mocks.instances[0]!.emit('end');
+      mocks.instances[0].emit('end');
       await vi.advanceTimersByTimeAsync(4999);
 
       expect(mocks.connect).toHaveBeenCalledTimes(1);
@@ -111,7 +111,7 @@ describe('NotificationRealtimeService', () => {
 
       expect(mocks.connect).toHaveBeenCalledTimes(2);
 
-      mocks.instances[1]!.emit('end');
+      mocks.instances[1].emit('end');
       await service.onApplicationShutdown();
       await vi.advanceTimersByTimeAsync(5000);
 

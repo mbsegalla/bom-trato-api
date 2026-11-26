@@ -47,8 +47,8 @@ describe('UpdateBillingCustomerNameUseCase', () => {
     expect(f.keys).toEqual(['organization:org']);
     expect(f.updateCustomerName).toHaveBeenCalledWith(customer.stripeCustomerId, params.name);
     expect(f.setCustomerName).toHaveBeenCalledWith(customer.id, params.name);
-    expect(f.updateCustomerName.mock.invocationCallOrder[0]!).toBeLessThan(
-      f.setCustomerName.mock.invocationCallOrder[0]!,
+    expect(f.updateCustomerName.mock.invocationCallOrder[0]).toBeLessThan(
+      f.setCustomerName.mock.invocationCallOrder[0],
     );
   });
 

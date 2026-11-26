@@ -51,7 +51,7 @@ function fixture() {
       inAppNotification: { createMany },
       $executeRaw: executeRaw,
     } as unknown as PrismaService,
-    { enqueue } as unknown as NotificationOutbox,
+    { enqueue },
   );
 
   return { worker, quotes, orders, receivables, createMany, executeRaw, enqueue };

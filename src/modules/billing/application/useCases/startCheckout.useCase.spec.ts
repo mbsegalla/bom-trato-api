@@ -190,10 +190,10 @@ describe('StartCheckoutUseCase', () => {
     expect(f.gateway.createCustomer).toHaveBeenCalledWith(requested);
     expect(f.repository.setCustomerId).toHaveBeenCalledWith('customer', 'cus_new');
     expect(f.repository.markCustomerCreation.mock.invocationCallOrder[0]).toBeLessThan(
-      f.gateway.createCustomer.mock.invocationCallOrder[0]!,
+      f.gateway.createCustomer.mock.invocationCallOrder[0],
     );
     expect(f.repository.setCustomerId.mock.invocationCallOrder[0]).toBeLessThan(
-      f.gateway.snapshot.mock.invocationCallOrder[0]!,
+      f.gateway.snapshot.mock.invocationCallOrder[0],
     );
     expect(f.gateway.snapshot).toHaveBeenCalledWith('cus_new');
   });
@@ -284,7 +284,7 @@ describe('StartCheckoutUseCase', () => {
     expect(f.gateway.validatePrice).toHaveBeenCalledTimes(1);
     expect(f.repository.createCheckout).toHaveBeenCalledTimes(1);
     expect(f.repository.closeCheckout.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.createCheckout.mock.invocationCallOrder[0]!,
+      f.repository.createCheckout.mock.invocationCallOrder[0],
     );
   });
 

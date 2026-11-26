@@ -142,8 +142,8 @@ describe('PrismaOrganizationUnitOfWork', () => {
       where: { id: 'org' },
       data: expect.objectContaining({ name: 'Changed', defaultReceivableDueDays: 7 }),
     });
-    expect(f.update.mock.calls[0]![0].data).not.toHaveProperty('ownerId');
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+    expect(f.update.mock.calls[0][0].data).not.toHaveProperty('ownerId');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
     expect(f.notifyWorker).not.toHaveBeenCalled();
   });
 
@@ -168,7 +168,7 @@ describe('PrismaOrganizationUnitOfWork', () => {
   it('wakes notifications only after a successful transaction', async () => {
     const f = fixture();
     await f.unit.run(params, async () => {
-      f.using.mock.calls[0]![1]();
+      f.using.mock.calls[0][1]();
       expect(f.notifyWorker).not.toHaveBeenCalled();
     });
     expect(f.notifyWorker).toHaveBeenCalledTimes(1);
@@ -180,7 +180,7 @@ describe('PrismaOrganizationUnitOfWork', () => {
 
     await expect(
       f.unit.run(params, async () => {
-        f.using.mock.calls[0]![1]();
+        f.using.mock.calls[0][1]();
         throw failure;
       }),
     ).rejects.toBe(failure);

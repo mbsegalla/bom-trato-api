@@ -88,7 +88,7 @@ databaseSuite('recurring quote generation and reminders (disposable PostgreSQL)'
     expect(records).toHaveLength(1);
 
     const generated = await db.prisma.quote.findUniqueOrThrow({
-      where: { id: records[0]!.quoteId },
+      where: { id: records[0].quoteId },
       include: { quoteItems: true },
     });
 

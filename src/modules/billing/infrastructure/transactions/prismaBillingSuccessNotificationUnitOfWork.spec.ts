@@ -80,7 +80,7 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
 
     expect(await f.unit.run(operation)).toBe(true);
     expect(f.query).toHaveBeenCalledTimes(1);
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE SKIP LOCKED');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE SKIP LOCKED');
     expect(operation).toHaveBeenCalledWith(
       expect.objectContaining({
         billingSuccessNotification: expect.objectContaining({
@@ -146,7 +146,7 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
 
     await expect(
       f.unit.run(async () => {
-        f.using.mock.calls[0]![1]();
+        f.using.mock.calls[0][1]();
         throw error;
       }),
     ).rejects.toBe(error);
@@ -159,12 +159,12 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     f.query.mockResolvedValueOnce([{ id: 'invoice' }]);
 
     await f.unit.run(async () => {
-      f.using.mock.calls[0]![1]();
+      f.using.mock.calls[0][1]();
       expect(f.notifyWorker).not.toHaveBeenCalled();
     });
 
     expect(f.notifyWorker).toHaveBeenCalledTimes(1);
-    expect(f.invoiceUpdate.mock.invocationCallOrder[0]).toBeLessThan(f.notifyWorker.mock.invocationCallOrder[0]!);
+    expect(f.invoiceUpdate.mock.invocationCallOrder[0]).toBeLessThan(f.notifyWorker.mock.invocationCallOrder[0]);
   });
 
   it('does not wake the worker when checkpoint persistence fails', async () => {
@@ -175,7 +175,7 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
 
     await expect(
       f.unit.run(async () => {
-        f.using.mock.calls[0]![1]();
+        f.using.mock.calls[0][1]();
       }),
     ).rejects.toBe(error);
     expect(f.notifyWorker).not.toHaveBeenCalled();

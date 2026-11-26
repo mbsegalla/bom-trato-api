@@ -49,7 +49,7 @@ describe('PrismaWorkOrderShareUnitOfWork', () => {
       where: { id: 'order', organizationId: 'org' },
       select: { id: true, organizationId: true, version: true },
     });
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
   });
 
   it('rejects missing organizations in both transaction modes', async () => {

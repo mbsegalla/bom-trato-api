@@ -225,7 +225,7 @@ describe('PrismaBillingRepository scoped reads and reconciliation scheduling', (
       });
       expect(f.scheduleChanged).toHaveBeenCalledWith(BillingWork.RECONCILIATION);
       expect(f.db.billingCustomer.update.mock.invocationCallOrder[0]).toBeLessThan(
-        f.scheduleChanged.mock.invocationCallOrder[0]!,
+        f.scheduleChanged.mock.invocationCallOrder[0],
       );
 
       f.db.billingCustomer.update.mockRejectedValueOnce(new Error('Fixture unavailable'));

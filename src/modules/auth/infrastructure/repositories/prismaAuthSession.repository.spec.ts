@@ -37,7 +37,7 @@ describe('PrismaAuthRepository session persistence', () => {
       data: { revokedAt: now, revocationReason: 'SESSION_LIMIT' },
     });
     expect(db.authSession.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
-      db.authSession.create.mock.invocationCallOrder[0]!,
+      db.authSession.create.mock.invocationCallOrder[0],
     );
   });
 

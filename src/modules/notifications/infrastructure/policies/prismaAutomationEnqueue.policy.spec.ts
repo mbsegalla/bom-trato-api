@@ -15,8 +15,8 @@ describe('automation enqueue eligibility', () => {
       db.notificationOutbox.count.mockResolvedValueOnce(50);
       expect(await canEnqueueAutomation(tx, trial.organizationId)).toBe(false);
 
-      expect(db.$queryRaw.mock.calls[0]![0].join('?')).toContain('FOR UPDATE');
-      expect(db.$queryRaw.mock.calls[0]![1]).toBe(trial.organizationId);
+      expect(db.$queryRaw.mock.calls[0][0].join('?')).toContain('FOR UPDATE');
+      expect(db.$queryRaw.mock.calls[0][1]).toBe(trial.organizationId);
       expect(db.notificationOutbox.count).toHaveBeenCalledWith({
         where: {
           organizationId: trial.organizationId,
@@ -25,7 +25,7 @@ describe('automation enqueue eligibility', () => {
         },
       });
       expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
-        db.notificationOutbox.count.mock.invocationCallOrder[0]!,
+        db.notificationOutbox.count.mock.invocationCallOrder[0],
       );
     } finally {
       vi.useRealTimers();

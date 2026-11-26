@@ -107,15 +107,15 @@ describe('PrismaPlanChangeRepository', () => {
 
     await f.repository.reserve(f.state.id);
 
-    expect(f.lock.mock.calls[0]![0].join('?')).toContain('FOR UPDATE');
-    expect(f.lock.mock.calls[0]![1]).toBe('org');
+    expect(f.lock.mock.calls[0][0].join('?')).toContain('FOR UPDATE');
+    expect(f.lock.mock.calls[0][1]).toBe('org');
     expect(f.count).toHaveBeenCalledWith({ where: { organizationId: 'org' } });
     expect(f.update).toHaveBeenCalledWith({
       where: { id: 'change' },
       data: { activeOrganizationId: 'org', status: 'PROCESSING', startedAt: expect.any(Date) },
     });
-    expect(f.lock.mock.invocationCallOrder[0]).toBeLessThan(f.count.mock.invocationCallOrder[0]!);
-    expect(f.update.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]!);
+    expect(f.lock.mock.invocationCallOrder[0]).toBeLessThan(f.count.mock.invocationCallOrder[0]);
+    expect(f.update.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]);
     expect(f.notify).toHaveBeenCalledWith(BillingWork.PLAN_CHANGES);
   });
 

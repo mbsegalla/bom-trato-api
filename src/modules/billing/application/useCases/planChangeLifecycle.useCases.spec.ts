@@ -150,7 +150,7 @@ describe('plan change preview', () => {
     expect(f.repository.create).toHaveBeenCalledWith(expect.any(PlanChange));
     expect(f.planGateway.preview).toHaveBeenCalledWith(expect.objectContaining({ amountDueNow: 0, targetMaxUsers: 5 }));
     expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
-      f.billing.currentSubscription.mock.invocationCallOrder[0]!,
+      f.billing.currentSubscription.mock.invocationCallOrder[0],
     );
   });
 
@@ -200,10 +200,10 @@ describe('plan change confirmation', () => {
     expect(await f.confirm.execute(action)).toMatchObject({ status: 'PROCESSING' });
     expect(f.repository.reserve).toHaveBeenCalledWith(state.id);
     expect(f.planGateway.preview.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.reserve.mock.invocationCallOrder[0]!,
+      f.repository.reserve.mock.invocationCallOrder[0],
     );
     expect(f.repository.reserve.mock.invocationCallOrder[0]).toBeLessThan(
-      f.processor.execute.mock.invocationCallOrder[0]!,
+      f.processor.execute.mock.invocationCallOrder[0],
     );
   });
 
@@ -277,7 +277,7 @@ describe('plan change cancellation and reconciliation', () => {
 
     expect(f.planGateway.cancel).toHaveBeenCalledWith(change.snapshot());
     expect(f.planGateway.cancel.mock.invocationCallOrder[0]).toBeLessThan(
-      f.processor.refresh.mock.invocationCallOrder[0]!,
+      f.processor.refresh.mock.invocationCallOrder[0],
     );
   });
 

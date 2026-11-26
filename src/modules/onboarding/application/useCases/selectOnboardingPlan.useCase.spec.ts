@@ -62,9 +62,9 @@ describe('SelectOnboardingPlanUseCase', () => {
     expect(f.application.state).toHaveBeenCalledWith(actor.userId, actor.organizationId);
 
     expect(f.billing.assertOwner.mock.invocationCallOrder[0]).toBeLessThan(
-      f.billing.availablePrice.mock.invocationCallOrder[0]!,
+      f.billing.availablePrice.mock.invocationCallOrder[0],
     );
-    expect(f.lock.run.mock.invocationCallOrder[0]).toBeLessThan(f.repository.selectPlan.mock.invocationCallOrder[0]!);
+    expect(f.lock.run.mock.invocationCallOrder[0]).toBeLessThan(f.repository.selectPlan.mock.invocationCallOrder[0]);
   });
 
   it.each(['assertOwner', 'availablePrice'] as const)('stops before the lock if %s fails', async (method) => {
@@ -99,7 +99,7 @@ describe('SelectOnboardingPlanUseCase', () => {
     expect(f.gateway.expireCheckout).toHaveBeenCalledWith(attempt.stripeSessionId);
     expect(f.billing.closeCheckout).toHaveBeenCalledWith(attempt.id, 'EXPIRED');
     expect(f.billing.closeCheckout.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.selectPlan.mock.invocationCallOrder[0]!,
+      f.repository.selectPlan.mock.invocationCallOrder[0],
     );
   });
 

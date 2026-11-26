@@ -45,7 +45,7 @@ describe('PostgresAuthRateLimit', () => {
     await f.limiter.check(f.request, f.response, bucket);
 
     expect(f.query).toHaveBeenCalledTimes(4);
-    expect(f.query.mock.calls[3]![1]).toBe(
+    expect(f.query.mock.calls[3][1]).toBe(
       hmacSha256(secret, 'email-cooldown:' + bucket + ':user@example.invalid', 'hex'),
     );
   });
@@ -66,7 +66,7 @@ describe('PostgresAuthRateLimit', () => {
     const f = fixture({}, '127.0.0.1', remote);
     Object.assign(f.request, { ip: undefined });
     await f.limiter.check(f.request, f.response, 'csrf');
-    expect(f.query.mock.calls[0]![1]).toBe(hmacSha256(secret, 'ip:' + expected, 'hex'));
+    expect(f.query.mock.calls[0][1]).toBe(hmacSha256(secret, 'ip:' + expected, 'hex'));
   });
 
   it('rejects excess IP attempts without consuming later buckets', async () => {

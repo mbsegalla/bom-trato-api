@@ -80,7 +80,7 @@ describe('PrismaPublicWorkOrderUnitOfWork', () => {
       const operation = vi.fn();
       await expect(f.unit.run('hash', operation)).rejects.toThrow('WORK_ORDER_SHARE_NOT_FOUND');
       expect(operation).not.toHaveBeenCalled();
-      expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+      expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
     },
   );
 

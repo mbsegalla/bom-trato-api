@@ -76,7 +76,7 @@ describe('receivable automation', () => {
     };
 
     const first = await ensureInitialReceivableFromQuote({ ...f.params, quote });
-    f.receivables.findByWorkOrderIdAndKind.mockResolvedValueOnce(f.receivables.create.mock.calls[0]![0].snapshot());
+    f.receivables.findByWorkOrderIdAndKind.mockResolvedValueOnce(f.receivables.create.mock.calls[0][0].snapshot());
 
     expect(await ensureInitialReceivableFromQuote({ ...f.params, quote })).toEqual(first);
     expect(f.receivables.create).toHaveBeenCalledTimes(1);

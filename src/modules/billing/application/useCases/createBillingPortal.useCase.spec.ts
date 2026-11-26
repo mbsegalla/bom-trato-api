@@ -61,7 +61,7 @@ describe('CreateBillingPortalUseCase', () => {
     expect(result).toEqual({ url: 'https://billing.example.invalid/session' });
     expect(f.assertOwner).toHaveBeenCalledWith(organizationId, actor.userId);
     expect(f.readCustomer).toHaveBeenCalledWith(organizationId);
-    const [remoteId, returnUrl] = f.createPortal.mock.calls[0]!;
+    const [remoteId, returnUrl] = f.createPortal.mock.calls[0];
     expect(remoteId).toBe(customer.stripeCustomerId);
     const url = new URL(returnUrl);
     expect(url.pathname).toBe('/billing');

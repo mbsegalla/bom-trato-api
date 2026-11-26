@@ -108,8 +108,8 @@ describe('PrismaQuoteUnitOfWork', () => {
     const unit = new PrismaQuoteUnitOfWork(f.prisma, f.outbox);
     await expect(
       unit.run(params, async () => {
-        f.using.mock.calls[0]![1]();
-        f.using.mock.calls[0]![1]();
+        f.using.mock.calls[0][1]();
+        f.using.mock.calls[0][1]();
         expect(f.notifyWorker).not.toHaveBeenCalled();
         return 'saved';
       }),
@@ -123,7 +123,7 @@ describe('PrismaQuoteUnitOfWork', () => {
     const error = new Error('write failed');
     await expect(
       unit.run(params, async () => {
-        f.using.mock.calls[0]![1]();
+        f.using.mock.calls[0][1]();
         throw error;
       }),
     ).rejects.toBe(error);

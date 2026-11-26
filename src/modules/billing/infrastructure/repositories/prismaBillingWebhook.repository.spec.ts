@@ -58,7 +58,7 @@ describe('PrismaBillingWebhookRepository', () => {
     expect(await f.repository.claimEvent(event.leaseToken)).toEqual(event);
     expect(await f.repository.claimEvent(event.leaseToken)).toBeNull();
 
-    const [parts, token] = f.query.mock.calls[0]!;
+    const [parts, token] = f.query.mock.calls[0];
     const sql = parts.join('?');
 
     expect(sql).toContain('FOR UPDATE SKIP LOCKED');
@@ -75,7 +75,7 @@ describe('PrismaBillingWebhookRepository', () => {
     expect(await f.repository.renewEventLease(event)).toBe(false);
     expect(await f.repository.renewEventLease(event)).toBe(true);
 
-    const [parts, id, token] = f.execute.mock.calls[0]!;
+    const [parts, id, token] = f.execute.mock.calls[0];
 
     expect(parts.join('?')).toContain('"leaseExpiresAt" > CURRENT_TIMESTAMP');
     expect(id).toBe(event.id);
@@ -89,7 +89,7 @@ describe('PrismaBillingWebhookRepository', () => {
     f.execute.mockResolvedValueOnce(0);
     expect(await f.repository.settleEvent(event, outcome)).toBe(false);
 
-    const [parts, changes, id, token] = f.execute.mock.calls[0]!;
+    const [parts, changes, id, token] = f.execute.mock.calls[0];
 
     expect(parts.join('?')).toContain('"leaseToken" = NULL');
     expect(parts.join('?')).toContain('"leaseExpiresAt" > CURRENT_TIMESTAMP');
@@ -111,7 +111,7 @@ describe('PrismaBillingWebhookRepository', () => {
 
     await f.repository.settleEvent({ ...event, attempts: 24 }, 'RETRY', 'x'.repeat(150));
 
-    const changes = f.execute.mock.calls[0]![1];
+    const changes = f.execute.mock.calls[0][1];
 
     expect(changes.values).toEqual(['x'.repeat(100), 3600]);
     expect(changes.sql).toContain('"attempts" + 1 >= 25');

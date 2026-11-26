@@ -85,13 +85,13 @@ describe('PaymentMethodUpdateProcessor', () => {
       clientSecret: setup.clientSecret,
     });
     expect(f.gateway.createSetup).toHaveBeenCalledWith(state);
-    expect(f.repository.save.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.repository.save.mock.calls[0][0].snapshot()).toMatchObject({
       stripeSetupIntentId: setup.id,
       status: 'PENDING',
     });
     expect(f.repository.postpone).toHaveBeenCalledWith(state.id, 30);
     expect(f.repository.save.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.postpone.mock.invocationCallOrder[0]!,
+      f.repository.postpone.mock.invocationCallOrder[0],
     );
   });
 
@@ -102,7 +102,7 @@ describe('PaymentMethodUpdateProcessor', () => {
       f.billing.assertOwner.mockRejectedValueOnce(new BillingError(code));
 
       expect(await f.processor.process(state)).toMatchObject({ status: 'CANCELED', clientSecret: null });
-      expect(f.repository.save.mock.calls[0]![0].snapshot().status).toBe('CANCELED');
+      expect(f.repository.save.mock.calls[0][0].snapshot().status).toBe('CANCELED');
       expect(f.gateway.createSetup).not.toHaveBeenCalled();
       expect(f.billing.customer).not.toHaveBeenCalled();
     },
@@ -186,7 +186,7 @@ describe('PaymentMethodUpdateProcessor', () => {
       updateId: state.id,
       paymentMethodId: 'pm_fixture',
     });
-    expect(f.gateway.apply.mock.invocationCallOrder[0]).toBeLessThan(f.repository.save.mock.invocationCallOrder[0]!);
+    expect(f.gateway.apply.mock.invocationCallOrder[0]).toBeLessThan(f.repository.save.mock.invocationCallOrder[0]);
     expect(f.repository.postpone).not.toHaveBeenCalled();
   });
 

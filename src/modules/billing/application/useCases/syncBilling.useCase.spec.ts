@@ -50,7 +50,7 @@ describe('SyncBillingUseCase', () => {
       invoiceHistorySyncedAt: undefined,
     });
     expect(f.gateway.snapshot.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.saveSnapshot.mock.invocationCallOrder[0]!,
+      f.repository.saveSnapshot.mock.invocationCallOrder[0],
     );
   });
 

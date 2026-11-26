@@ -90,8 +90,8 @@ describe('NotificationWorker', () => {
 
     await processOnce(worker);
 
-    expect(f.query.mock.calls[0]![0].join('?')).toContain('FOR UPDATE SKIP LOCKED');
-    expect(f.query.mock.calls[0]![0].join('?')).toContain("INTERVAL '2 minutes'");
+    expect(f.query.mock.calls[0][0].join('?')).toContain('FOR UPDATE SKIP LOCKED');
+    expect(f.query.mock.calls[0][0].join('?')).toContain("INTERVAL '2 minutes'");
     expect(f.decrypt).toHaveBeenCalledWith(job.id, job.encryptedPayload);
     expect(f.send).toHaveBeenCalledExactlyOnceWith(job.id, message);
     expect(f.updateMany).toHaveBeenCalledWith({
@@ -219,7 +219,7 @@ describe('NotificationWorker', () => {
     await processOnce(worker);
     await worker.cleanup();
 
-    const sql = f.execute.mock.calls[0]![0].join('?');
+    const sql = f.execute.mock.calls[0][0].join('?');
 
     expect(sql).toContain("INTERVAL '90 days'");
     expect(sql).toContain('LIMIT 1000');

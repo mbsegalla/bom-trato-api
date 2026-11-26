@@ -43,7 +43,7 @@ describe('receivable mutations', () => {
       dueAt: new Date('2030-01-01T00:00:00Z'),
       updatedById: params.userId,
     });
-    expect(f.receivables.save.mock.calls[0]![1]).toBe(1);
+    expect(f.receivables.save.mock.calls[0][1]).toBe(1);
   });
 
   it('rejects stale edits and cannot edit a fully paid receivable', async () => {
@@ -146,6 +146,6 @@ describe('receivable mutations', () => {
       reversedById: params.userId,
       reversalReason: 'Fixture reversal',
     });
-    expect(f.receivables.savePaymentReversal.mock.calls[0]![0].snapshot()).toEqual(result.payment);
+    expect(f.receivables.savePaymentReversal.mock.calls[0][0].snapshot()).toEqual(result.payment);
   });
 });

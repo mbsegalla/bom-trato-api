@@ -26,7 +26,7 @@ describe('Prisma transaction boundaries', () => {
       maxWait: 5000,
       timeout: 10000,
     });
-    expect(execute.mock.invocationCallOrder[0]).toBeLessThan(operation.mock.invocationCallOrder[0]!);
+    expect(execute.mock.invocationCallOrder[0]).toBeLessThan(operation.mock.invocationCallOrder[0]);
   });
 
   it('retries only known serialization conflicts, returning the eventual result', async () => {

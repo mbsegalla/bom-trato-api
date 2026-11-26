@@ -35,7 +35,7 @@ function fixture(notification: BillingSuccessNotification) {
       return true;
     }),
   };
-  const useCase = new QueueNextBillingConfirmationUseCase(unit as BillingSuccessNotificationUnitOfWork);
+  const useCase = new QueueNextBillingConfirmationUseCase(unit);
 
   return { email, inApp, unit, useCase };
 }

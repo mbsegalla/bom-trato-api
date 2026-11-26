@@ -51,7 +51,7 @@ describe('PrismaTrialMetricsReader', () => {
       cohorts: [{ weekStart: '2026-01-05', counts }],
       notifications,
     });
-    expect(f.execute.mock.calls[0]![0].join(' ')).toContain('SET TRANSACTION READ ONLY');
+    expect(f.execute.mock.calls[0][0].join(' ')).toContain('SET TRANSACTION READ ONLY');
     expect(f.transaction).toHaveBeenCalledWith(
       expect.any(Function),
       expect.objectContaining({ isolationLevel: 'RepeatableRead' }),
@@ -67,8 +67,8 @@ describe('PrismaTrialMetricsReader', () => {
     for (const call of f.query.mock.calls) {
       expect(call.slice(1)).toEqual([period.from, period.toExclusive, period.asOf]);
     }
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('GROUP BY GROUPING SETS');
-    expect(f.query.mock.calls[1]![0].join(' ')).toContain('WHERE "type" = \'TRIAL_LIFECYCLE\'');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('GROUP BY GROUPING SETS');
+    expect(f.query.mock.calls[1][0].join(' ')).toContain('WHERE "type" = \'TRIAL_LIFECYCLE\'');
   });
 
   it('rejects an incomplete report without a total row', async () => {

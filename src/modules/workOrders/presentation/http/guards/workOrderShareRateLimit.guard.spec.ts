@@ -31,7 +31,7 @@ describe('WorkOrderShareRateLimitGuard', () => {
       ['X-Robots-Tag', 'noindex, nofollow, noarchive'],
       ['X-Content-Type-Options', 'nosniff'],
     ]);
-    expect(setHeader.mock.invocationCallOrder.at(-1)).toBeLessThan(check.mock.invocationCallOrder[0]!);
+    expect(setHeader.mock.invocationCallOrder.at(-1)).toBeLessThan(check.mock.invocationCallOrder[0]);
 
     check.mockResolvedValueOnce(undefined);
 

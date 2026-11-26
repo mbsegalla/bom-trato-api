@@ -116,9 +116,9 @@ describe('PrismaAuthRepository identity persistence', () => {
 
     await repository.linkIdentity(google);
 
-    expect(db.$queryRaw.mock.calls[0]![0].join('?')).toContain('FOR UPDATE');
-    expect(db.$queryRaw.mock.calls[0]![1]).toBe(user.id);
-    expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(db.authIdentity.create.mock.invocationCallOrder[0]!);
+    expect(db.$queryRaw.mock.calls[0][0].join('?')).toContain('FOR UPDATE');
+    expect(db.$queryRaw.mock.calls[0][1]).toBe(user.id);
+    expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(db.authIdentity.create.mock.invocationCallOrder[0]);
     expect(db.authIdentity.create).toHaveBeenCalledWith({ data: google, select: { id: true } });
 
     db.authIdentity.findUnique.mockResolvedValueOnce({ userId: user.id });

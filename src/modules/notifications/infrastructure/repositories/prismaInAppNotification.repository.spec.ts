@@ -42,12 +42,12 @@ describe('PrismaInAppNotificationRepository', () => {
       data: [{ ...input, id: expect.any(String), readAt: null, createdAt: expect.any(Date) }],
       skipDuplicates: true,
     });
-    const [parts, channel, payload] = f.execute.mock.calls[0]!;
+    const [parts, channel, payload] = f.execute.mock.calls[0];
 
     expect(parts.join('?')).toContain('pg_notify');
     expect(channel).toBe(IN_APP_NOTIFICATION_CHANNEL);
     expect(JSON.parse(payload)).toEqual(scope);
-    expect(f.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.execute.mock.invocationCallOrder[0]!);
+    expect(f.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.execute.mock.invocationCallOrder[0]);
   });
 
   it('does not emit a duplicate event or persist an invalid notification', async () => {

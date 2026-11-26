@@ -78,7 +78,7 @@ describe('PrismaAutomationEventRepository', () => {
         take: 5,
       }),
     );
-    const selection = f.findMany.mock.calls[0]![0].select;
+    const selection = f.findMany.mock.calls[0][0].select;
 
     expect(selection).not.toHaveProperty('encryptedPayload');
     expect(selection).not.toHaveProperty('recipient');

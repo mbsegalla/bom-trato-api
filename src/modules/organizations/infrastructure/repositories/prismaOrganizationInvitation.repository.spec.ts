@@ -91,7 +91,7 @@ describe('PrismaOrganizationInvitationRepository', () => {
         data: { tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) },
       });
     }
-    expect(f.update.mock.calls[0]![0].data.tokenHash).not.toBe(f.update.mock.calls[1]![0].data.tokenHash);
+    expect(f.update.mock.calls[0][0].data.tokenHash).not.toBe(f.update.mock.calls[1][0].data.tokenHash);
   });
 
   it('includes only unexpired pending invitations and combines stored and effective expiry', async () => {

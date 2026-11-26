@@ -207,7 +207,7 @@ describe('quote lifecycle use cases', () => {
 
     expect(result).toMatchObject({ status: 'APPROVED', version: 2 });
 
-    const order = f.workOrders.create.mock.calls[0]![0].snapshot();
+    const order = f.workOrders.create.mock.calls[0][0].snapshot();
 
     expect(order).toMatchObject({
       quoteId: 'quote',
@@ -217,7 +217,7 @@ describe('quote lifecycle use cases', () => {
       totalInCents: 10001,
     });
 
-    const payment = f.receivables.create.mock.calls[0]![0].snapshot();
+    const payment = f.receivables.create.mock.calls[0][0].snapshot();
 
     expect(payment).toMatchObject({
       workOrderId: order.id,
@@ -226,9 +226,9 @@ describe('quote lifecycle use cases', () => {
       receivedInCents: 0,
     });
     expect(f.workOrders.create.mock.invocationCallOrder[0]).toBeLessThan(
-      f.receivables.create.mock.invocationCallOrder[0]!,
+      f.receivables.create.mock.invocationCallOrder[0],
     );
-    expect(f.receivables.create.mock.invocationCallOrder[0]).toBeLessThan(f.quotes.save.mock.invocationCallOrder[0]!);
+    expect(f.receivables.create.mock.invocationCallOrder[0]).toBeLessThan(f.quotes.save.mock.invocationCallOrder[0]);
   });
 
   it('does not persist approval if financial creation fails', async () => {

@@ -63,7 +63,7 @@ describe('CreatePublicLeadUseCase', () => {
       }),
     );
 
-    f.create.mockResolvedValueOnce({ lead: state!, created: false });
+    f.create.mockResolvedValueOnce({ lead: state, created: false });
 
     expect(await f.useCase.execute('published-slug', input)).toEqual(result);
     expect(f.enqueue).toHaveBeenCalledTimes(2);

@@ -54,7 +54,7 @@ describe('S3PrivateObjectStorage', () => {
       cacheControl: 'public, max-age=3600',
     });
 
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(PutObjectCommand);
     expect(command.input).toEqual({
@@ -87,7 +87,7 @@ describe('S3PrivateObjectStorage', () => {
     expect(await storage.get('photos/fixture.webp')).toBe(body);
     expect(transformToByteArray).toHaveBeenCalledTimes(1);
 
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(GetObjectCommand);
     expect(command.input).toEqual({ Bucket: config.privateBucket, Key: 'photos/fixture.webp' });
@@ -112,7 +112,7 @@ describe('S3PrivateObjectStorage', () => {
 
     await storage.delete('photos/fixture.webp');
 
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(DeleteObjectCommand);
     expect(command.input).toEqual({ Bucket: config.privateBucket, Key: 'photos/fixture.webp' });

@@ -93,12 +93,12 @@ describe('ConvertLeadUseCase', () => {
       convertedCustomerId: result.customerId,
       convertedQuoteId: result.quoteId,
     });
-    expect(f.customers.create.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.customers.create.mock.calls[0][0].snapshot()).toMatchObject({
       id: result.customerId,
       organizationId: 'org',
       email: 'client@example.invalid',
     });
-    expect(f.quotes.create.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.quotes.create.mock.calls[0][0].snapshot()).toMatchObject({
       id: result.quoteId,
       customerId: result.customerId,
       status: 'DRAFT',
@@ -115,7 +115,7 @@ describe('ConvertLeadUseCase', () => {
 
     expect(result.customerId).toBe(f.customer.id);
     expect(f.customers.create).not.toHaveBeenCalled();
-    expect(f.quotes.create.mock.calls[0]![0].snapshot().totalInCents).toBe(0);
+    expect(f.quotes.create.mock.calls[0][0].snapshot().totalInCents).toBe(0);
   });
 
   it('rejects ambiguous contacts and archived customers without creating anything', async () => {

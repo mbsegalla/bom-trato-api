@@ -58,7 +58,7 @@ describe('RegisterUseCase', () => {
 
     expect(f.hashPassword).toHaveBeenCalledWith(input.password);
 
-    const saved = f.register.mock.calls[0]![0];
+    const saved = f.register.mock.calls[0][0];
 
     expect(saved).toMatchObject({
       name: 'Fixture User',
@@ -81,7 +81,7 @@ describe('RegisterUseCase', () => {
       content: { type: 'VERIFY_EMAIL', token: 'a'.repeat(43) },
       expiresAt: saved.expiresAt,
     });
-    expect(f.register.mock.invocationCallOrder[0]).toBeLessThan(f.enqueue.mock.invocationCallOrder[0]!);
+    expect(f.register.mock.invocationCallOrder[0]).toBeLessThan(f.enqueue.mock.invocationCallOrder[0]);
   });
 
   it.each([{ password: 'weak' }, { termsVersion: 'outdated' }, { privacyNoticeVersion: 'outdated' }])(

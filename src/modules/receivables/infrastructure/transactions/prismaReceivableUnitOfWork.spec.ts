@@ -58,7 +58,7 @@ describe('PrismaReceivableUnitOfWork', () => {
         status: true,
       },
     });
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
   });
 
   it('rejects missing organizations in both transaction modes', async () => {

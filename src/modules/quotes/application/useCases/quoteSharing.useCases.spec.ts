@@ -157,11 +157,11 @@ describe('quote share and document operations', () => {
       expiresAt: expiry,
       token: expect.stringMatching(/^[a-f0-9]{64}$/),
     });
-    const stored = f.create.mock.calls[0]![0].snapshot();
+    const stored = f.create.mock.calls[0][0].snapshot();
     expect(stored).toMatchObject({ id: result.id, tokenHash: f.security.hash(result.token), quoteId: params.quoteId });
     expect(stored).not.toHaveProperty('token');
     expect(f.revokeForQuote).toHaveBeenCalledWith(params.quoteId, now);
-    expect(f.revokeForQuote.mock.invocationCallOrder[0]).toBeLessThan(f.create.mock.invocationCallOrder[0]!);
+    expect(f.revokeForQuote.mock.invocationCallOrder[0]).toBeLessThan(f.create.mock.invocationCallOrder[0]);
     expect(f.enqueue).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         key: 'automation/quote-follow-up/' + result.id,
@@ -323,13 +323,13 @@ describe('quote share and document operations', () => {
     expect(f.save).toHaveBeenCalledTimes(1);
     expect(f.saveDecision).toHaveBeenCalledTimes(1);
     expect(f.createOrder).toHaveBeenCalledTimes(1);
-    expect(f.createOrder.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.createOrder.mock.calls[0][0].snapshot()).toMatchObject({
       organizationId: 'org',
       quoteId: 'quote',
       assignedToId: 'worker',
       serviceAddress: 'Fixture address',
     });
-    expect(f.createReceivable.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.createReceivable.mock.calls[0][0].snapshot()).toMatchObject({
       kind: 'DOWN_PAYMENT',
       amountInCents: 2500,
     });
@@ -359,7 +359,7 @@ describe('quote share and document operations', () => {
       expect(await f.service.requestChange(f.issued.token, 1, message)).toEqual({ requestedAt: now });
       expect(await f.service.requestChange(f.issued.token, 1, 'Another request')).toEqual({ requestedAt: now });
       expect(f.saveChangeRequest).toHaveBeenCalledTimes(1);
-      expect(f.saveChangeRequest.mock.calls[0]![0].snapshot()).toMatchObject({ changeRequestMessage: message });
+      expect(f.saveChangeRequest.mock.calls[0][0].snapshot()).toMatchObject({ changeRequestMessage: message });
       const preview = message.length > 280 ? message.slice(0, 279) + '…' : message;
       expect(f.enqueue).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({

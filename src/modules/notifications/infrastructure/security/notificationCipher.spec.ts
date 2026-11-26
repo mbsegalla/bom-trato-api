@@ -30,7 +30,7 @@ describe('NotificationCipher', () => {
 
   it('rejects tampered ciphertext, malformed envelope and invalid template variables', () => {
     const parts = cipher.encrypt('id', message).split('.');
-    parts[1] = (parts[1]!.startsWith('a') ? 'b' : 'a') + parts[1]!.slice(1);
+    parts[1] = (parts[1].startsWith('a') ? 'b' : 'a') + parts[1].slice(1);
 
     expect(() => cipher.decrypt('id', parts.join('.'))).toThrow();
     expect(() => cipher.decrypt('id', 'invalid')).toThrow('INVALID_NOTIFICATION_PAYLOAD');

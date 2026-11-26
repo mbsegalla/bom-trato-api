@@ -63,7 +63,7 @@ describe('PrismaWorkOrderChecklistUnitOfWork', () => {
   it('locks the organization during a write and propagates the result', async () => {
     const f = fixture();
     expect(await f.unit.run(params, async () => 'saved')).toBe('saved');
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
   });
 
   it('rejects writes to missing organizations', async () => {

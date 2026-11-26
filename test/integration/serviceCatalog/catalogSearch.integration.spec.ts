@@ -55,7 +55,7 @@ databaseSuite('catalog search and pagination (disposable PostgreSQL)', () => {
       );
     }
 
-    const archived = rows[0]!;
+    const archived = rows[0];
     await new ArchiveCatalogServiceUseCase(service).execute({ ...actor, serviceId: archived.id });
 
     const first = await list.execute(actor, { page: 1, limit: 1, status: 'ACTIVE' });

@@ -113,7 +113,7 @@ describe('TrialLifecycleWorker', () => {
     await f.worker.run();
 
     expect(f.findMany).toHaveBeenCalledTimes(2);
-    expect(f.findMany.mock.calls[1]![0].where.id).toEqual({ gt: 'trial-99' });
+    expect(f.findMany.mock.calls[1][0].where.id).toEqual({ gt: 'trial-99' });
     expect(read).toHaveBeenCalledTimes(101);
   });
 

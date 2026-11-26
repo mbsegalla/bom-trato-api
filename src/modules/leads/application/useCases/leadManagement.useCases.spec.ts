@@ -74,7 +74,7 @@ describe('lead management use cases', () => {
     const contacted = await new MarkLeadContactedUseCase(f.service).execute(actor);
 
     expect(contacted).toMatchObject({ status: 'CONTACTED', contactedAt: expect.any(Date), convertedQuoteId: null });
-    expect(f.leads.save.mock.calls[0]![0].snapshot()).toEqual(contacted);
+    expect(f.leads.save.mock.calls[0][0].snapshot()).toEqual(contacted);
 
     f.leads.findById.mockResolvedValueOnce(contacted);
 
@@ -85,7 +85,7 @@ describe('lead management use cases', () => {
       archivedAt: expect.any(Date),
       contactedAt: contacted.contactedAt,
     });
-    expect(f.leads.save.mock.calls[1]![0].snapshot()).toEqual(archived);
+    expect(f.leads.save.mock.calls[1][0].snapshot()).toEqual(archived);
   });
 
   it('preserves original contact and archive dates on repeated transitions', async () => {

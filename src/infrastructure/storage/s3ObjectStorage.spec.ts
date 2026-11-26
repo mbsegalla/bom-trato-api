@@ -59,7 +59,7 @@ describe('S3ObjectStorage', () => {
       region: config.region,
       credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
     });
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(PutObjectCommand);
     expect(command.input).toEqual({
@@ -85,7 +85,7 @@ describe('S3ObjectStorage', () => {
 
     await storage.delete('logos/old.webp');
 
-    const command = mocks.send.mock.calls[0]![0];
+    const command = mocks.send.mock.calls[0][0];
 
     expect(command).toBeInstanceOf(DeleteObjectCommand);
     expect(command.input).toEqual({ Bucket: config.bucket, Key: 'logos/old.webp' });

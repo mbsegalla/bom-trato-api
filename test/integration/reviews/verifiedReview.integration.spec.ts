@@ -79,7 +79,7 @@ databaseSuite('verified review persistence (disposable PostgreSQL)', () => {
     const reviews = await db.prisma.professionalReview.findMany({ where: { workOrderId: f.order.id } });
     expect(reviews).toHaveLength(1);
     const profile = await db.prisma.publicBusinessProfile.findUniqueOrThrow({ where: { id: f.profile.id } });
-    expect(profile).toMatchObject({ ratingCount: 1, ratingSum: reviews[0]!.rating });
+    expect(profile).toMatchObject({ ratingCount: 1, ratingSum: reviews[0].rating });
   }, 30000);
 
   it('rejects invalid ratings, revoked or expired tokens and uncompleted services without mutating reputation', async () => {

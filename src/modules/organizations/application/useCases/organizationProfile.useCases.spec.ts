@@ -54,11 +54,7 @@ function fixture(hasLogo = true) {
       { execute: updateBilling } as unknown as UpdateBillingCustomerNameUseCase,
       storage,
     ),
-    upload: new UploadOrganizationLogoUseCase(
-      processor,
-      { process } as unknown as OrganizationLogoImageProcessor,
-      storage,
-    ),
+    upload: new UploadOrganizationLogoUseCase(processor, { process }, storage),
     removeLogo: new RemoveOrganizationLogoUseCase(processor, storage),
     assertOwner,
     assertMember,
@@ -106,7 +102,7 @@ describe('organization profile and logo operations', () => {
     const f = fixture();
     expect(await f.update.execute(params, { name: '  New company  ' })).toMatchObject({ name: 'New company' });
     expect(f.updateBilling).toHaveBeenCalledWith({ organizationId: 'org', name: 'New company' });
-    expect(f.updateBilling.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]!);
+    expect(f.updateBilling.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]);
     expect(f.assertOwner).toHaveBeenCalledTimes(2);
     expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ name: 'New company' }));
   });
@@ -146,7 +142,7 @@ describe('organization profile and logo operations', () => {
   it('stores a versioned logo before persisting the new key and removes the previous object after commit', async () => {
     const f = fixture();
     const profile = await f.upload.execute(params, upload);
-    const key = f.put.mock.calls[0]![0].key as string;
+    const key = f.put.mock.calls[0][0].key as string;
     expect(key).toMatch(/^organizations\/org\/logo\/[a-f0-9-]+\.webp$/);
     expect(f.put).toHaveBeenCalledWith({
       key,
@@ -156,8 +152,8 @@ describe('organization profile and logo operations', () => {
     });
     expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ logoKey: key }));
     expect(f.remove).toHaveBeenCalledExactlyOnceWith(previous);
-    expect(f.put.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]!);
-    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]!);
+    expect(f.put.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]);
+    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]);
     expect(profile.logoUrl).toBe('https://cdn.example.invalid/' + key);
   });
 
@@ -178,7 +174,7 @@ describe('organization profile and logo operations', () => {
     const f = fixture();
     f.saveOrganization.mockRejectedValue(new Error('database failure'));
     await expect(f.upload.execute(params, upload)).rejects.toThrow('database failure');
-    expect(f.remove).toHaveBeenCalledExactlyOnceWith(f.put.mock.calls[0]![0].key);
+    expect(f.remove).toHaveBeenCalledExactlyOnceWith(f.put.mock.calls[0][0].key);
     expect(f.remove).not.toHaveBeenCalledWith(previous);
   });
 
@@ -200,7 +196,7 @@ describe('organization profile and logo operations', () => {
     expect(await f.removeLogo.execute(params)).toMatchObject({ logoUrl: null });
     expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ logoKey: null }));
     expect(f.remove).toHaveBeenCalledExactlyOnceWith(previous);
-    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]!);
+    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]);
   });
 
   it('does not delete anything when no logo is configured', async () => {

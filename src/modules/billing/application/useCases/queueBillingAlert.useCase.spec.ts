@@ -27,11 +27,9 @@ function fixture() {
   const notificationContext = vi.fn<BillingRepository['notificationContext']>().mockResolvedValue(context);
   const enqueue = vi.fn().mockResolvedValue(undefined);
   const enqueueInApp = vi.fn().mockResolvedValue(undefined);
-  const useCase = new QueueBillingAlertUseCase(
-    { notificationContext } as unknown as BillingRepository,
-    { enqueue } as unknown as NotificationOutbox,
-    { enqueue: enqueueInApp } as unknown as InAppNotificationRepository,
-  );
+  const useCase = new QueueBillingAlertUseCase({ notificationContext } as unknown as BillingRepository, { enqueue }, {
+    enqueue: enqueueInApp,
+  } as unknown as InAppNotificationRepository);
 
   return { useCase, notificationContext, enqueue, enqueueInApp };
 }

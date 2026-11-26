@@ -161,7 +161,7 @@ describe('PlanChangeProcessor', () => {
       }),
     );
     expect(f.planGateway.releaseSchedule.mock.invocationCallOrder[0]).toBeLessThan(
-      f.gateway.snapshot.mock.invocationCallOrder[0]!,
+      f.gateway.snapshot.mock.invocationCallOrder[0],
     );
   });
 
@@ -176,7 +176,7 @@ describe('PlanChangeProcessor', () => {
     expect(change.snapshot()).toMatchObject({ status, stripeInvoiceId: remote.stripeInvoiceId });
     expect(f.planGateway.releaseSchedule).not.toHaveBeenCalled();
     expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.save.mock.invocationCallOrder[0]!,
+      f.repository.save.mock.invocationCallOrder[0],
     );
   });
 

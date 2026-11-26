@@ -45,7 +45,7 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
 
     expect(f.create).toHaveBeenCalledWith({ data: { ...f.update.snapshot(), activeOrganizationId: 'org' } });
     expect(f.notify).toHaveBeenCalledWith(BillingWork.PAYMENT_METHOD_UPDATES);
-    expect(f.create.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]!);
+    expect(f.create.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]);
 
     f.create.mockRejectedValueOnce(new Error('Fixture write failure'));
     await expect(f.repository.create(f.update)).rejects.toThrow('Fixture write failure');

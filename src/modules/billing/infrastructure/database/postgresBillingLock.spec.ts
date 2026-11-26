@@ -30,7 +30,7 @@ describe('PostgresBillingLock', () => {
 
     expect(await f.lock.run(key, operation)).toBe('result');
     expect(operation).toHaveBeenCalledTimes(1);
-    const { data } = f.createMany.mock.calls[0]![0];
+    const { data } = f.createMany.mock.calls[0][0];
     const { token, acquiredAt, leaseUntil } = data[0];
 
     expect(leaseUntil.getTime() - acquiredAt.getTime()).toBe(30_000);

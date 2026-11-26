@@ -39,7 +39,7 @@ describe('PrismaAuthRepository action token persistence', () => {
       data: { userId: user.id, purpose: request.purpose, tokenHash: request.tokenHash, expiresAt: request.expiresAt },
     });
     expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
-      db.authActionToken.updateMany.mock.invocationCallOrder[0]!,
+      db.authActionToken.updateMany.mock.invocationCallOrder[0],
     );
   });
 

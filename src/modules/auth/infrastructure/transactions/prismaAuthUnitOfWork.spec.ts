@@ -41,7 +41,7 @@ describe('PrismaAuthUnitOfWork', () => {
     const f = fixture();
 
     await f.unit.run(async () => {
-      const inserted = f.using.mock.calls[0]![1];
+      const inserted = f.using.mock.calls[0][1];
       inserted();
       inserted();
       expect(f.notifyWorker).not.toHaveBeenCalled();
@@ -56,7 +56,7 @@ describe('PrismaAuthUnitOfWork', () => {
 
     await expect(
       f.unit.run(async () => {
-        f.using.mock.calls[0]![1]();
+        f.using.mock.calls[0][1]();
         throw error;
       }),
     ).rejects.toBe(error);

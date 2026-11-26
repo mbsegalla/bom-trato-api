@@ -32,7 +32,7 @@ describe('NodeAuthSecurity', () => {
     expect(await security.verifyAccess(token)).toEqual(claims);
 
     const segments = token.split('.');
-    segments[2] = (segments[2]!.startsWith('a') ? 'b' : 'a') + segments[2]!.slice(1);
+    segments[2] = (segments[2].startsWith('a') ? 'b' : 'a') + segments[2].slice(1);
 
     await expect(security.verifyAccess(segments.join('.'))).rejects.toThrow('INVALID_SESSION');
     await expect(security.verifyAccess(await security.signAccess({ ...claims, sid: 'invalid' }))).rejects.toThrow(

@@ -111,7 +111,7 @@ describe('organization invitation and membership lifecycle', () => {
       status: 'PENDING',
     });
     expect(result.invitation).not.toHaveProperty('tokenHash');
-    expect(f.invitations.create.mock.calls[0]![0].snapshot().tokenHash).toBe(token.hash);
+    expect(f.invitations.create.mock.calls[0][0].snapshot().tokenHash).toBe(token.hash);
     expect(f.consume).toHaveBeenCalledWith({ organizationId: 'org', now: expect.any(Date) });
     expect(f.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -171,7 +171,7 @@ describe('organization invitation and membership lifecycle', () => {
       }),
     );
 
-    const saved = f.invitations.save.mock.calls[0]![0].snapshot();
+    const saved = f.invitations.save.mock.calls[0][0].snapshot();
 
     expect(saved).toMatchObject({ status: 'ACCEPTED', acceptedById: 'member' });
 
@@ -188,7 +188,7 @@ describe('organization invitation and membership lifecycle', () => {
     const params = { ...actor, invitationId: 'invitation' };
 
     await new ResendOrganizationInvitationUseCase(f.tokens, f.service).execute(params);
-    const saved = f.invitations.save.mock.calls[0]![0];
+    const saved = f.invitations.save.mock.calls[0][0];
 
     expect(saved.snapshot().tokenHash).toBe(token.hash);
     expect(() => saved.assertToken('old-hash')).toThrow('INVITATION_NOT_FOUND');
@@ -196,7 +196,7 @@ describe('organization invitation and membership lifecycle', () => {
     f.invitations.findById.mockResolvedValueOnce(saved.snapshot());
 
     await new RevokeOrganizationInvitationUseCase(f.service).execute(params);
-    const revoked = f.invitations.save.mock.calls[1]![0].snapshot();
+    const revoked = f.invitations.save.mock.calls[1][0].snapshot();
 
     expect(revoked.status).toBe('REVOKED');
 
@@ -221,7 +221,7 @@ describe('organization invitation and membership lifecycle', () => {
     expect(f.invitations.invalidateAcceptedTokens).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' });
     expect(f.members.remove).toHaveBeenCalledWith({ organizationId: 'org', memberId: 'membership' });
     expect(f.invitations.invalidateAcceptedTokens.mock.invocationCallOrder[0]).toBeLessThan(
-      f.members.remove.mock.invocationCallOrder[0]!,
+      f.members.remove.mock.invocationCallOrder[0],
     );
   });
 });

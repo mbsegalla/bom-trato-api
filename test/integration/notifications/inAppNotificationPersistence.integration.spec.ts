@@ -53,7 +53,7 @@ databaseSuite('in-app notification persistence (disposable PostgreSQL)', () => {
     await repository.enqueue(input(other));
 
     const initial = await repository.list({ ...first, limit: 10 });
-    const id = initial.items[0]!.id;
+    const id = initial.items[0].id;
     const now = new Date();
 
     expect(await repository.markRead({ ...other, id, now })).toBe(false);

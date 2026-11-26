@@ -91,10 +91,10 @@ describe('subscription cancellation and resumption', () => {
     expect(f.gateway.setCancellation).toHaveBeenCalledWith('sub_fixture', true);
     expect(f.repository.saveSnapshot).toHaveBeenCalledTimes(2);
     expect(f.repository.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
-      f.gateway.setCancellation.mock.invocationCallOrder[0]!,
+      f.gateway.setCancellation.mock.invocationCallOrder[0],
     );
     expect(f.gateway.setCancellation.mock.invocationCallOrder[0]).toBeLessThan(
-      f.repository.saveSnapshot.mock.invocationCallOrder[1]!,
+      f.repository.saveSnapshot.mock.invocationCallOrder[1],
     );
   });
 

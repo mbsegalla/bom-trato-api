@@ -196,7 +196,7 @@ describe('work order lifecycle use cases', () => {
 
     expect(result).toMatchObject({ status: 'COMPLETED', version: 2 });
 
-    const payment = f.receivables.create.mock.calls[0]![0].snapshot();
+    const payment = f.receivables.create.mock.calls[0][0].snapshot();
 
     expect(payment).toMatchObject({
       workOrderId: 'order',
@@ -299,7 +299,7 @@ describe('work order lifecycle use cases', () => {
       version: 2,
     });
     expect(f.receivables.save).toHaveBeenCalledTimes(1);
-    expect(f.receivables.save.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.receivables.save.mock.calls[0][0].snapshot()).toMatchObject({
       id: 'open',
       status: 'CANCELED',
       version: 2,

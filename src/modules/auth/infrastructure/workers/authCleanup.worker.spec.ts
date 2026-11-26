@@ -38,7 +38,7 @@ describe('AuthCleanupWorker', () => {
     await f.worker.handleInitialCleanup();
 
     expect(f.execute).toHaveBeenCalledTimes(3);
-    expect(f.execute.mock.calls[0]![0]).toBe(f.execute.mock.calls[2]![0]);
+    expect(f.execute.mock.calls[0][0]).toBe(f.execute.mock.calls[2][0]);
   });
 
   it('limits each run to twenty batches', async () => {
