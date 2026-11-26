@@ -19,7 +19,15 @@ import type { ClaimedMercadoPagoWebhook } from '../../../../src/modules/receivab
 import { PrismaReceivableProviderPaymentRepository } from '../../../../src/modules/receivables/infrastructure/transactions/prismaReceivableProviderPaymentRepository.js';
 
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
-export const paymentIntegrationSuite = url === undefined ? describe.skip : describe;
+// Keep Vitest's internal suite collector types out of the exported declaration.
+export function paymentIntegrationSuite(name: string, callback: () => void): void {
+  if (url === undefined) {
+    describe.skip(name, callback);
+    return;
+  }
+
+  describe(name, callback);
+}
 
 function disposableDatabaseUrl(): string {
   if (!url) throw new Error('Missing dedicated payment integration database URL');
