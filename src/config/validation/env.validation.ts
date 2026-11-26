@@ -90,6 +90,24 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
     .pattern(/^[a-fA-F0-9]{64}$/)
     .optional(),
 
+  MERCADO_PAGO_ENABLED: Joi.boolean().default(false),
+  MERCADO_PAGO_LIVE_MODE: Joi.boolean().default(false),
+  MERCADO_PAGO_CLIENT_ID: Joi.string().pattern(/^[1-9]\d{0,29}$/).when('MERCADO_PAGO_ENABLED', {
+    is: true,
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  MERCADO_PAGO_CLIENT_SECRET: Joi.string().max(2048).pattern(/^[\x21-\x7E]+$/).when('MERCADO_PAGO_ENABLED', {
+    is: true,
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  MERCADO_PAGO_ENCRYPTION_KEY: Joi.string().pattern(/^[a-fA-F0-9]{64}$/).when('MERCADO_PAGO_ENABLED', {
+    is: true,
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+
   NOTIFICATION_WORKER_ENABLED: Joi.boolean().default(true),
 
   TRIAL_LIFECYCLE_WORKER_ENABLED: Joi.boolean().default(false),
@@ -192,7 +210,25 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
     throw new Error('RECEIVING_SETTINGS_ENCRYPTION_KEY must be independent of other application secrets');
   }
 
+  if (
+    env.MERCADO_PAGO_ENCRYPTION_KEY !== undefined &&
+    [
+      env.AUTH_JWT_SECRET,
+      env.AUTH_CSRF_SECRET,
+      env.NOTIFICATION_ENCRYPTION_KEY,
+      env.QUOTE_SHARE_RATE_LIMIT_SECRET,
+      env.RECEIVING_SETTINGS_ENCRYPTION_KEY,
+      env.MERCADO_PAGO_CLIENT_SECRET,
+    ].some((key) => key?.toLowerCase() === env.MERCADO_PAGO_ENCRYPTION_KEY?.toLowerCase())
+  ) {
+    throw new Error('MERCADO_PAGO_ENCRYPTION_KEY must be independent of other application secrets');
+  }
+
   const frontend = new URL(env.FRONTEND_URL);
+
+  if (env.MERCADO_PAGO_ENABLED && frontend.protocol !== 'https:') {
+    throw new Error('Mercado Pago OAuth requires an HTTPS FRONTEND_URL');
+  }
 
   if (
     frontend.username ||

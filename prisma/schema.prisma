@@ -394,6 +394,8 @@ model Organization {
   workOrders                       WorkOrder[]
   receivables                      Receivable[]
   receivingSettings                OrganizationReceivingSettings?
+  mercadoPagoConnections           MercadoPagoConnection[]
+  mercadoPagoOAuthAttempt          MercadoPagoOAuthAttempt?
   inAppNotifications               InAppNotification[]
   notificationStreamTickets        NotificationStreamTicket[]
   leads                            Lead[]
@@ -1378,4 +1380,38 @@ model WorkOrderShare {
   @@unique([id, workOrderId, organizationId])
   @@index([organizationId, workOrderId, revokedAt])
   @@index([expiresAt])
+}
+
+model MercadoPagoConnection {
+  organizationId         String    @db.Uuid
+  liveMode               Boolean
+  clientId               String    @db.VarChar(30)
+  accountId              String    @db.VarChar(30)
+  connectedById          String    @db.Uuid
+  accessTokenCiphertext  String?
+  refreshTokenCiphertext String?
+  expiresAt              DateTime? @db.Timestamptz(3)
+  connectedAt            DateTime  @db.Timestamptz(3)
+  disconnectedAt         DateTime? @db.Timestamptz(3)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@id([organizationId, liveMode])
+  @@unique([accountId, liveMode])
+}
+
+model MercadoPagoOAuthAttempt {
+  organizationId     String    @id @db.Uuid
+  ownerId            String    @db.Uuid
+  sessionId          String    @db.Uuid
+  clientId           String    @db.VarChar(30)
+  liveMode           Boolean
+  stateHash          String    @unique @db.VarChar(64)
+  verifierCiphertext String?
+  createdAt          DateTime  @db.Timestamptz(3)
+  expiresAt          DateTime  @db.Timestamptz(3)
+  consumedAt         DateTime? @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 }
