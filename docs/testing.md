@@ -46,3 +46,7 @@ runs the actual access-token guard with fake token verification and session
 repository; persistence isolation is exercised independently against the
 CI database. No external providers are contacted. This does not yet cover
 all endpoint/use-case permutations or deployed end-to-end flows.
+
+## Third regression expansion — application workflows
+
+The previous CI baseline was 728 passing tests and 29.48% overall line coverage (domain 75.3%, application 25.9%, infrastructure 19.9%, presentation 21.4%). This increment focuses on application orchestration: registration, verification and Google identity, organization invitation and membership, billing entitlements and cancellation, quotes, work order lifecycle, receivable automation, reviews and notification scope. The use-case specs exercise the real application services and domain entities with controlled mocks at persistence and external-service ports. Assertions cover the order of side effects and forbidden writes, not just successful return values. Transaction rollback and concurrency guarantees still require PostgreSQL integration tests; these mocks are not evidence of database atomicity. Read the new CI coverage report before updating baseline percentages or considering coverage thresholds.
