@@ -276,4 +276,26 @@ paymentIntegrationSuite('livePixSettlement (disposable PostgreSQL)', () => {
     });
     expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
   });
+  it('does not apply a payment for a pending provider observation before approval', async () => {
+    const { settlementFixture, ledger } = context;
+    const f = await settlementFixture();
+    const pending = await f.delivery();
+    f.read.mockResolvedValueOnce({ status: 'PENDING' });
+
+    expect(await f.processor.execute(pending)).toBe(true);
+    expect(await f.issuanceRow()).toMatchObject({ status: 'PENDING' });
+    expect(await ledger(f.receivable.id)).toMatchObject({
+      receivable: { receivedInCents: 0, version: 1, status: 'OPEN' },
+      payments: [],
+    });
+
+    const approved = await f.delivery();
+
+    expect(await f.processor.execute(approved)).toBe(true);
+    expect(await f.stored(approved)).toMatchObject({ resultCode: 'LEDGER_APPLIED' });
+    expect(await ledger(f.receivable.id)).toMatchObject({
+      receivable: { receivedInCents: 10000, version: 2, status: 'PAID' },
+    });
+    expect((await ledger(f.receivable.id)).payments).toHaveLength(1);
+  });
 });

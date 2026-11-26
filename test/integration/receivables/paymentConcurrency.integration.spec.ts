@@ -87,4 +87,48 @@ paymentIntegrationSuite('payment ledger concurrency (disposable PostgreSQL)', ()
     expect(after.receivable).toMatchObject({ receivedInCents: 0, version: 3, status: 'OPEN' });
     expect(after.payments[0]?.reversedAt).toBeInstanceOf(Date);
   });
+  it('allows only one concurrent reversal of the same payment', async () => {
+    const f = await setup();
+    const recorded = await f.record.execute(f.params, f.input);
+    const params = { ...f.params, version: 2 };
+    const results = await Promise.allSettled([
+      f.reverse.execute(params, recorded.payment.id, 'First reversal'),
+      f.reverse.execute(params, recorded.payment.id, 'Second reversal'),
+    ]);
+
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
+
+    const state = await db.ledger(f.receivable.id);
+
+    expect(state.receivable).toMatchObject({ receivedInCents: 0, version: 3, status: 'OPEN' });
+    expect(state.payments).toHaveLength(1);
+    expect(state.payments[0]?.reversedAt).toBeInstanceOf(Date);
+  }, 30000);
+
+  it('settles the exact remaining balance and rejects any subsequent payment', async () => {
+    const f = await setup();
+
+    await f.record.execute(f.params, f.input);
+    await f.record.execute({ ...f.params, version: 2 }, {
+      ...f.input,
+      requestId: randomUUID(),
+      amountInCents: 4000,
+    });
+
+    const before = await db.ledger(f.receivable.id);
+
+    expect(before.receivable).toMatchObject({ receivedInCents: 10000, version: 3, status: 'PAID' });
+    expect(before.payments).toHaveLength(2);
+
+    await expect(f.record.execute({ ...f.params, version: 3 }, {
+      ...f.input,
+      requestId: randomUUID(),
+      amountInCents: 1,
+    })).rejects.toThrow();
+
+    const after = await db.ledger(f.receivable.id);
+
+    expect(after).toEqual(before);
+  });
 });
