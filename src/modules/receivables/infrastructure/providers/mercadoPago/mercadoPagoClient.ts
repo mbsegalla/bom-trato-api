@@ -3,6 +3,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { assertVerifiedProviderPayment } from '../../../domain/policies/receivableProviderPayment.policy.js';
 import type { VerifiedProviderPayment } from '../../../domain/types/receivableProviderPayment.types.js';
 
+import type { CreatedMercadoPagoPix, CreateMercadoPagoPixInput } from './mercadoPagoPix.types.js';
+
 const API_ORIGIN = 'https://api.mercadopago.com';
 const AUTHORIZATION_URL = 'https://auth.mercadopago.com/authorization';
 const TIMEOUT_MS = 10000;
@@ -97,6 +99,45 @@ function assertInputId(value: string): void {
   }
 }
 
+function assertPixInput(input: CreateMercadoPagoPixInput, now: Date): void {
+  assertInputId(input.accountId);
+
+  const remaining = input.expiresAt instanceof Date ? input.expiresAt.getTime() - now.getTime() : NaN;
+  const { email, identification } = input.payer;
+
+  if (
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(input.issuanceId) ||
+    !isToken(input.accessToken) ||
+    !Number.isSafeInteger(input.amountInCents) ||
+    input.amountInCents < 1 ||
+    input.amountInCents > 2147483647 ||
+    !Number.isFinite(remaining) ||
+    remaining < 30 * 60 * 1000 ||
+    remaining > 30 * 24 * 60 * 60 * 1000 ||
+    typeof email !== 'string' ||
+    email.length > 254 ||
+    !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) ||
+    (identification.type !== 'CPF' && identification.type !== 'CNPJ') ||
+    !new RegExp(identification.type === 'CPF' ? '^\\d{11}$' : '^\\d{14}$').test(identification.number)
+  ) {
+    throw new MercadoPagoError('INVALID_INPUT');
+  }
+}
+
+function readPixExpiration(value: unknown): Date {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
+    return invalidResponse();
+  }
+
+  const date = new Date(value);
+
+  if (!Number.isFinite(date.getTime())) {
+    return invalidResponse();
+  }
+
+  return date;
+}
+
 export class MercadoPagoClient {
   constructor(
     private readonly config: MercadoPagoClientConfig,
@@ -171,6 +212,91 @@ export class MercadoPagoClient {
     }
 
     return credentials;
+  }
+
+  // Transport only. Never call until a durable issuance UUID and immutable request
+  // snapshot exist. No live charges are enabled in this increment.
+  async createSandboxPix(input: CreateMercadoPagoPixInput): Promise<CreatedMercadoPagoPix> {
+    if (this.config.liveMode) {
+      throw new MercadoPagoError('MODE_MISMATCH');
+    }
+
+    assertPixInput(input, new Date());
+
+    const payload = record(
+      await this.request('/v1/payments', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + input.accessToken,
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': input.issuanceId,
+        },
+        body: JSON.stringify({
+          transaction_amount: input.amountInCents / 100,
+          description: 'Pagamento de serviço - Bom Trato',
+          payment_method_id: 'pix',
+          external_reference: input.issuanceId,
+          date_of_expiration: input.expiresAt.toISOString(),
+          payer: {
+            email: input.payer.email,
+            identification: {
+              type: input.payer.identification.type,
+              number: input.payer.identification.number,
+            },
+          },
+        }),
+      }),
+    );
+
+    if (normalizeId(payload.collector_id) !== input.accountId) {
+      throw new MercadoPagoError('ACCOUNT_MISMATCH');
+    }
+
+    if (payload.live_mode !== false) {
+      throw new MercadoPagoError('MODE_MISMATCH');
+    }
+
+    if (
+      payload.external_reference !== input.issuanceId ||
+      payload.payment_method_id !== 'pix' ||
+      payload.payment_type_id !== 'bank_transfer' ||
+      payload.currency_id !== 'BRL' ||
+      normalizeAmount(payload.transaction_amount) !== input.amountInCents ||
+      normalizeAmount(payload.transaction_amount_refunded) !== 0 ||
+      typeof payload.status !== 'string'
+    ) {
+      return invalidResponse();
+    }
+
+    const identity = {
+      paymentId: normalizeId(payload.id),
+      accountId: input.accountId,
+      issuanceId: input.issuanceId,
+      amountInCents: input.amountInCents,
+      currency: 'brl' as const,
+      liveMode: false,
+    };
+
+    // A creation response alone is not a verified settlement, even if approved.
+    if (payload.status !== 'pending' || payload.status_detail !== 'pending_waiting_transfer') {
+      return { ...identity, kind: 'REVIEW_REQUIRED' };
+    }
+
+    const expiresAt = readPixExpiration(payload.date_of_expiration);
+    const transactionData = record(record(payload.point_of_interaction).transaction_data);
+    const code = transactionData.qr_code;
+
+    if (
+      expiresAt.getTime() <= Date.now() ||
+      expiresAt.getTime() > input.expiresAt.getTime() + 1000 ||
+      typeof code !== 'string' ||
+      code.length > 1024 ||
+      !/^000201[\x20-\x7E]+6304[0-9A-Fa-f]{4}$/.test(code)
+    ) {
+      return invalidResponse();
+    }
+
+    return { ...identity, kind: 'PENDING', copyAndPaste: code, expiresAt };
   }
 
   // Call only for a notification already authenticated by the future webhook adapter.

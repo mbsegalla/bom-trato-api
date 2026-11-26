@@ -18,6 +18,7 @@ import {
   isMercadoPagoAttemptCurrent,
   MERCADO_PAGO_STATE_TTL_MS,
 } from '../../domain/policies/mercadoPagoOAuth.policy.js';
+import { isMercadoPagoRefreshCoolingDown } from '../../domain/policies/mercadoPagoRefresh.policy.js';
 import { assertReceivingSettingsOwner } from '../access/assertReceivingSettingsOwner.js';
 import { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 
@@ -50,6 +51,8 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
             connectedAt: true,
             disconnectedAt: true,
             expiresAt: true,
+            refreshClaimId: true,
+            refreshStartedAt: true,
           },
         });
         const pending = await db.mercadoPagoOAuthAttempt.findUnique({
@@ -61,7 +64,7 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
         if (row !== null) {
           status = row.disconnectedAt !== null
             ? 'DISCONNECTED'
-            : row.connectedById !== actor.userId || row.clientId !== this.runtime.clientId
+            : row.connectedById !== actor.userId || row.clientId !== this.runtime.clientId || row.refreshClaimId !== null
               ? 'RECONNECT_REQUIRED'
               : row.expiresAt !== null && row.expiresAt > new Date()
                 ? 'CONNECTED'
@@ -71,7 +74,11 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
         return {
           available: this.runtime.client !== null,
           liveMode: this.runtime.liveMode,
-          canConnect: this.runtime.client !== null && access.hasPlatformAccess && !access.billingNeedsReconciliation,
+          canConnect:
+            this.runtime.client !== null &&
+            access.hasPlatformAccess &&
+            !access.billingNeedsReconciliation &&
+            !isMercadoPagoRefreshCoolingDown(row?.refreshStartedAt ?? null, new Date()),
           canDisconnect: (row !== null && row.disconnectedAt === null) || pending?.liveMode === this.runtime.liveMode,
           status,
           accountId: row?.connectedById === actor.userId ? row.accountId : null,
@@ -93,6 +100,15 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
       async (db) => {
         await assertReceivingSettingsOwner(db, actor, true);
         await this.assertSession(db, actor);
+
+        const connection = await db.mercadoPagoConnection.findUnique({
+          where: { organizationId_liveMode: { organizationId: actor.organizationId, liveMode: this.runtime.liveMode } },
+          select: { refreshStartedAt: true },
+        });
+
+        if (isMercadoPagoRefreshCoolingDown(connection?.refreshStartedAt ?? null, new Date())) {
+          throw new ReceivingSettingsError('RECEIVING_SETTINGS_BUSY');
+        }
 
         const request = client.createAuthorizationRequest();
         const stateHash = hashMercadoPagoState(request.state);
@@ -228,6 +244,8 @@ export class PrismaMercadoPagoConnectionRepository extends MercadoPagoConnection
             expiresAt: credentials.expiresAt,
             connectedAt: now,
             disconnectedAt: null,
+            refreshClaimId: null,
+            refreshStartedAt: null,
           };
 
           await db.mercadoPagoConnection.upsert({

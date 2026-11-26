@@ -1390,6 +1390,8 @@ model MercadoPagoConnection {
   connectedById          String    @db.Uuid
   accessTokenCiphertext  String?
   refreshTokenCiphertext String?
+  refreshClaimId         String?   @db.Uuid
+  refreshStartedAt       DateTime? @db.Timestamptz(3)
   expiresAt              DateTime? @db.Timestamptz(3)
   connectedAt            DateTime  @db.Timestamptz(3)
   disconnectedAt         DateTime? @db.Timestamptz(3)
