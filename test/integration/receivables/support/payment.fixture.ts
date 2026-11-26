@@ -76,6 +76,8 @@ export function createPaymentFixture() {
 
     // Delete only this suite's UUID-scoped fixtures, in foreign-key order.
     for (const organizationId of organizations.splice(0)) {
+      await prisma.mercadoPagoSandboxPixRecovery.deleteMany({ where: { issuance: { organizationId } } });
+      await prisma.mercadoPagoSandboxPix.deleteMany({ where: { organizationId } });
       await prisma.mercadoPagoLivePixRecovery.deleteMany({ where: { issuance: { organizationId } } });
       await prisma.mercadoPagoLivePix.deleteMany({ where: { organizationId } });
       await prisma.receivableProviderCharge.deleteMany({ where: { organizationId } });
