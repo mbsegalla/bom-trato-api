@@ -72,6 +72,8 @@ jobs:
         run: pnpm exec prisma migrate deploy
 
       - name: Run tests
+        env:
+          PAYMENT_INTEGRATION_DATABASE_URL: postgresql://bom_trato_ci:ci_only_password@127.0.0.1:5432/bom_trato_ci?schema=public
         run: pnpm exec vitest run --config vitest.config.ts
 
       - name: Build API

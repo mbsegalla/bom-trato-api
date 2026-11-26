@@ -5,6 +5,8 @@ export interface ProviderPaymentReference {
 }
 
 export interface RegisterProviderChargeInput extends ProviderPaymentReference {
+  // The real ledger only accepts an explicitly live provider binding.
+  liveMode: boolean;
   receivableVersion: number;
   expectedAmountInCents: number;
 }
