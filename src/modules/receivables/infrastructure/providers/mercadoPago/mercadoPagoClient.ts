@@ -3,7 +3,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { assertVerifiedProviderPayment } from '../../../domain/policies/receivableProviderPayment.policy.js';
 import type { VerifiedProviderPayment } from '../../../domain/types/receivableProviderPayment.types.js';
 
-import type { CreatedMercadoPagoPix, CreateMercadoPagoPixInput } from './mercadoPagoPix.types.js';
+import type {
+  CreatedMercadoPagoPix,
+  CreateMercadoPagoPixInput,
+  MercadoPagoSandboxPaymentStatus,
+  ReadMercadoPagoSandboxPixInput,
+} from './mercadoPagoPix.types.js';
 
 const API_ORIGIN = 'https://api.mercadopago.com';
 const AUTHORIZATION_URL = 'https://auth.mercadopago.com/authorization';
@@ -299,7 +304,84 @@ export class MercadoPagoClient {
     return { ...identity, kind: 'PENDING', copyAndPaste: code, expiresAt };
   }
 
-  // Call only for a notification already authenticated by the future webhook adapter.
+  // The input must originate from a durable sandbox reservation, not webhook body fields.
+  async readSandboxPix(input: ReadMercadoPagoSandboxPixInput): Promise<MercadoPagoSandboxPaymentStatus> {
+    if (this.config.liveMode) {
+      throw new MercadoPagoError('MODE_MISMATCH');
+    }
+
+    assertInputId(input.accountId);
+    assertInputId(input.paymentId);
+
+    if (
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(input.issuanceId) ||
+      !isToken(input.accessToken) ||
+      !Number.isSafeInteger(input.amountInCents) ||
+      input.amountInCents < 1 ||
+      input.amountInCents > 2147483647
+    ) {
+      throw new MercadoPagoError('INVALID_INPUT');
+    }
+
+    const payload = record(
+      await this.request('/v1/payments/' + input.paymentId, {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + input.accessToken },
+      }),
+    );
+
+    if (normalizeId(payload.id) !== input.paymentId || normalizeId(payload.collector_id) !== input.accountId) {
+      throw new MercadoPagoError('ACCOUNT_MISMATCH');
+    }
+
+    if (payload.live_mode !== false) {
+      throw new MercadoPagoError('MODE_MISMATCH');
+    }
+
+    if (
+      payload.external_reference !== input.issuanceId ||
+      payload.payment_method_id !== 'pix' ||
+      payload.payment_type_id !== 'bank_transfer' ||
+      payload.currency_id !== 'BRL' ||
+      normalizeAmount(payload.transaction_amount) !== input.amountInCents ||
+      typeof payload.status !== 'string' ||
+      typeof payload.status_detail !== 'string'
+    ) {
+      return invalidResponse();
+    }
+
+    const refunded = normalizeAmount(payload.transaction_amount_refunded);
+
+    if (refunded > input.amountInCents) {
+      return invalidResponse();
+    }
+
+    if (refunded > 0 || payload.status === 'refunded' || payload.status === 'charged_back') {
+      return 'REFUNDED';
+    }
+
+    if (payload.status === 'approved' && payload.status_detail === 'accredited') {
+      const approvedAt = readPixExpiration(payload.date_approved);
+
+      if (approvedAt.getTime() > Date.now() + 5 * 60 * 1000) {
+        return invalidResponse();
+      }
+
+      return 'APPROVED';
+    }
+
+    if (payload.status === 'pending' && payload.status_detail === 'pending_waiting_transfer') {
+      return 'PENDING';
+    }
+
+    if (payload.status === 'cancelled' || payload.status === 'rejected') {
+      return 'CLOSED';
+    }
+
+    return 'REVIEW_REQUIRED';
+  }
+
+  // Call only for a notification already authenticated by the future live webhook adapter.
   // Account and access token must come from a trusted organization connection, not the notification.
   async readApprovedPixPayment(input: PaymentLookup): Promise<VerifiedProviderPayment | null> {
     assertInputId(input.accountId);

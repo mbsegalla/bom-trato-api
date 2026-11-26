@@ -16,6 +16,8 @@ import { MercadoPagoCredentialService } from './infrastructure/transactions/merc
 import { PrismaMercadoPagoConnectionRepository } from './infrastructure/transactions/prismaMercadoPagoConnectionRepository.js';
 import { PrismaMercadoPagoSandboxPixRepository } from './infrastructure/transactions/prismaMercadoPagoSandboxPixRepository.js';
 import { PrismaMercadoPagoWebhookRepository } from './infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
+import { MercadoPagoWebhookWorker } from './infrastructure/workers/mercadoPagoWebhook.worker.js';
+import { ProcessMercadoPagoWebhookService } from './infrastructure/workers/processMercadoPagoWebhook.service.js';
 import { MercadoPagoSandboxPixController } from './presentation/http/controllers/mercadoPagoSandboxPix.controller.js';
 import { MercadoPagoWebhookController } from './presentation/http/controllers/mercadoPagoWebhook.controller.js';
 import {
@@ -39,6 +41,8 @@ import {
     },
     MercadoPagoCredentialService,
     { provide: MercadoPagoWebhookRepository, useClass: PrismaMercadoPagoWebhookRepository },
+    ProcessMercadoPagoWebhookService,
+    MercadoPagoWebhookWorker,
     { provide: MercadoPagoSandboxPixRepository, useClass: PrismaMercadoPagoSandboxPixRepository },
     {
       provide: ManageMercadoPagoSandboxPixUseCase,

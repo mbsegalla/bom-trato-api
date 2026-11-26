@@ -27,3 +27,19 @@ interface CreatedPixIdentity {
 export type CreatedMercadoPagoPix =
   | (CreatedPixIdentity & { kind: 'PENDING'; copyAndPaste: string; expiresAt: Date })
   | (CreatedPixIdentity & { kind: 'REVIEW_REQUIRED' });
+
+// Authoritative read of an already bound sandbox payment, never a live payment.
+export interface ReadMercadoPagoSandboxPixInput {
+  issuanceId: string;
+  accountId: string;
+  paymentId: string;
+  accessToken: string;
+  amountInCents: number;
+}
+
+export type MercadoPagoSandboxPaymentStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'CLOSED'
+  | 'REFUNDED'
+  | 'REVIEW_REQUIRED';

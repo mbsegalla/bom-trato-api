@@ -94,6 +94,7 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   MERCADO_PAGO_LIVE_MODE: Joi.boolean().default(false),
   MERCADO_PAGO_SANDBOX_PIX_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_WEBHOOK_ENABLED: Joi.boolean().default(false),
+  MERCADO_PAGO_WEBHOOK_WORKER_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_WEBHOOK_SECRET: Joi.string().min(16).max(2048).pattern(/^[\x21-\x7E]+$/).when('MERCADO_PAGO_WEBHOOK_ENABLED', {
     is: true,
     then: Joi.required(),
@@ -237,6 +238,10 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
 
   if (env.MERCADO_PAGO_WEBHOOK_ENABLED && (!env.MERCADO_PAGO_ENABLED || env.MERCADO_PAGO_LIVE_MODE)) {
     throw new Error('Mercado Pago webhook intake requires enabled Mercado Pago in test mode');
+  }
+
+  if (env.MERCADO_PAGO_WEBHOOK_WORKER_ENABLED && !env.MERCADO_PAGO_WEBHOOK_ENABLED) {
+    throw new Error('Mercado Pago webhook worker requires enabled webhook intake');
   }
 
   const frontend = new URL(env.FRONTEND_URL);
