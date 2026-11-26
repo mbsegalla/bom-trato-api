@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import type { Provider, Type } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import cookieParser from 'cookie-parser';
 import { vi } from 'vitest';
 
 import { GlobalExceptionFilter } from '../../../src/infrastructure/http/filters/globalException.filter.js';
@@ -20,10 +21,15 @@ export const organizationId = '11111111-1111-4111-8111-111111111111';
 export const itemId = '22222222-2222-4222-8222-222222222222';
 export const userId = '33333333-3333-4333-8333-333333333333';
 
-export async function createHttpFixture(controllers: Type<unknown>[], providers: Provider[]) {
+export async function createHttpFixture(
+  controllers: Type<unknown>[],
+  providers: Provider[],
+  auth?: { cookies: AuthCookies; rateLimit: PostgresAuthRateLimit; sessionId: string },
+) {
   const module = await Test.createTestingModule({ controllers, providers }).compile();
   const app = module.createNestApplication();
-  const verifyAccess = vi.fn<AuthSecurity['verifyAccess']>().mockResolvedValue({ sub: userId, sid: 'session' });
+  if (auth) app.use(cookieParser());
+  const verifyAccess = vi.fn<AuthSecurity['verifyAccess']>().mockResolvedValue({ sub: userId, sid: auth?.sessionId ?? 'session' });
   const authenticate = vi.fn<AuthRepository['authenticate']>().mockResolvedValue({
     id: userId,
     name: 'Fixture',
@@ -34,7 +40,7 @@ export async function createHttpFixture(controllers: Type<unknown>[], providers:
   });
   app.setGlobalPrefix('api');
   app.useGlobalGuards(new AccessTokenGuard(app.get(Reflector), { verifyAccess } as unknown as AuthSecurity,
-    { authenticate } as unknown as AuthRepository, {} as AuthCookies, {} as PostgresAuthRateLimit));
+    { authenticate } as unknown as AuthRepository, auth?.cookies ?? ({} as AuthCookies), auth?.rateLimit ?? ({} as PostgresAuthRateLimit)));
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
