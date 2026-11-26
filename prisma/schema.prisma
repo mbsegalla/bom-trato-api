@@ -161,6 +161,8 @@ enum InAppNotificationType {
   WORK_ORDER_SCHEDULED
   WORK_ORDER_RESCHEDULED
   WORK_ORDER_REMINDER
+  WORK_ORDER_RECURRENCE_REMINDER
+  WORK_ORDER_RECURRING_QUOTE_CREATED
   RECEIVABLE_DUE_SOON
   RECEIVABLE_OVERDUE
   ORGANIZATION_MEMBER_JOINED
@@ -937,6 +939,7 @@ model WorkOrderRecurrence {
   @@unique([workOrderId, organizationId])
   @@index([organizationId, enabled, nextVisitOn, workOrderId], map: "WorkOrderRecurrence_org_enabled_visit_order_idx")
   @@index([autoGenerateEnabled, enabled, nextVisitOn, workOrderId], map: "WorkOrderRecurrence_auto_due_idx")
+  @@index([enabled, nextVisitOn, workOrderId], map: "WorkOrderRecurrence_reminder_due_idx")
 }
 
 model WorkOrderRecurrenceGeneration {
