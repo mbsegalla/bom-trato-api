@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { expect, it, vi } from 'vitest';
 
@@ -7,6 +7,10 @@ import { MercadoPagoConnectionRuntime } from '../../../src/modules/receivables/i
 import { MercadoPagoCredentialService } from '../../../src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.js';
 import { PrismaMercadoPagoSandboxPixRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRepository.js';
 import { PrismaMercadoPagoSandboxPixRecoveryRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRecoveryRepository.js';
+
+import { PrismaMercadoPagoWebhookRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
+import { ProcessMercadoPagoWebhookService } from '../../../src/modules/receivables/infrastructure/workers/processMercadoPagoWebhook.service.js';
+import type { ClaimedMercadoPagoWebhook } from '../../../src/modules/receivables/domain/types/mercadoPagoWebhook.types.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
@@ -59,7 +63,23 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     const attempts = (id: string) => prisma.mercadoPagoSandboxPixRecovery.findMany({
       where: { issuanceId: id }, orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
     });
-    return { ...f, runtime, issuer, recovery, create, read, search, input, issue, connectionWhere, issuance, attempts };
+    const inbox = new PrismaMercadoPagoWebhookRepository(prisma, runtime);
+    const processor = new ProcessMercadoPagoWebhookService(inbox, runtime);
+    async function delivery(paymentId = f.paymentId) {
+      const notice = {
+        clientId: f.clientId, deliveryKey: createHash('sha256').update(randomUUID()).digest('hex'),
+        paymentId, requestId: randomUUID(), signedAt: new Date(),
+      };
+      await inbox.enqueue(notice);
+      const job = await inbox.claim(f.clientId, randomUUID());
+      if (job === null) throw new Error('Fixture webhook not claimed');
+      expect(job.deliveryKey).toBe(notice.deliveryKey);
+      return job;
+    }
+    const stored = (job: ClaimedMercadoPagoWebhook) => prisma.mercadoPagoWebhookEvent.findUniqueOrThrow({
+      where: { clientId_deliveryKey: { clientId: job.clientId, deliveryKey: job.deliveryKey } },
+    });
+    return { ...f, runtime, issuer, recovery, create, read, search, input, issue, connectionWhere, issuance, attempts, inbox, processor, delivery, stored };
   }
 
   it('returns an empty recovery view before any sandbox issuance', async () => {
@@ -223,5 +243,143 @@ paymentIntegrationSuite('sandbox Pix recovery (disposable PostgreSQL)', () => {
     await expect(f.recovery.recover(f.actor, input)).rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
     expect(f.read).not.toHaveBeenCalled();
     expect(f.search).not.toHaveBeenCalled();
+  });
+  it('acknowledges a pending webhook against the persisted binding and keeps the QR visible', async () => {
+    const f = await setup();
+    const input = await f.issue();
+    const job = await f.delivery();
+
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({
+      resultCode: 'VERIFIED_PENDING', matchedIssuanceId: input.issuanceId,
+      processedAt: expect.any(Date), reviewRequiredAt: null, leaseToken: null,
+    });
+    expect(await f.issuer.read(f.actor)).toMatchObject({ status: 'PENDING', copyAndPaste: context.fixtureQr() });
+    expect(await f.recovery.read(f.actor)).toMatchObject({
+      lastWebhook: { status: 'VERIFIED_PENDING', receivedAt: expect.any(Date) },
+    });
+    expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('does not restore a QR when an out-of-order pending webhook follows an approval', async () => {
+    const f = await setup();
+    const input = await f.issue();
+    const approved = await f.delivery();
+    f.read.mockResolvedValueOnce('APPROVED');
+
+    expect(await f.processor.execute(approved)).toBe(true);
+    expect(await f.stored(approved)).toMatchObject({ resultCode: 'VERIFIED_APPROVED', processedAt: expect.any(Date) });
+    const pending = await f.delivery();
+    expect(await f.processor.execute(pending)).toBe(true);
+    expect(await f.stored(pending)).toMatchObject({ resultCode: 'VERIFIED_PENDING' });
+    expect(await f.issuance(input.issuanceId)).toMatchObject({ status: 'REVIEW_REQUIRED', copyAndPasteCiphertext: null });
+    expect(await context.ledger(f.receivable.id)).toMatchObject({
+      receivable: { receivedInCents: 0, status: 'OPEN', version: 1 }, payments: [],
+    });
+  });
+
+  it.each(['REFUNDED', 'REVIEW_REQUIRED'] as const)('marks a verified %s webhook for review', async (status) => {
+    const f = await setup();
+    const input = await f.issue();
+    f.read.mockResolvedValue(status);
+    const job = await f.delivery();
+
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({
+      resultCode: 'VERIFIED_' + status, matchedIssuanceId: input.issuanceId,
+      reviewRequiredAt: expect.any(Date), processedAt: null,
+    });
+    expect(await f.issuance(input.issuanceId)).toMatchObject({ status: 'REVIEW_REQUIRED', copyAndPasteCiphertext: null });
+    expect(await f.inbox.claim(f.clientId, randomUUID())).toBeNull();
+  });
+
+  it('does not contact a seller for an unmatched signed payment identifier', async () => {
+    const f = await setup();
+    await f.issue();
+    const job = await f.delivery('123');
+
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({
+      resultCode: 'UNMATCHED_PAYMENT', attempts: 1, processedAt: null, matchedIssuanceId: null,
+    });
+    expect(f.read).not.toHaveBeenCalled();
+  });
+
+  it('does not renew or use disconnected credentials in the webhook worker', async () => {
+    const f = await setup();
+    await f.issue();
+    await context.prisma.mercadoPagoConnection.update({
+      where: f.connectionWhere,
+      data: { disconnectedAt: new Date(), accessTokenCiphertext: null, refreshTokenCiphertext: null, expiresAt: null },
+    });
+    const job = await f.delivery();
+
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'CREDENTIAL_UNAVAILABLE', processedAt: null });
+    expect(f.read).not.toHaveBeenCalled();
+  });
+
+  it('handles a sandbox webhook without a user session and never applies it to the live ledger', async () => {
+    const f = await setup();
+    const input = await f.issue();
+    await context.prisma.authSession.update({
+      where: { id: f.actor.sessionId }, data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
+    });
+    const job = await f.delivery();
+    f.read.mockResolvedValue('APPROVED');
+
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'VERIFIED_APPROVED', matchedIssuanceId: input.issuanceId });
+    expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('does not finalize an event or invalidate its QR after the event lease expires', async () => {
+    const f = await setup();
+    const input = await f.issue();
+    const job = await f.delivery();
+    f.read.mockImplementationOnce(async () => {
+      await context.prisma.mercadoPagoWebhookEvent.update({
+        where: { clientId_deliveryKey: { clientId: job.clientId, deliveryKey: job.deliveryKey } },
+        data: { leaseExpiresAt: new Date(Date.now() - 1000) },
+      });
+      return 'APPROVED';
+    });
+
+    expect(await f.processor.execute(job)).toBe(false);
+    expect(await f.stored(job)).toMatchObject({ processedAt: null, attempts: 0 });
+    expect(await f.issuance(input.issuanceId)).toMatchObject({ status: 'PENDING', copyAndPasteCiphertext: expect.any(String) });
+    const replacement = await f.inbox.claim(f.clientId, randomUUID());
+    expect(replacement).toMatchObject({ deliveryKey: job.deliveryKey });
+  });
+
+  it('retries when the connection changes during provider verification', async () => {
+    const f = await setup();
+    const input = await f.issue();
+    const job = await f.delivery();
+    f.read.mockImplementationOnce(async () => {
+      await context.prisma.mercadoPagoConnection.update({
+        where: f.connectionWhere, data: { connectedAt: new Date(Date.now() - 60000) },
+      });
+      return 'APPROVED';
+    });
+
+    expect(await f.processor.execute(job)).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'CONNECTION_CHANGED', processedAt: null });
+    expect(await f.issuance(input.issuanceId)).toMatchObject({ status: 'PENDING' });
+  });
+
+  it('rejects a checked response that refers to a different payment', async () => {
+    const f = await setup();
+    const input = await f.issue();
+    const job = await f.delivery();
+    const prepared = await f.inbox.prepare(job);
+    if (prepared.kind !== 'READY') throw new Error('Expected a bound payment');
+
+    expect(await f.inbox.settle(job, {
+      kind: 'CHECKED', binding: { ...prepared.access.binding, paymentId: '123' },
+      connectedAt: prepared.access.connectedAt, status: 'APPROVED',
+    })).toBe(true);
+    expect(await f.stored(job)).toMatchObject({ resultCode: 'INVALID_PROVIDER_PAYMENT', reviewRequiredAt: expect.any(Date) });
+    expect(await f.issuance(input.issuanceId)).toMatchObject({ status: 'PENDING' });
   });
 });
