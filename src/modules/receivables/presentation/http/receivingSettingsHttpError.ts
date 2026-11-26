@@ -15,6 +15,9 @@ const statuses = {
   RECEIVING_SETTINGS_VERSION_CONFLICT: HttpStatus.CONFLICT,
   RECEIVING_SETTINGS_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   RECEIVING_SETTINGS_BUSY: HttpStatus.SERVICE_UNAVAILABLE,
+  RECEIVABLE_NOT_FOUND: HttpStatus.NOT_FOUND,
+  PIX_DESTINATION_NOT_CONFIGURED: HttpStatus.CONFLICT,
+  PIX_CHARGE_NOT_AVAILABLE: HttpStatus.CONFLICT,
 } satisfies Record<ReceivingSettingsErrorCode, HttpStatus>;
 
 export function receivingSettingsOperation<T>(operation: () => Promise<T>): Promise<T> {
