@@ -6,14 +6,10 @@ import { PrivateObjectStorage } from '../../shared/storage/privateObjectStorage.
 
 import { WorkOrderPortfolioRepository } from './application/ports/workOrderPortfolio.repository.js';
 import { WorkOrderShareSecurity } from './application/ports/workOrderShareSecurity.port.js';
-import {
-  GetPublicPortfolioPhotoContentUseCase,
-} from './application/useCases/getPublicPortfolioPhotoContent.useCase.js';
+import { GetPublicPortfolioPhotoContentUseCase } from './application/useCases/getPublicPortfolioPhotoContent.useCase.js';
 import { ManageWorkOrderPortfolioUseCase } from './application/useCases/manageWorkOrderPortfolio.useCase.js';
 import { PublicPortfolioConsentUseCase } from './application/useCases/publicPortfolioConsent.useCase.js';
-import {
-  PrismaWorkOrderPortfolioRepository,
-} from './infrastructure/repositories/prismaWorkOrderPortfolio.repository.js';
+import { PrismaWorkOrderPortfolioRepository } from './infrastructure/repositories/prismaWorkOrderPortfolio.repository.js';
 import { NodeWorkOrderShareSecurity } from './infrastructure/security/nodeWorkOrderShareSecurity.js';
 import { PublicPortfolioImagesController } from './presentation/http/controllers/publicPortfolioImages.controller.js';
 import { WorkOrderPortfolioController } from './presentation/http/controllers/workOrderPortfolio.controller.js';

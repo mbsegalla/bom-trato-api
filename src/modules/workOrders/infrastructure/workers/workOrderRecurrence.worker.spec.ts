@@ -7,6 +7,7 @@ import type { WorkOrderRecurrenceGeneration } from '../../application/ports/work
 import type { WorkOrderRecurrenceReminderRepository } from '../../application/ports/workOrderRecurrenceReminder.port.js';
 import { GenerateWorkOrderRecurrenceUseCase } from '../../application/useCases/generateWorkOrderRecurrence.useCase.js';
 import { RemindWorkOrderRecurrenceUseCase } from '../../application/useCases/remindWorkOrderRecurrence.useCase.js';
+
 import { WorkOrderRecurrenceWorker } from './workOrderRecurrence.worker.js';
 import { WorkOrderRecurrenceReminderWorker } from './workOrderRecurrenceReminder.worker.js';
 

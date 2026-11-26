@@ -33,7 +33,10 @@ export class PdfKitWorkOrderDocumentGenerator extends WorkOrderDocumentPdfGenera
       margins: { top: 56, bottom: 56, left: 48, right: 48 },
       bufferPages: true,
       info: {
-        Title: data.workOrder.id === null ? 'Relatório do atendimento' : `Relatório da ordem de serviço ${data.workOrder.id}`,
+        Title:
+          data.workOrder.id === null
+            ? 'Relatório do atendimento'
+            : `Relatório da ordem de serviço ${data.workOrder.id}`,
         Author: data.organizationName,
         Creator: 'Bom Trato',
       },
@@ -145,14 +148,21 @@ class WorkOrderReportLayout {
   private header(): void {
     this.doc.font('Helvetica').fontSize(8).fillColor('#64748B');
     this.doc.text('BOM TRATO | RELATÓRIO DE SERVIÇO', this.left, 25, { lineBreak: false });
-    this.doc.moveTo(this.left, 42).lineTo(this.left + this.width, 42).strokeColor('#CBD5E1').stroke();
+    this.doc
+      .moveTo(this.left, 42)
+      .lineTo(this.left + this.width, 42)
+      .strokeColor('#CBD5E1')
+      .stroke();
     this.doc.font('Helvetica').fontSize(10).fillColor('#0F172A');
     this.doc.x = this.left;
     this.doc.y = 56;
   }
 
   private text(value: string, size = 10, bold = false): void {
-    this.doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(size).fillColor('#0F172A');
+    this.doc
+      .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+      .fontSize(size)
+      .fillColor('#0F172A');
     this.doc.text(value, this.left, this.doc.y, { width: this.width, lineGap: 3 });
     this.doc.y += 5;
   }
@@ -174,7 +184,9 @@ class WorkOrderReportLayout {
     for (let index = range.start; index < range.start + range.count; index++) {
       this.doc.switchToPage(index);
       this.doc.font('Helvetica').fontSize(8).fillColor('#64748B');
-      this.doc.text(`Página ${index + 1} de ${range.count}`, this.left, this.doc.page.height - 35, { lineBreak: false });
+      this.doc.text(`Página ${index + 1} de ${range.count}`, this.left, this.doc.page.height - 35, {
+        lineBreak: false,
+      });
     }
   }
 }

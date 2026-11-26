@@ -1,4 +1,5 @@
 import type { WorkOrderPhotoStage } from '../../../../generated/prisma/enums.js';
+
 import type { WorkOrderByIdParams } from './workOrder.types.js';
 
 export const WORK_ORDER_PORTFOLIO_CONSENT_VERSION = '1';

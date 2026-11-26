@@ -200,7 +200,13 @@ describe('work order recurrence HTTP contract', () => {
 
     expect(list).toHaveBeenCalledWith(
       { organizationId, userId },
-      expect.objectContaining({ page: 2, limit: 5, status: 'ACTIVE', visit: 'NEXT_SEVEN_DAYS', customerName: 'Cliente' }),
+      expect.objectContaining({
+        page: 2,
+        limit: 5,
+        status: 'ACTIVE',
+        visit: 'NEXT_SEVEN_DAYS',
+        customerName: 'Cliente',
+      }),
     );
     expect(response.body).toMatchObject({ statusCode: 200, success: true, data: page });
   });
@@ -234,10 +240,7 @@ describe('work order recurrence HTTP contract', () => {
   });
 
   it('rejects invalid organization and work order identifiers', async () => {
-    await request(server)
-      .get(route.replace(workOrderId, 'invalid'))
-      .set('Authorization', 'Bearer fixture')
-      .expect(400);
+    await request(server).get(route.replace(workOrderId, 'invalid')).set('Authorization', 'Bearer fixture').expect(400);
     await request(server)
       .get(listRoute.replace(organizationId, 'invalid'))
       .set('Authorization', 'Bearer fixture')
@@ -261,11 +264,7 @@ describe('work order recurrence HTTP contract', () => {
   ] as const)('maps %s to the standard HTTP error envelope', async (code, status) => {
     save.mockRejectedValueOnce(new WorkOrderError(code));
 
-    const response = await request(server)
-      .put(route)
-      .set('Authorization', 'Bearer fixture')
-      .send(input)
-      .expect(status);
+    const response = await request(server).put(route).set('Authorization', 'Bearer fixture').send(input).expect(status);
 
     expect(response.body).toMatchObject({ statusCode: status, success: false, error: { code } });
   });

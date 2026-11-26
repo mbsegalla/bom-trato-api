@@ -6,6 +6,7 @@ import { OrganizationAccessPolicy } from '../../../organizations/domain/policies
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { WorkOrderDocumentRepository } from '../../application/ports/workOrderDocumentRepository.port.js';
+import type { WorkOrderByIdParams } from '../../application/types/workOrder.types.js';
 import type {
   InternalWorkOrderDocumentData,
   UpdateWorkOrderWarrantyInput,
@@ -13,7 +14,6 @@ import type {
   WorkOrderWarranty,
   WorkOrderWarrantyResult,
 } from '../../application/types/workOrderDocument.types.js';
-import type { WorkOrderByIdParams } from '../../application/types/workOrder.types.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderWarrantyError } from '../../domain/errors/workOrderWarranty.error.js';
 
@@ -152,7 +152,11 @@ export class PrismaWorkOrderDocumentRepository extends WorkOrderDocumentReposito
     return workOrder;
   }
 
-  private async isAccepted(db: Prisma.TransactionClient, workOrderId: string, completedAt: Date | null): Promise<boolean> {
+  private async isAccepted(
+    db: Prisma.TransactionClient,
+    workOrderId: string,
+    completedAt: Date | null,
+  ): Promise<boolean> {
     if (completedAt === null) {
       return false;
     }

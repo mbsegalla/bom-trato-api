@@ -1,12 +1,12 @@
+import type { WorkOrderByIdParams } from '../types/workOrder.types.js';
 import type {
+  PortalPortfolioStatus,
   PortfolioConsentInput,
   PortfolioManagementParams,
   PortfolioManagementStatus,
   PortfolioPublicationInput,
-  PortalPortfolioStatus,
   PublicPortfolioPhoto,
 } from '../types/workOrderPortfolio.types.js';
-import type { WorkOrderByIdParams } from '../types/workOrder.types.js';
 
 export abstract class WorkOrderPortfolioRepository {
   abstract getPortalStatus(tokenHash: string): Promise<PortalPortfolioStatus>;

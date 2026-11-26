@@ -20,7 +20,8 @@ import { ReceivingSettingsController } from './presentation/http/controllers/rec
   providers: [
     {
       provide: ReceivingSettingsCipher,
-      useFactory: (config: ConfigType<typeof receivingSettingsConfig>) => new ReceivingSettingsCipher(config.encryptionKey),
+      useFactory: (config: ConfigType<typeof receivingSettingsConfig>) =>
+        new ReceivingSettingsCipher(config.encryptionKey),
       inject: [receivingSettingsConfig.KEY],
     },
     { provide: ReceivingSettingsRepository, useClass: PrismaReceivingSettingsRepository },

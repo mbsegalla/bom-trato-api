@@ -25,7 +25,7 @@ class FixtureUnitOfWork extends QuoteUnitOfWork {
     throw new Error('The recurrence action must use a write transaction.');
   }
 
-  run<T>(_params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
+  async run<T>(_params: QuoteActorParams, operation: (tx: QuoteTransaction) => Promise<T>): Promise<T> {
     return operation(this.tx);
   }
 }

@@ -1,0 +1,82 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Backend validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    env:
+      HUSKY: '0'
+      DATABASE_URL: postgresql://bom_trato_ci:ci_only_password@127.0.0.1:5432/bom_trato_ci?schema=public
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: bom_trato_ci
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: bom_trato_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bom_trato_ci -d bom_trato_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Prisma schema
+        run: pnpm exec prisma validate
+
+      - name: Generate Prisma Client
+        run: pnpm prisma:generate
+
+      - name: Check code quality
+        run: pnpm check
+
+      - name: Apply migrations to disposable database
+        run: pnpm exec prisma migrate deploy
+
+      - name: Run tests
+        run: pnpm exec vitest run --config vitest.config.ts
+
+      - name: Build API
+        run: pnpm build

@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import { PIX_KEY_TYPES, type PixKeyType, type ReceivingSettingsView } from '../../../../application/types/receivingSettings.types.js';
+import {
+  PIX_KEY_TYPES,
+  type PixKeyType,
+  type ReceivingSettingsView,
+} from '../../../../application/types/receivingSettings.types.js';
 
 export class ReceivingSettingsResponseDto implements ReceivingSettingsView {
   @ApiProperty()

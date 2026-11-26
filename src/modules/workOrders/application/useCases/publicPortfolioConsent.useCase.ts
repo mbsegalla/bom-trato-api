@@ -1,6 +1,6 @@
 import type { WorkOrderPortfolioRepository } from '../ports/workOrderPortfolio.repository.js';
 import type { WorkOrderShareSecurity } from '../ports/workOrderShareSecurity.port.js';
-import type { PortfolioConsentInput, PortalPortfolioStatus } from '../types/workOrderPortfolio.types.js';
+import type { PortalPortfolioStatus, PortfolioConsentInput } from '../types/workOrderPortfolio.types.js';
 
 export class PublicPortfolioConsentUseCase {
   constructor(

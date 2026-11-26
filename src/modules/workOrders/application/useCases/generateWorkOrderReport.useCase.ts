@@ -2,8 +2,8 @@ import { OrganizationAccessPolicy } from '../../../organizations/domain/policies
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import type { WorkOrderDocumentPdfGenerator } from '../ports/workOrderDocumentPdfGenerator.port.js';
 import type { WorkOrderDocumentRepository } from '../ports/workOrderDocumentRepository.port.js';
-import type { WorkOrderDocumentFile } from '../types/workOrderDocument.types.js';
 import type { WorkOrderByIdParams } from '../types/workOrder.types.js';
+import type { WorkOrderDocumentFile } from '../types/workOrderDocument.types.js';
 
 export class GenerateWorkOrderReportUseCase {
   constructor(

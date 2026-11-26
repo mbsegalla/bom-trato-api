@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
-import type { PixKeyType } from '../../domain/types/receivingSettings.types.js';
 import { ReceivingSettingsError } from '../../domain/errors/receivingSettings.error.js';
+import type { PixKeyType } from '../../domain/types/receivingSettings.types.js';
 
 export class ReceivingSettingsCipher {
   private readonly key: Buffer | null;

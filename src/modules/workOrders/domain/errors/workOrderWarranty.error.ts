@@ -1,7 +1,5 @@
 export type WorkOrderWarrantyErrorCode =
-  | 'INVALID_WORK_ORDER_WARRANTY'
-  | 'WORK_ORDER_WARRANTY_LOCKED'
-  | 'WORK_ORDER_WARRANTY_VERSION_CONFLICT';
+  'INVALID_WORK_ORDER_WARRANTY' | 'WORK_ORDER_WARRANTY_LOCKED' | 'WORK_ORDER_WARRANTY_VERSION_CONFLICT';
 
 export class WorkOrderWarrantyError extends Error {
   constructor(readonly code: WorkOrderWarrantyErrorCode) {

@@ -20,9 +20,9 @@ import type { WorkOrderAcceptanceReceipt } from '../src/modules/workOrders/appli
 import { AcceptPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/acceptPublicWorkOrder.useCase.js';
 import { GeneratePublicWorkOrderReportUseCase } from '../src/modules/workOrders/application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrder.useCase.js';
-import { PublicPortfolioConsentUseCase } from '../src/modules/workOrders/application/useCases/publicPortfolioConsent.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { GetWorkOrderAcceptanceUseCase } from '../src/modules/workOrders/application/useCases/getWorkOrderAcceptance.useCase.js';
+import { PublicPortfolioConsentUseCase } from '../src/modules/workOrders/application/useCases/publicPortfolioConsent.useCase.js';
 import { WORK_ORDER_ACCEPTANCE_CONSENT_TEXT } from '../src/modules/workOrders/domain/entities/workOrderAcceptance.entity.js';
 import { WorkOrderError } from '../src/modules/workOrders/domain/errors/workOrder.error.js';
 import { WorkOrderAcceptanceError } from '../src/modules/workOrders/domain/errors/workOrderAcceptance.error.js';
@@ -77,7 +77,10 @@ describe('work order acceptance HTTP contract', () => {
         { provide: GetWorkOrderAcceptanceUseCase, useValue: { execute: internal } },
         { provide: GetPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
         { provide: GeneratePublicWorkOrderReportUseCase, useValue: { execute: async () => new Uint8Array() } },
-        { provide: PublicPortfolioConsentUseCase, useValue: { status: async () => ({}), consent: async () => ({}), revoke: async () => ({}) } },
+        {
+          provide: PublicPortfolioConsentUseCase,
+          useValue: { status: async () => ({}), consent: async () => ({}), revoke: async () => ({}) },
+        },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: async () => new Uint8Array() } },
         { provide: PostgresPublicShareRateLimit, useValue: { check: rateLimit } },
       ],

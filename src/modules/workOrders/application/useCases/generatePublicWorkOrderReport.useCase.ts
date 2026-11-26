@@ -1,5 +1,6 @@
 import type { WorkOrderDocumentPdfGenerator } from '../ports/workOrderDocumentPdfGenerator.port.js';
 import type { WorkOrderDocumentData } from '../types/workOrderDocument.types.js';
+
 import type { GetPublicWorkOrderUseCase } from './getPublicWorkOrder.useCase.js';
 
 export class GeneratePublicWorkOrderReportUseCase {

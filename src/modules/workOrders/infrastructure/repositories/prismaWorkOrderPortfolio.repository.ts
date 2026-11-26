@@ -9,18 +9,18 @@ import { readOrganizationAccess } from '../../../organizations/infrastructure/ac
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { PublicProfileError } from '../../../publicProfiles/domain/errors/publicProfile.error.js';
 import { WorkOrderPortfolioRepository } from '../../application/ports/workOrderPortfolio.repository.js';
+import type { WorkOrderByIdParams } from '../../application/types/workOrder.types.js';
 import type {
+  PortalPortfolioStatus,
   PortfolioConsentInput,
   PortfolioManagementParams,
   PortfolioManagementStatus,
   PortfolioPublicationInput,
-  PortalPortfolioStatus,
   PublicPortfolioPhoto,
 } from '../../application/types/workOrderPortfolio.types.js';
 import { WORK_ORDER_PORTFOLIO_CONSENT_VERSION } from '../../application/types/workOrderPortfolio.types.js';
-import type { WorkOrderByIdParams } from '../../application/types/workOrder.types.js';
-import { WorkOrderShare } from '../../domain/entities/workOrderShare.entity.js';
 import type { WorkOrderShareProps } from '../../domain/entities/workOrderShare.entity.js';
+import { WorkOrderShare } from '../../domain/entities/workOrderShare.entity.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { WorkOrderPortfolioError } from '../../domain/errors/workOrderPortfolio.error.js';
 import { WorkOrderShareError } from '../../domain/errors/workOrderShare.error.js';
@@ -138,10 +138,7 @@ export class PrismaWorkOrderPortfolioRepository extends WorkOrderPortfolioReposi
         });
       }
 
-      return toPortalStatus(
-        await this.findSharePhotos(db, share.organizationId, share.workOrderId),
-        true,
-      );
+      return toPortalStatus(await this.findSharePhotos(db, share.organizationId, share.workOrderId), true);
     });
   }
 

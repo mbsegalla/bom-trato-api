@@ -182,9 +182,12 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
 
   if (
     env.RECEIVING_SETTINGS_ENCRYPTION_KEY !== undefined &&
-    [env.AUTH_JWT_SECRET, env.AUTH_CSRF_SECRET, env.NOTIFICATION_ENCRYPTION_KEY, env.QUOTE_SHARE_RATE_LIMIT_SECRET].some(
-      (key) => key.toLowerCase() === env.RECEIVING_SETTINGS_ENCRYPTION_KEY?.toLowerCase(),
-    )
+    [
+      env.AUTH_JWT_SECRET,
+      env.AUTH_CSRF_SECRET,
+      env.NOTIFICATION_ENCRYPTION_KEY,
+      env.QUOTE_SHARE_RATE_LIMIT_SECRET,
+    ].some((key) => key.toLowerCase() === env.RECEIVING_SETTINGS_ENCRYPTION_KEY?.toLowerCase())
   ) {
     throw new Error('RECEIVING_SETTINGS_ENCRYPTION_KEY must be independent of other application secrets');
   }

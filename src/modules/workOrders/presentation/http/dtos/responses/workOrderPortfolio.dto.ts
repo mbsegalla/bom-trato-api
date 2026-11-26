@@ -1,10 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import { WorkOrderPhotoStage } from '../../../../../../generated/prisma/enums.js';
-
 import type {
-  PortfolioManagementStatus,
   PortalPortfolioStatus,
+  PortfolioManagementStatus,
 } from '../../../../application/types/workOrderPortfolio.types.js';
 
 export class PortalPortfolioPhotoDto {
