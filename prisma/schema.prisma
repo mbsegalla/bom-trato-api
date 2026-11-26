@@ -1444,6 +1444,8 @@ model MercadoPagoSandboxPix {
 
   receivable Receivable @relation(fields: [receivableId, organizationId], references: [id, organizationId], onDelete: Restrict, map: "MercadoPagoSandboxPix_receivable_fkey")
 
+  recoveries MercadoPagoSandboxPixRecovery[]
+
   @@unique([receivableId, organizationId], map: "MercadoPagoSandboxPix_receivable_key")
   @@unique([accountId, externalPaymentId], map: "MercadoPagoSandboxPix_external_key")
   @@index([clientId, externalPaymentId])
@@ -1471,4 +1473,36 @@ model MercadoPagoWebhookEvent {
   @@index([clientId, paymentId])
   @@index([clientId, nextAttemptAt])
   @@index([receivedAt])
+}
+
+// Recovery attempts are audit records, not payment or ledger entries.
+enum MercadoPagoSandboxRecoveryStatus {
+  IN_PROGRESS
+  ABANDONED
+  NOT_FOUND
+  AMBIGUOUS
+  INVALID_PROVIDER_PAYMENT
+  PROVIDER_UNAVAILABLE
+  CONNECTION_CHANGED
+  BINDING_CONFLICT
+  VERIFIED_PENDING
+  VERIFIED_APPROVED
+  VERIFIED_CLOSED
+  VERIFIED_REFUNDED
+  VERIFIED_REVIEW_REQUIRED
+}
+
+model MercadoPagoSandboxPixRecovery {
+  id             String                          @id @default(uuid()) @db.Uuid
+  issuanceId     String                          @db.Uuid
+  startedById    String                          @db.Uuid
+  startedAt      DateTime                        @default(now()) @db.Timestamptz(3)
+  leaseExpiresAt DateTime                        @db.Timestamptz(3)
+  completedAt    DateTime?                       @db.Timestamptz(3)
+  status         MercadoPagoSandboxRecoveryStatus @default(IN_PROGRESS)
+  paymentId      String?                         @db.VarChar(30)
+
+  issuance MercadoPagoSandboxPix @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
+
+  @@index([issuanceId, startedAt])
 }
