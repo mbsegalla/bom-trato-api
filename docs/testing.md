@@ -27,3 +27,22 @@ The full suite remains the required Backend CI check alongside existing typechec
 For each feature or bug fix add the smallest useful regression test in the owning layer. Cover the happy path, invalid input, boundary values, permissions, organization isolation, state transitions, idempotency and rollback when applicable. Financial operations require transaction and concurrency tests, not just mocks. Use named fixtures, fixed dates, synthetic identities and scoped cleanup. Avoid tests that simply restate implementation, broad snapshots and real provider credentials. Keep network adapters mocked unless explicitly running a disposable integration environment.
 
 Coverage reports are diagnostic; prioritize untested risky behavior over an arbitrary percentage. This expansion is a baseline, not proof of exhaustive coverage. Remaining priorities include complete CRUD/use-case and HTTP authorization matrices, Stripe webhook retries, real database isolation across all modules, and deployed end-to-end workflows. External payment/OAuth homologation remains separate.
+
+## Second regression expansion
+
+The full CI suite now produces Vitest V8 coverage including unexecuted source
+files, HTML/JSON reports and `coverage/layers.md` with weighted lines,
+branches and functions per architectural layer. GitHub Actions publishes
+`backend-coverage` and the job summary. Targets (not gates): domain 95%,
+application 90%, infrastructure and presentation 80% line coverage.
+Record a measured baseline before imposing thresholds. The report lists
+zero-covered files; absence from that list does not establish adequate tests.
+Coverage must not replace risk-based review of behavior.
+
+New tests cover authentication use cases, checkout recovery and authorization,
+Pix release admission, customer access and real PostgreSQL tenant isolation,
+manual-payment duplicate requests and rollback. The customer HTTP suite
+runs the actual access-token guard with fake token verification and session
+repository; persistence isolation is exercised independently against the
+CI database. No external providers are contacted. This does not yet cover
+all endpoint/use-case permutations or deployed end-to-end flows.
