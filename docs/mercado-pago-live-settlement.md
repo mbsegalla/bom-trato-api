@@ -1,5 +1,7 @@
 # Phase 4.5.8 — live payment confirmation and receivable settlement
 
+> Release update (4.5.10): this page documents a historical increment. For the current bounded pilot gate, credential continuity, deployment, homologation checklist and incident response, follow [the production pilot runbook](mercado-pago-production-pilot.md). All live switches remain disabled by default; external verification and explicit operator approval are still mandatory.
+
 Apply migration `20261127010000_add_mercado_pago_live_webhook_inbox` and regenerate
 Prisma. No new dependencies or frontend changes. The production inbox and
 worker are separate from sandbox, and their flags default to false.

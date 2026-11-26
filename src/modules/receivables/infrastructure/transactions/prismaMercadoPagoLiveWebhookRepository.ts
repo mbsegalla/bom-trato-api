@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable } from '@nestjs/common';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
@@ -5,7 +7,7 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { MercadoPagoLiveWebhookRepository } from '../../application/ports/mercadoPagoLiveWebhookRepository.port.js';
 import { ReceivingSettingsError } from '../../domain/errors/receivingSettings.error.js';
-import { decideMercadoPagoCredentialAccess } from '../../domain/policies/mercadoPagoRefresh.policy.js';
+import { decideMercadoPagoCredentialAccess, MERCADO_PAGO_REFRESH_MARGIN_MS } from '../../domain/policies/mercadoPagoRefresh.policy.js';
 import {
   MERCADO_PAGO_WEBHOOK_MAX_ATTEMPTS,
   mercadoPagoWebhookRetryDelaySeconds,
@@ -27,6 +29,14 @@ import type { Disposition } from './mercadoPagoLiveSettlement.js';
 type Db = Prisma.TransactionClient | PrismaService;
 
 class LeaseLost extends Error {}
+
+interface LiveRefreshClaim {
+  kind: 'ROTATE';
+  binding: LivePixWebhookBinding;
+  claimId: string;
+  connectedAt: Date;
+  refreshToken: string;
+}
 
 @Injectable()
 export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebhookRepository {
@@ -70,6 +80,22 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
   }
 
   async prepare(job: ClaimedMercadoPagoWebhook): Promise<LiveWebhookPreparation> {
+    const prepared = await this.prepareCredential(job, true);
+    if (prepared.kind !== 'ROTATE') return prepared;
+
+    if (!(await this.rotateCredential(job, prepared))) {
+      return { kind: 'RETRY', code: 'CREDENTIAL_UNAVAILABLE' };
+    }
+
+    // Re-read the complete binding, lease and connection stamp after rotation.
+    const fresh = await this.prepareCredential(job, false);
+    return fresh.kind === 'ROTATE' ? { kind: 'RETRY', code: 'CREDENTIAL_UNAVAILABLE' } : fresh;
+  }
+
+  private async prepareCredential(
+    job: ClaimedMercadoPagoWebhook,
+    allowRotation: boolean,
+  ): Promise<LiveWebhookPreparation | LiveRefreshClaim> {
     if (!this.runtime.liveMode || this.runtime.client === null || this.runtime.clientId !== job.clientId) {
       return { kind: 'RETRY', code: 'CREDENTIAL_UNAVAILABLE' };
     }
@@ -81,19 +107,46 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
     const binding = bindingFrom(found, job);
     if (!matchesBinding(found, binding)) return { kind: 'REVIEW', code: 'INVALID_BINDING' };
 
-    return organizationTransaction<LiveWebhookPreparation>(
+    return organizationTransaction<LiveWebhookPreparation | LiveRefreshClaim>(
       this.prisma,
       binding.organizationId,
-      'read',
+      'write',
       async (db) => {
+        if (!(await this.leaseCurrent(db, job))) {
+          return { kind: 'RETRY', code: 'PROCESSING_FAILED' };
+        }
+
         const current = await this.find(db, job);
         if (!matchesBinding(current, binding)) return { kind: 'REVIEW', code: 'INVALID_BINDING' };
 
         if (!(await this.originalOwner(db, binding))) return { kind: 'OWNER_CHANGED', binding };
 
-        const connection = await this.currentConnection(db, binding);
+        const connection = await this.credentialCandidate(db, binding);
         if (connection === null || connection.accessTokenCiphertext === null) {
           return { kind: 'RETRY', code: 'CREDENTIAL_UNAVAILABLE' };
+        }
+
+        if (connection.decision === 'ROTATE') {
+          // The provider originally returned offline_access. Only renew a
+          // still-valid grant for a leased, exactly bound live payment, never
+          // for unknown IDs or unrelated sellers. Subscription expiry alone
+          // does not stop collecting evidence of money already paid.
+          const now = new Date();
+          if (!allowRotation || connection.expiresAt === null || connection.expiresAt <= now ||
+            connection.refreshTokenCiphertext === null || !(await this.rotationAuthorized(db, binding))) {
+            return { kind: 'RETRY', code: 'CREDENTIAL_UNAVAILABLE' };
+          }
+
+          const claimId = randomUUID();
+          const refreshToken = this.runtime.cipher.open(
+            ['credential', binding.organizationId, binding.clientId, 'true', binding.accountId, 'refresh'],
+            connection.refreshTokenCiphertext,
+          );
+          await db.mercadoPagoConnection.update({
+            where: { organizationId_liveMode: { organizationId: binding.organizationId, liveMode: true } },
+            data: { refreshClaimId: claimId, refreshStartedAt: now },
+          });
+          return { kind: 'ROTATE', binding, claimId, connectedAt: connection.connectedAt, refreshToken };
         }
 
         return {
@@ -193,7 +246,79 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
     return organization?.ownerId === binding.ownerId;
   }
 
+  private async leaseCurrent(db: Prisma.TransactionClient, job: ClaimedMercadoPagoWebhook): Promise<boolean> {
+    const rows = await db.$queryRaw<Array<{ deliveryKey: string }>>`
+      SELECT "deliveryKey" FROM "MercadoPagoLiveWebhookEvent"
+      WHERE "clientId" = ${job.clientId} AND "deliveryKey" = ${job.deliveryKey}
+        AND "paymentId" = ${job.paymentId} AND "leaseToken" = ${job.leaseToken}::uuid
+        AND "leaseExpiresAt" > clock_timestamp()
+        AND "processedAt" IS NULL AND "reviewRequiredAt" IS NULL
+      FOR SHARE
+    `;
+    return rows.length === 1;
+  }
+
+  private async rotationAuthorized(db: Prisma.TransactionClient, binding: LivePixWebhookBinding): Promise<boolean> {
+    if (!(await this.originalOwner(db, binding))) return false;
+    const member = await db.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: binding.organizationId, userId: binding.ownerId } },
+      select: { role: true, user: { select: { disabledAt: true, emailVerifiedAt: true } } },
+    });
+    return member?.role === 'OWNER' && member.user.disabledAt === null && member.user.emailVerifiedAt !== null;
+  }
+
+  private async rotateCredential(job: ClaimedMercadoPagoWebhook, claim: LiveRefreshClaim): Promise<boolean> {
+    const { binding } = claim;
+    const client = this.runtime.client;
+    if (client === null || !this.runtime.liveMode || this.runtime.clientId !== binding.clientId) return false;
+
+    // No provider I/O occurs inside a retryable database transaction. A
+    // timeout may consume the grant; keep the durable claim on any failure.
+    const renewed = await client.refreshCredentials(binding.accountId, claim.refreshToken).catch(() => null);
+    if (renewed === null || renewed.liveMode !== true || renewed.accountId !== binding.accountId ||
+      renewed.expiresAt.getTime() <= Date.now() + MERCADO_PAGO_REFRESH_MARGIN_MS) return false;
+
+    return organizationTransaction(
+      this.prisma,
+      binding.organizationId,
+      'write',
+      async (db) => {
+        const row = await this.find(db, job);
+        if (!matchesBinding(row, binding) || !(await this.rotationAuthorized(db, binding))) return false;
+        const oauth = await db.mercadoPagoOAuthAttempt.findUnique({
+          where: { organizationId: binding.organizationId },
+          select: { liveMode: true, expiresAt: true },
+        });
+        if (oauth !== null && oauth.liveMode && oauth.expiresAt > new Date()) return false;
+        const aad = ['credential', binding.organizationId, binding.clientId, 'true', binding.accountId];
+        // If the grant was consumed, preserve its new tokens even if the
+        // original event lease expired during I/O. The claim CAS prevents
+        // overwriting a disconnect/reconnect or another refresh. A new lease
+        // is still required before any payment can be queried or settled.
+        const saved = await db.mercadoPagoConnection.updateMany({
+          where: {
+            organizationId: binding.organizationId, liveMode: true, clientId: binding.clientId,
+            accountId: binding.accountId, connectedById: binding.ownerId,
+            connectedAt: claim.connectedAt, disconnectedAt: null, refreshClaimId: claim.claimId,
+          },
+          data: {
+            accessTokenCiphertext: this.runtime.cipher.seal([...aad, 'access'], renewed.accessToken),
+            refreshTokenCiphertext: this.runtime.cipher.seal([...aad, 'refresh'], renewed.refreshToken),
+            expiresAt: renewed.expiresAt, refreshClaimId: null, refreshStartedAt: null,
+          },
+        });
+        return saved.count === 1;
+      },
+      this.errors(),
+    );
+  }
+
   private async currentConnection(db: Prisma.TransactionClient, binding: LivePixWebhookBinding) {
+    const row = await this.credentialCandidate(db, binding);
+    return row?.decision === 'REUSE' ? row : null;
+  }
+
+  private async credentialCandidate(db: Prisma.TransactionClient, binding: LivePixWebhookBinding) {
     if (!this.runtime.liveMode || this.runtime.client === null || this.runtime.clientId !== binding.clientId) return null;
     const row = await db.mercadoPagoConnection.findUnique({
       where: { organizationId_liveMode: { organizationId: binding.organizationId, liveMode: true } },
@@ -210,9 +335,8 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
       now,
     );
 
-    // A settled payment must still be accounted for after subscription expiry.
-    // No fabricated owner session or autonomous refresh grant is used here.
-    return row !== null && row.accountId === binding.accountId && decision === 'REUSE' ? row : null;
+    return row !== null && row.accountId === binding.accountId && decision !== 'RECONNECT_REQUIRED'
+      ? { ...row, decision } : null;
   }
 
   private async finish(db: Db, job: ClaimedMercadoPagoWebhook, disposition: Disposition): Promise<boolean> {

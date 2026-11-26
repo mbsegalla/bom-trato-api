@@ -53,7 +53,7 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
 
   async issue(actor: MercadoPagoLivePixActor, input: IssueMercadoPagoLivePixInput): Promise<MercadoPagoLivePixIssuance> {
     assertLivePixInput(input);
-    if (!this.runtime.livePixAvailable) {
+    if (!this.runtime.livePixAllowed(actor.organizationId)) {
       throw new ReceivingSettingsError('MERCADO_PAGO_UNAVAILABLE');
     }
 
@@ -64,7 +64,7 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
     if (existing !== null) return existing;
 
     const access = await this.credentials.accessForOwner(actor);
-    if (!access.liveMode) return conflict();
+    if (!access.liveMode || !this.runtime.livePixAllowed(actor.organizationId, access.accountId)) return conflict();
 
     const reservation = await organizationTransaction(
       this.prisma,
@@ -83,7 +83,16 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
         const receivable = await this.receivable(db, actor);
         // The remaining-balance and BR Code invariants are identical in both modes.
         const amountInCents = sandboxPixBalance(receivable);
-        if (receivable.version !== input.version || amountInCents <= 0) return conflict();
+        if (receivable.version !== input.version ||
+          !this.runtime.livePixAllowed(actor.organizationId, access.accountId, amountInCents)) return conflict();
+
+        // Only one unresolved live reservation per pilot organization. Review
+        // evidence is not an authorization to collect from another customer.
+        const unresolved = await db.mercadoPagoLivePix.findFirst({
+          where: { organizationId: actor.organizationId, status: { in: ['RESERVED', 'PENDING', 'REVIEW_REQUIRED'] } },
+          select: { id: true },
+        });
+        if (unresolved !== null) return conflict();
 
         // A legacy/other provider charge is not evidence that it is safe to
         // issue another payment for the same receivable.
@@ -318,7 +327,7 @@ export class PrismaMercadoPagoLivePixRepository extends MercadoPagoLivePixReposi
     accountId: string,
     now: Date,
   ) {
-    if (!this.runtime.livePixAvailable || this.runtime.clientId !== clientId) return null;
+    if (!this.runtime.livePixAllowed(actor.organizationId, accountId) || this.runtime.clientId !== clientId) return null;
     const row = await db.mercadoPagoConnection.findUnique({
       where: { organizationId_liveMode: { organizationId: actor.organizationId, liveMode: true } },
     });

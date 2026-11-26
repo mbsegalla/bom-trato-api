@@ -34,7 +34,7 @@ export class MercadoPagoLivePixController {
   @Post()
   @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')
-  @ApiOperation({ summary: 'Reserve one live charge (blocked until release gate is lifted)' })
+  @ApiOperation({ summary: 'Reserve one live charge (approved organization/seller pilot only)' })
   @ApiDataResponse(MercadoPagoLivePixResponseDto)
   issue(
     @CurrentAuth() auth: AuthContext,

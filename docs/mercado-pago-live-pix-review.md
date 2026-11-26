@@ -1,5 +1,7 @@
 # Phase 4.5.9 — live Pix presentation, recovery and review
 
+> Release update (4.5.10): this page documents a historical increment. For the current bounded pilot gate, credential continuity, deployment, homologation checklist and incident response, follow [the production pilot runbook](mercado-pago-production-pilot.md). All live switches remain disabled by default; external verification and explicit operator approval are still mandatory.
+
 Deploy API before web. Apply
 `20261127020000_add_live_pix_recovery_and_align_work_order_schema`
 and regenerate Prisma. The migration also aligns the legacy checklist index

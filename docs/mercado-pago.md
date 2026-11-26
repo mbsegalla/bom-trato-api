@@ -1,5 +1,7 @@
 # Phase 4.5.2a — Mercado Pago integration client
 
+> Release update (4.5.10): this page documents a historical increment. For the current bounded pilot gate, credential continuity, deployment, homologation checklist and incident response, follow [the production pilot runbook](mercado-pago-production-pilot.md). All live switches remain disabled by default; external verification and explicit operator approval are still mandatory.
+
 This increment selects Mercado Pago for professional receivables, separate from
 Stripe subscription billing. It provides the internal HTTP client and contract
 tests. No route, scheduled job, stored credential, connection UI, payment creation

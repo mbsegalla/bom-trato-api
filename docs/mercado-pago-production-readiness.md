@@ -1,5 +1,7 @@
 # Phase 4.5.6 — production readiness and homologation gate
 
+> Release update (4.5.10): this page documents a historical increment. For the current bounded pilot gate, credential continuity, deployment, homologation checklist and incident response, follow [the production pilot runbook](mercado-pago-production-pilot.md). All live switches remain disabled by default; external verification and explicit operator approval are still mandatory.
+
 This increment verifies the existing financial settlement transaction and the
 sandbox webhook inbox with a disposable PostgreSQL database. It also requires
 explicit live-mode registration of provider charges: sandbox registrations
