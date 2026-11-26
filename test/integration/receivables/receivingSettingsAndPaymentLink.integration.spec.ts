@@ -1,7 +1,11 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import { expect, it } from 'vitest';
 
+import { ReceivableApplicationService } from '../../../src/modules/receivables/application/services/receivableApplicationService.service.js';
+import { RecordReceivablePaymentUseCase } from '../../../src/modules/receivables/application/useCases/recordReceivablePayment.useCase.js';
+import { PrismaReceivableUnitOfWork } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivableUnitOfWork.js';
+import { PrismaReceivablePixChargeRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivablePixChargeRepository.js';
 import type { SaveReceivingSettingsInput } from '../../../src/modules/receivables/domain/types/receivingSettings.types.js';
 import { ReceivingSettingsCipher } from '../../../src/modules/receivables/infrastructure/security/receivingSettingsCipher.js';
 import { PrismaReceivablePaymentLinkRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivablePaymentLinkRepository.js';
@@ -217,5 +221,74 @@ paymentIntegrationSuite('receiving settings and payment links (disposable Postgr
   it.each(['', 'A'.repeat(64), 'a'.repeat(63), 'f'.repeat(64)])('rejects invalid or unknown public tokens uniformly', async (token) => {
     const f = await setup(false);
     await expect(f.links.resolve(token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
+  });
+  it('returns a private Pix charge bound to the receivable and settings versions', async () => {
+    const f = await setup();
+    const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
+    const charge = await charges.read(f.actor);
+
+    expect(charge).toMatchObject({
+      organizationId: f.actor.organizationId,
+      receivableId: f.receivable.id,
+      receivableVersion: f.receivable.version,
+      receivingSettingsVersion: 1,
+      amountInCents: 10_000,
+      currency: 'brl',
+      merchantName: 'FIXTURE MERCHANT',
+    });
+    expect(charge.txid).toMatch(/^[A-Z0-9]{25}$/);
+    expect(charge.copyAndPaste).toContain('fixture@example.invalid');
+  });
+
+  it('generates a charge only for the remaining balance after a partial payment', async () => {
+    const f = await setup();
+    const service = new ReceivableApplicationService(new PrismaReceivableUnitOfWork(context.prisma));
+    const record = new RecordReceivablePaymentUseCase(service);
+    const first = await f.links.create(f.actor, f.receivable.version);
+    await record.execute({ ...f.actor, version: f.receivable.version }, {
+      requestId: randomUUID(), amountInCents: 3001, method: 'PIX', receivedAt: new Date().toISOString(),
+    });
+
+    const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
+    expect(await charges.read(f.actor)).toMatchObject({ amountInCents: 6999, receivableVersion: 2 });
+    await expect(f.links.resolve(first.token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
+    const second = await f.links.create(f.actor, 2);
+    expect(await f.links.resolve(second.token)).toMatchObject({ amountInCents: 6999 });
+  });
+
+  it('does not expose a Pix charge or active public link after the receivable is paid', async () => {
+    const f = await setup();
+    const link = await f.links.create(f.actor, f.receivable.version);
+    const service = new ReceivableApplicationService(new PrismaReceivableUnitOfWork(context.prisma));
+    const record = new RecordReceivablePaymentUseCase(service);
+    await record.execute({ ...f.actor, version: f.receivable.version }, {
+      requestId: randomUUID(), amountInCents: 10_000, method: 'PIX', receivedAt: new Date().toISOString(),
+    });
+
+    const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
+    await expect(charges.read(f.actor)).rejects.toThrow('PIX_CHARGE_NOT_AVAILABLE');
+    await expect(f.links.create(f.actor, 2)).rejects.toThrow('PIX_CHARGE_NOT_AVAILABLE');
+    expect(await f.links.status(f.actor)).toMatchObject({ active: false });
+    await expect(f.links.resolve(link.token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
+  });
+
+  it('rejects private charge reads without a configured Pix destination', async () => {
+    const f = await setup(false);
+    const charges = new PrismaReceivablePixChargeRepository(context.prisma, f.cipher);
+
+    await expect(charges.read(f.actor)).rejects.toThrow('PIX_DESTINATION_NOT_CONFIGURED');
+    await f.settings.save(f.actor, disabled);
+    await expect(charges.read(f.actor)).rejects.toThrow('PIX_DESTINATION_NOT_CONFIGURED');
+  });
+
+  it('does not let a different encryption key expose the saved destination', async () => {
+    const f = await setup();
+    const cipher = new ReceivingSettingsCipher('b'.repeat(64));
+    const settings = new PrismaReceivingSettingsRepository(context.prisma, cipher);
+    const links = new PrismaReceivablePaymentLinkRepository(context.prisma, cipher);
+    const link = await f.links.create(f.actor, f.receivable.version);
+
+    await expect(settings.read(f.actor)).rejects.toThrow('RECEIVING_SETTINGS_UNAVAILABLE');
+    await expect(links.resolve(link.token)).rejects.toThrow('PAYMENT_LINK_UNAVAILABLE');
   });
 });
