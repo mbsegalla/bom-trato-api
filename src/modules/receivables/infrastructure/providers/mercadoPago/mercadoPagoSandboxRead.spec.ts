@@ -78,3 +78,61 @@ describe('authoritative sandbox Pix payment lookup', () => {
     expect(transport).not.toHaveBeenCalled();
   });
 });
+
+describe('authoritative live Pix observation (mock provider only)', () => {
+  const liveInput = { ...input, eventId: 'delivery-key' };
+  const approvedAt = new Date('2025-01-01T12:00:00-03:00');
+  const approved = {
+    ...response, live_mode: true, status: 'approved', status_detail: 'accredited',
+    date_approved: approvedAt.toISOString(),
+  };
+
+  it('returns verified ledger evidence only for a bound, approved live Pix', async () => {
+    const { client, transport } = fixture(approved, true);
+    await expect(client.readLivePix(liveInput)).resolves.toEqual({
+      status: 'APPROVED',
+      payment: {
+        provider: 'mercado-pago',
+        externalAccountId: input.accountId,
+        externalPaymentId: input.paymentId,
+        liveMode: true,
+        eventId: liveInput.eventId,
+        amountInCents: input.amountInCents,
+        currency: 'brl',
+        paidAt: approvedAt,
+      },
+    });
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { live_mode: false },
+    { external_reference: 'different-issuance' },
+    { collector_id: 123457 },
+    { transaction_amount: '350.02' },
+    { currency_id: 'USD' },
+    { date_approved: 'invalid' },
+    { date_approved: '2099-01-01T00:00:00Z' },
+  ])('rejects inconsistent live confirmation data: %j', async (patch) => {
+    await expect(fixture({ ...approved, ...patch }, true).client.readLivePix(liveInput)).rejects.toThrow();
+  });
+
+  it('keeps pending, refund, closure and uncertain statuses separate from approved evidence', async () => {
+    await expect(fixture({ ...response, live_mode: true }, true).client.readLivePix(liveInput))
+      .resolves.toEqual({ status: 'PENDING' });
+    await expect(fixture({ ...approved, transaction_amount_refunded: 1 }, true).client.readLivePix(liveInput))
+      .resolves.toEqual({ status: 'REFUNDED' });
+    await expect(fixture({ ...approved, status: 'charged_back' }, true).client.readLivePix(liveInput))
+      .resolves.toEqual({ status: 'REFUNDED' });
+    await expect(fixture({ ...approved, status: 'cancelled' }, true).client.readLivePix(liveInput))
+      .resolves.toEqual({ status: 'CLOSED' });
+    await expect(fixture({ ...approved, status_detail: 'unknown' }, true).client.readLivePix(liveInput))
+      .resolves.toEqual({ status: 'REVIEW_REQUIRED' });
+  });
+
+  it('never reads a live payment through a test client', async () => {
+    const { client, transport } = fixture(approved);
+    await expect(client.readLivePix(liveInput)).rejects.toThrow('MODE_MISMATCH');
+    expect(transport).not.toHaveBeenCalled();
+  });
+});

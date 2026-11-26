@@ -1516,6 +1516,8 @@ enum MercadoPagoLivePixStatus {
   RESERVED
   PENDING
   REVIEW_REQUIRED
+  SETTLED
+  CLOSED
 }
 
 enum MercadoPagoLivePixResult {
@@ -1537,6 +1539,7 @@ model MercadoPagoLivePix {
   amountInCents          Int
   status                 MercadoPagoLivePixStatus @default(RESERVED)
   resultCode             MercadoPagoLivePixResult?
+  settlementReviewCode   String?                  @db.VarChar(50)
   externalPaymentId      String?                  @db.VarChar(30)
   providerChargeId       String?                  @unique @db.Uuid
   copyAndPasteCiphertext String?
@@ -1550,4 +1553,28 @@ model MercadoPagoLivePix {
 
   @@unique([receivableId, organizationId], map: "MercadoPagoLivePix_receivable_key")
   @@unique([clientId, externalPaymentId], map: "MercadoPagoLivePix_external_key")
+}
+
+
+// Physically separate live inbox; test deliveries can never be claimed here.
+model MercadoPagoLiveWebhookEvent {
+  clientId          String    @db.VarChar(30)
+  deliveryKey       String    @db.VarChar(64)
+  paymentId         String    @db.VarChar(30)
+  requestId         String    @db.VarChar(200)
+  signedAt          DateTime  @db.Timestamptz(3)
+  receivedAt        DateTime  @default(now()) @db.Timestamptz(3)
+  nextAttemptAt     DateTime  @default(now()) @db.Timestamptz(3)
+  attempts          Int       @default(0)
+  leaseToken        String?   @db.Uuid
+  leaseExpiresAt    DateTime? @db.Timestamptz(3)
+  processedAt       DateTime? @db.Timestamptz(3)
+  reviewRequiredAt  DateTime? @db.Timestamptz(3)
+  resultCode        String?   @db.VarChar(50)
+  matchedIssuanceId String?   @db.Uuid
+
+  @@id([clientId, deliveryKey])
+  @@index([clientId, paymentId])
+  @@index([clientId, nextAttemptAt])
+  @@index([receivedAt])
 }

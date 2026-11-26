@@ -8,6 +8,8 @@ import type {
   CreateMercadoPagoPixInput,
   MercadoPagoSandboxPaymentStatus,
   ReadMercadoPagoSandboxPixInput,
+  ReadMercadoPagoLivePixInput,
+  MercadoPagoLivePaymentObservation,
   SearchMercadoPagoSandboxPixInput,
   SearchMercadoPagoSandboxPixResult,
 } from './mercadoPagoPix.types.js';
@@ -381,9 +383,21 @@ export class MercadoPagoClient {
     return { kind: 'FOUND', paymentId, status };
   }
 
-  // The input must originate from a durable sandbox reservation, not webhook body fields.
+  // Both paths require a durable reservation, never caller-controlled webhook fields.
   async readSandboxPix(input: ReadMercadoPagoSandboxPixInput): Promise<MercadoPagoSandboxPaymentStatus> {
-    if (this.config.liveMode) {
+    return (await this.readBoundPix(input, false, 'sandbox-observation')).status;
+  }
+
+  async readLivePix(input: ReadMercadoPagoLivePixInput): Promise<MercadoPagoLivePaymentObservation> {
+    return this.readBoundPix(input, true, input.eventId);
+  }
+
+  private async readBoundPix(
+    input: ReadMercadoPagoSandboxPixInput,
+    liveMode: boolean,
+    eventId: string,
+  ): Promise<MercadoPagoLivePaymentObservation> {
+    if (this.config.liveMode !== liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
     }
 
@@ -393,6 +407,7 @@ export class MercadoPagoClient {
     if (
       !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(input.issuanceId) ||
       !isToken(input.accessToken) ||
+      !/^[\x21-\x7E]{1,200}$/.test(eventId) ||
       !Number.isSafeInteger(input.amountInCents) ||
       input.amountInCents < 1 ||
       input.amountInCents > 2147483647
@@ -411,7 +426,7 @@ export class MercadoPagoClient {
       throw new MercadoPagoError('ACCOUNT_MISMATCH');
     }
 
-    if (payload.live_mode !== false) {
+    if (payload.live_mode !== liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
     }
 
@@ -434,7 +449,7 @@ export class MercadoPagoClient {
     }
 
     if (refunded > 0 || payload.status === 'refunded' || payload.status === 'charged_back') {
-      return 'REFUNDED';
+      return { status: 'REFUNDED' };
     }
 
     if (payload.status === 'approved' && payload.status_detail === 'accredited') {
@@ -444,18 +459,37 @@ export class MercadoPagoClient {
         return invalidResponse();
       }
 
-      return 'APPROVED';
+      const payment: VerifiedProviderPayment = {
+        provider: 'mercado-pago',
+        externalAccountId: input.accountId,
+        externalPaymentId: input.paymentId,
+        liveMode,
+        eventId,
+        amountInCents: input.amountInCents,
+        currency: 'brl',
+        paidAt: approvedAt,
+      };
+
+      if (liveMode) {
+        try {
+          assertVerifiedProviderPayment(payment, new Date());
+        } catch {
+          return invalidResponse();
+        }
+      }
+
+      return { status: 'APPROVED', payment };
     }
 
     if (payload.status === 'pending' && payload.status_detail === 'pending_waiting_transfer') {
-      return 'PENDING';
+      return { status: 'PENDING' };
     }
 
     if (payload.status === 'cancelled' || payload.status === 'rejected') {
-      return 'CLOSED';
+      return { status: 'CLOSED' };
     }
 
-    return 'REVIEW_REQUIRED';
+    return { status: 'REVIEW_REQUIRED' };
   }
 
   // Call only for a notification already authenticated by the future live webhook adapter.

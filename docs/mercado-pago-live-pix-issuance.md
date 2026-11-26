@@ -38,17 +38,16 @@ tested with fixtures. Do not enable real collection or use real buyer data.
   snapshot must not silently apply to the real ledger. A creation response,
   including an apparent approval, never records a real payment.
 
-## Required before enabling live issuance (phase 4.5.8 and external pilot)
+## Required before enabling live issuance
 
-Implement and test a live-mode/application-scoped authenticated durable
-webhook inbox and worker, verify the exact live reservation and charge
-identity using current seller credentials, safely invoke the transactional
-confirmation use case, and retain all unmatched/late/refunded/ambiguous
-events. Implement recovery of live uncertain creations, credential
-availability/reconnection, pending QR read guards and a controlled operator
-pilot. Keep live issuance and settlement independently disableable; stopping
-new charges must not discard existing notifications. Review sticky
-inconsistencies and never automatically reverse refunded charges.
+Phase 4.5.8 adds the separate live webhook inbox, authoritative payment
+lookup and transactional ledger confirmation; see
+[Live settlement](mercado-pago-live-settlement.md). The live issuance flag
+remains blocked. Complete recovery of live uncertain creations, credential
+continuity/reconnection, pending QR read guards, owner-facing presentation,
+operational review and a controlled operator pilot. Keep live issuance and
+settlement independently disableable; stopping new charges must not discard
+existing notifications. Never automatically reverse refunded charges.
 
 Remove the startup block only after the complete path and actual Mercado Pago
 sandbox/provider homologation have been verified. No real payment or live

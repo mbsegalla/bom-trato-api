@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 
+import type { Prisma } from '../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { ReceivableProviderPaymentRepository } from '../../application/ports/receivableProviderPaymentRepository.port.js';
@@ -139,87 +140,16 @@ export class PrismaReceivableProviderPaymentRepository extends ReceivableProvide
       registered.organizationId,
       'write',
       async (db) => {
-        const charge = await db.receivableProviderCharge.findFirst({
-          where: { id: registered.id, organizationId: registered.organizationId, ...reference },
-        });
-
-        if (charge === null) {
-          return 'UNMATCHED';
+        // Mercado Pago has its own authenticated durable inbox. Do not let
+        // a generic confirmation bypass the live event lease or sticky review.
+        if (payment.provider === 'mercado-pago') {
+          const live = await db.mercadoPagoLivePix.findUnique({
+            where: { providerChargeId: registered.id },
+            select: { id: true },
+          });
+          return live === null ? 'UNMATCHED' : 'REVIEW_REQUIRED';
         }
-
-        const repository = new PrismaReceivableRepository(db, charge.organizationId);
-        const receivable = await repository.findById(charge.receivableId);
-        const organization = await db.organization.findUnique({
-          where: { id: charge.organizationId },
-          select: { ownerId: true },
-        });
-
-        if (receivable === null || organization === null) {
-          return 'UNMATCHED';
-        }
-
-        const evidence = {
-          confirmedEventId: payment.eventId,
-          confirmedAmountInCents: payment.amountInCents,
-          confirmedCurrency: payment.currency,
-          confirmedAt: payment.paidAt,
-        };
-
-        const markReview = async (reason: ProviderPaymentReviewReason): Promise<ProviderPaymentResult> => {
-          if (charge.reviewReason === null) {
-            await db.receivableProviderCharge.update({
-              where: { id: charge.id },
-              data: {
-                ...(charge.confirmedEventId === null ? evidence : {}),
-                reviewReason: reason,
-                reviewEventId: payment.eventId,
-              },
-            });
-          }
-
-          return 'REVIEW_REQUIRED';
-        };
-
-        const decision = decideProviderPayment(charge, receivable, organization.ownerId, payment);
-
-        if (decision.kind === 'REVIEW_REQUIRED') {
-          return markReview(decision.reason);
-        }
-
-        if (decision.kind === 'DUPLICATE') {
-          return 'DUPLICATE';
-        }
-
-        if ((await repository.findPaymentByRequestId(receivable.id, charge.id)) !== null) {
-          return markReview('REQUEST_ID_CONFLICT');
-        }
-
-        const aggregate = Receivable.restore(receivable);
-        const recorded = ReceivablePayment.create(
-          {
-            id: randomUUID(),
-            receivableId: receivable.id,
-            requestId: charge.id,
-            amountInCents: payment.amountInCents,
-            method: 'PIX',
-            receivedAt: payment.paidAt,
-            notes: 'Confirmação automática de Pix via provedor.',
-            recordedById: charge.registeredById,
-          },
-          now,
-        );
-
-        aggregate.receive(recorded);
-        aggregate.recordChange(charge.registeredById, now);
-
-        await repository.save(aggregate, charge.receivableVersion);
-        await repository.createPayment(recorded);
-        await db.receivableProviderCharge.update({
-          where: { id: charge.id },
-          data: { ...evidence, paymentId: recorded.snapshot().id },
-        });
-
-        return 'APPLIED';
+        return confirmRegisteredProviderPayment(db, registered, payment, now);
       },
       this.errors(),
     );
@@ -231,4 +161,98 @@ export class PrismaReceivableProviderPaymentRepository extends ReceivableProvide
       busy: () => new ReceivableError('RECEIVABLES_BUSY'),
     };
   }
+}
+
+// Internal shared ledger transaction. Caller must hold the organization write
+// lock and establish the trusted registered identity before calling this.
+export async function confirmRegisteredProviderPayment(
+  db: Prisma.TransactionClient,
+  registered: { id: string; organizationId: string },
+  payment: VerifiedProviderPayment,
+  now = new Date(),
+): Promise<ProviderPaymentResult> {
+  if (payment.liveMode !== true) return 'IGNORED_TEST';
+  assertVerifiedProviderPayment(payment, now);
+  const reference = externalReference(payment);
+  const charge = await db.receivableProviderCharge.findFirst({
+    where: { id: registered.id, organizationId: registered.organizationId, ...reference },
+  });
+
+  if (charge === null) {
+    return 'UNMATCHED';
+  }
+
+  const repository = new PrismaReceivableRepository(db, charge.organizationId);
+  const receivable = await repository.findById(charge.receivableId);
+  const organization = await db.organization.findUnique({
+    where: { id: charge.organizationId },
+    select: { ownerId: true },
+  });
+
+  if (receivable === null || organization === null) {
+    return 'UNMATCHED';
+  }
+
+  const evidence = {
+    confirmedEventId: payment.eventId,
+    confirmedAmountInCents: payment.amountInCents,
+    confirmedCurrency: payment.currency,
+    confirmedAt: payment.paidAt,
+  };
+
+  const markReview = async (reason: ProviderPaymentReviewReason): Promise<ProviderPaymentResult> => {
+    if (charge.reviewReason === null) {
+      await db.receivableProviderCharge.update({
+        where: { id: charge.id },
+        data: {
+          ...(charge.confirmedEventId === null ? evidence : {}),
+          reviewReason: reason,
+          reviewEventId: payment.eventId,
+        },
+      });
+    }
+
+    return 'REVIEW_REQUIRED';
+  };
+
+  const decision = decideProviderPayment(charge, receivable, organization.ownerId, payment);
+
+  if (decision.kind === 'REVIEW_REQUIRED') {
+    return markReview(decision.reason);
+  }
+
+  if (decision.kind === 'DUPLICATE') {
+    return 'DUPLICATE';
+  }
+
+  if ((await repository.findPaymentByRequestId(receivable.id, charge.id)) !== null) {
+    return markReview('REQUEST_ID_CONFLICT');
+  }
+
+  const aggregate = Receivable.restore(receivable);
+  const recorded = ReceivablePayment.create(
+    {
+      id: randomUUID(),
+      receivableId: receivable.id,
+      requestId: charge.id,
+      amountInCents: payment.amountInCents,
+      method: 'PIX',
+      receivedAt: payment.paidAt,
+      notes: 'Confirmação automática de Pix via provedor.',
+      recordedById: charge.registeredById,
+    },
+    now,
+  );
+
+  aggregate.receive(recorded);
+  aggregate.recordChange(charge.registeredById, now);
+
+  await repository.save(aggregate, charge.receivableVersion);
+  await repository.createPayment(recorded);
+  await db.receivableProviderCharge.update({
+    where: { id: charge.id },
+    data: { ...evidence, paymentId: recorded.snapshot().id },
+  });
+
+  return 'APPLIED';
 }

@@ -16,5 +16,5 @@ export interface IssueMercadoPagoLivePixInput {
 export interface MercadoPagoLivePixIssuance {
   issuanceId: string;
   providerChargeId: string | null;
-  status: 'RESERVED' | 'PENDING' | 'REVIEW_REQUIRED';
+  status: 'RESERVED' | 'PENDING' | 'REVIEW_REQUIRED' | 'SETTLED' | 'CLOSED';
 }
