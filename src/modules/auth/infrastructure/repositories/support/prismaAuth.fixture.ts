@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { type Mock, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import { AuthSession } from '../../../domain/entities/authSession.entity.js';
@@ -23,8 +23,49 @@ export const google = {
   providerAccountId: 'fixture-subject',
 };
 
-export function authFixture() {
-  const db = {
+type QueryRawMock = Mock<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>;
+
+interface AuthFixtureDatabase {
+  user: {
+    findUnique: Mock;
+    create: Mock;
+    update: Mock;
+  };
+  planPrice: { findFirst: Mock };
+  authIdentity: {
+    findUnique: Mock;
+    findMany: Mock;
+    create: Mock;
+  };
+  authSession: {
+    findUnique: Mock;
+    findFirst: Mock;
+    findMany: Mock;
+    create: Mock;
+    update: Mock;
+    updateMany: Mock;
+  };
+  refreshToken: {
+    findUnique: Mock;
+    create: Mock;
+    update: Mock;
+  };
+  authActionToken: {
+    findUnique: Mock;
+    updateMany: Mock;
+    create: Mock;
+  };
+  $queryRaw: QueryRawMock;
+}
+
+interface AuthFixture {
+  repository: PrismaAuthRepository;
+  db: AuthFixtureDatabase;
+  transaction: Mock<(operation: (tx: AuthFixtureDatabase) => Promise<unknown>) => Promise<unknown>>;
+}
+
+export function authFixture(): AuthFixture {
+  const db: AuthFixtureDatabase = {
     user: {
       findUnique: vi.fn().mockResolvedValue(user),
       create: vi.fn().mockResolvedValue(user),
@@ -54,7 +95,7 @@ export function authFixture() {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       create: vi.fn().mockResolvedValue(undefined),
     },
-    $queryRaw: vi.fn().mockResolvedValue([]),
+    $queryRaw: vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([]),
   };
   const transaction = vi.fn(async (operation: (tx: typeof db) => Promise<unknown>) => operation(db));
   const repository = new PrismaAuthRepository({ ...db, $transaction: transaction } as unknown as PrismaService);

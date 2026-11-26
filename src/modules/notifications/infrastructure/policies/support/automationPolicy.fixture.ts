@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { type Mock, vi } from 'vitest';
 
 import type { Prisma } from '../../../../../generated/prisma/client.js';
 import type { NotificationJob } from '../../../application/types/notification.types.js';
@@ -41,9 +41,31 @@ export function job(overrides: Partial<NotificationJob> = {}): NotificationJob {
   };
 }
 
-export function automationFixture() {
-  const db = {
-    $queryRaw: vi.fn().mockResolvedValue([{ id: trial.organizationId }]),
+type QueryRawMock = Mock<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>;
+
+interface AutomationFixtureDatabase {
+  $queryRaw: QueryRawMock;
+  organization: { findUnique: Mock };
+  organizationTrial: { findUnique: Mock };
+  organizationMember: { findUnique: Mock };
+  subscription: { findFirst: Mock };
+  billingInvoice: { findFirst: Mock };
+  notificationOutbox: { count: Mock };
+  quoteShare: { findFirst: Mock };
+  quote: { findFirst: Mock };
+  workOrder: { findFirst: Mock };
+  professionalReviewInvitation: { findFirst: Mock };
+  receivable: { findFirst: Mock };
+}
+
+interface AutomationFixture {
+  db: AutomationFixtureDatabase;
+  tx: Prisma.TransactionClient;
+}
+
+export function automationFixture(): AutomationFixture {
+  const db: AutomationFixtureDatabase = {
+    $queryRaw: vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([{ id: trial.organizationId }]),
     organization: { findUnique: vi.fn().mockResolvedValue({ trial, subscriptions: [] }) },
     organizationTrial: { findUnique: vi.fn().mockResolvedValue(trialRow) },
     organizationMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
