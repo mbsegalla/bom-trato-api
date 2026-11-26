@@ -1,9 +1,9 @@
+import type { FindReceivableParams } from '../types/receivable.types.js';
 import type {
   CreatedReceivablePaymentLink,
   PublicReceivablePaymentLink,
   ReceivablePaymentLinkStatus,
 } from '../types/receivablePaymentLink.types.js';
-import type { FindReceivableParams } from '../types/receivable.types.js';
 
 export abstract class ReceivablePaymentLinkRepository {
   abstract create(params: FindReceivableParams, version: number): Promise<CreatedReceivablePaymentLink>;
