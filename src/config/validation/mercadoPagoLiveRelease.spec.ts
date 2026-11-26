@@ -23,11 +23,22 @@ const base = {
   STORAGE_PUBLIC_BASE_URL: 'https://assets.example.invalid',
   AUTH_GOOGLE_CLIENT_ID: 'fixture.apps.googleusercontent.com',
   ...Object.fromEntries([
-    'VERIFY_EMAIL', 'RESET_PASSWORD', 'PASSWORD_CHANGED', 'ORGANIZATION_INVITATION',
-    'PAYMENT_FAILED', 'PAYMENT_ACTION_REQUIRED', 'SUBSCRIPTION_CANCELED',
-    'SUBSCRIPTION_ACTIVATED', 'PAYMENT_CONFIRMED', 'PLAN_CHANGE_CONFIRMED',
-    'REVIEW_REQUEST', 'QUOTE_FOLLOW_UP', 'WORK_ORDER_REMINDER',
-    'RECEIVABLE_DUE_SOON', 'RECEIVABLE_OVERDUE', 'TRIAL_LIFECYCLE',
+    'VERIFY_EMAIL',
+    'RESET_PASSWORD',
+    'PASSWORD_CHANGED',
+    'ORGANIZATION_INVITATION',
+    'PAYMENT_FAILED',
+    'PAYMENT_ACTION_REQUIRED',
+    'SUBSCRIPTION_CANCELED',
+    'SUBSCRIPTION_ACTIVATED',
+    'PAYMENT_CONFIRMED',
+    'PLAN_CHANGE_CONFIRMED',
+    'REVIEW_REQUEST',
+    'QUOTE_FOLLOW_UP',
+    'WORK_ORDER_REMINDER',
+    'RECEIVABLE_DUE_SOON',
+    'RECEIVABLE_OVERDUE',
+    'TRIAL_LIFECYCLE',
   ].map((name) => ['RESEND_TEMPLATE_' + name, 'fixture-template'])),
 };
 const approved = {
@@ -50,7 +61,9 @@ const approved = {
 describe('Mercado Pago production pilot configuration', () => {
   it('keeps issuance and approval disabled by default', () => {
     expect(validateEnvironment(base)).toMatchObject({
-      MERCADO_PAGO_ENABLED: false, MERCADO_PAGO_LIVE_PIX_ENABLED: false, MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED: false,
+      MERCADO_PAGO_ENABLED: false,
+      MERCADO_PAGO_LIVE_PIX_ENABLED: false,
+      MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED: false,
     });
   });
 
@@ -78,9 +91,12 @@ describe('Mercado Pago production pilot configuration', () => {
 
   it('supports stopping new issuance without disabling live reconciliation', () => {
     expect(validateEnvironment({
-      ...approved, MERCADO_PAGO_LIVE_PIX_ENABLED: 'false', MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED: 'false',
+      ...approved,
+      MERCADO_PAGO_LIVE_PIX_ENABLED: 'false',
+      MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED: 'false',
     })).toMatchObject({
-      MERCADO_PAGO_LIVE_PIX_ENABLED: false, MERCADO_PAGO_LIVE_WEBHOOK_ENABLED: true,
+      MERCADO_PAGO_LIVE_PIX_ENABLED: false,
+      MERCADO_PAGO_LIVE_WEBHOOK_ENABLED: true,
       MERCADO_PAGO_LIVE_WEBHOOK_WORKER_ENABLED: true,
     });
   });

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { hashMercadoPagoState, isMercadoPagoAttemptCurrent, MERCADO_PAGO_STATE_TTL_MS } from './mercadoPagoOAuth.policy.js';
+import {
+  hashMercadoPagoState,
+  isMercadoPagoAttemptCurrent,
+  MERCADO_PAGO_STATE_TTL_MS
+} from './mercadoPagoOAuth.policy.js';
 
 const now = new Date('2026-11-25T15:00:00Z');
 const context = {
@@ -20,6 +24,7 @@ const attempt = {
 describe('Mercado Pago OAuth attempt policy', () => {
   it('hashes only a correctly formed random state', () => {
     const state = 'a'.repeat(43);
+
     expect(hashMercadoPagoState(state)).toMatch(/^[a-f0-9]{64}$/);
     expect(hashMercadoPagoState(state)).not.toContain(state);
     expect(hashMercadoPagoState('b'.repeat(43))).not.toBe(hashMercadoPagoState(state));

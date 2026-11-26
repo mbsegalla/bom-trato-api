@@ -45,6 +45,7 @@ function setup() {
 describe('portfolio consent via private work order share', () => {
   it('never passes the raw token into persistence', async () => {
     const fixture = setup();
+
     await fixture.publicConsent.status(TOKEN);
 
     expect(fixture.repository.getPortalStatus).toHaveBeenCalledWith(fixture.security.hash(TOKEN));
@@ -67,6 +68,7 @@ describe('portfolio consent via private work order share', () => {
 
   it('allows withdrawal through the private share token', async () => {
     const fixture = setup();
+
     await fixture.publicConsent.revoke(TOKEN, 'photo');
 
     expect(fixture.repository.revoke).toHaveBeenCalledWith(fixture.security.hash(TOKEN), 'photo');
@@ -74,7 +76,12 @@ describe('portfolio consent via private work order share', () => {
 
   it('allows the organization to withdraw consent when the share link is no longer available', async () => {
     const fixture = setup();
-    const params = { organizationId: 'organization', workOrderId: 'work-order', photoId: 'photo', userId: 'member' };
+    const params = {
+      organizationId: 'organization',
+      workOrderId: 'work-order',
+      photoId: 'photo',
+      userId: 'member'
+    };
 
     await fixture.management.revoke(params);
 
@@ -85,6 +92,7 @@ describe('portfolio consent via private work order share', () => {
 describe('public portfolio image content', () => {
   it('loads image bytes only after checking that the photo is published', async () => {
     const fixture = setup();
+
     const bytes = await fixture.photo.execute('empresa', 'photo');
 
     expect(bytes).toEqual(new Uint8Array([1, 2, 3]));

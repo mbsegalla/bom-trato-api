@@ -9,7 +9,11 @@ import type { GetPublicWorkOrderUseCase } from '../../application/useCases/getPu
 import { GetWorkOrderWarrantyUseCase } from '../../application/useCases/getWorkOrderWarranty.useCase.js';
 import { UpdateWorkOrderWarrantyUseCase } from '../../application/useCases/updateWorkOrderWarranty.useCase.js';
 
-const params = { organizationId: 'organization', workOrderId: 'work-order', userId: 'member' };
+const params = {
+  organizationId: 'organization',
+  workOrderId: 'work-order',
+  userId: 'member'
+};
 
 function setup() {
   const context: WorkOrderDocumentContext = {
@@ -63,12 +67,20 @@ function setup() {
   const repository = { read, saveWarranty } as unknown as WorkOrderDocumentRepository;
   const generator = { generate } as unknown as WorkOrderDocumentPdfGenerator;
 
-  return { context, read, saveWarranty, generate, repository, generator };
+  return {
+    context,
+    read,
+    saveWarranty,
+    generate,
+    repository,
+    generator
+  };
 }
 
 describe('work order warranty and report access', () => {
   it('allows a verified member to export the current internal service report', async () => {
     const fixture = setup();
+
     const result = await new GenerateWorkOrderReportUseCase(fixture.repository, fixture.generator).execute(params);
 
     expect(result.filename).toBe('relatorio-os-work-order.pdf');
@@ -80,9 +92,11 @@ describe('work order warranty and report access', () => {
     const fixture = setup();
     fixture.context.access.hasPlatformAccess = false;
     const report = new GenerateWorkOrderReportUseCase(fixture.repository, fixture.generator);
+
     await expect(report.execute(params)).resolves.toBeDefined();
 
     fixture.context.access.isMember = false;
+
     await expect(report.execute(params)).rejects.toMatchObject({
       code: 'MEMBER_REQUIRED',
     });
@@ -92,6 +106,7 @@ describe('work order warranty and report access', () => {
   it('exposes the declared warranty with a locked status after acceptance', async () => {
     const fixture = setup();
     fixture.context.accepted = true;
+
     const result = await new GetWorkOrderWarrantyUseCase(fixture.repository).execute(params);
 
     expect(result).toEqual({ warranty: fixture.context.data.warranty, locked: true });
@@ -100,6 +115,7 @@ describe('work order warranty and report access', () => {
   it('returns no warranty when none has been declared', async () => {
     const fixture = setup();
     fixture.context.data.warranty = null;
+
     const result = await new GetWorkOrderWarrantyUseCase(fixture.repository).execute(params);
 
     expect(result).toEqual({ warranty: null, locked: false });
@@ -121,7 +137,9 @@ describe('work order warranty and report access', () => {
     }
 
     expect(fixture.saveWarranty).not.toHaveBeenCalled();
+
     await useCase.execute(params, { durationDays: 90, terms: '  Limpeza completa  ', version: 0 });
+
     expect(fixture.saveWarranty).toHaveBeenCalledWith(params, {
       durationDays: 90,
       terms: 'Limpeza completa',
@@ -163,10 +181,13 @@ describe('public work order report privacy', () => {
       { execute: resolve } as unknown as GetPublicWorkOrderUseCase,
       fixture.generator,
     );
+
     await useCase.execute('private-token');
 
     expect(resolve).toHaveBeenCalledWith('private-token');
+
     const document = fixture.generate.mock.calls[0][0];
+
     expect(document.workOrder.customerName).toBeNull();
     expect(document.workOrder.id).toBeNull();
     expect(document.acceptedBy).toBeNull();

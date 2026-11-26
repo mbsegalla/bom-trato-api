@@ -91,12 +91,20 @@ function setup() {
   };
   const useCase = new GetPublicWorkOrderUseCase(new PrismaPublicWorkOrderUnitOfWork(prisma), security, storage);
 
-  return { items, share, workOrder, findWorkOrder, useCase, token };
+  return {
+    items,
+    share,
+    workOrder,
+    findWorkOrder,
+    useCase,
+    token
+  };
 }
 
 describe('public work order checklist projection', () => {
   it('filters private items in the scoped query and exposes only public fields and visible progress', async () => {
     const fixture = setup();
+
     const result = await fixture.useCase.execute(fixture.token);
 
     const query = fixture.findWorkOrder.mock.calls[0][0];
@@ -105,7 +113,12 @@ describe('public work order checklist projection', () => {
     expect(query.select?.workOrderChecklistItems).toEqual({
       where: { visibleInPortal: true },
       orderBy: [{ position: 'asc' }, { id: 'asc' }],
-      select: { id: true, title: true, completed: true, completedAt: true },
+      select: {
+        id: true,
+        title: true,
+        completed: true,
+        completedAt: true
+      },
     });
     expect(result.checklist).toEqual({
       items: [1, 3].map((index) => ({
@@ -143,6 +156,7 @@ describe('public work order checklist projection', () => {
     }
 
     await expect(fixture.useCase.execute(fixture.token)).rejects.toMatchObject({ code: 'WORK_ORDER_SHARE_NOT_FOUND' });
+
     expect(fixture.findWorkOrder).not.toHaveBeenCalled();
   });
 

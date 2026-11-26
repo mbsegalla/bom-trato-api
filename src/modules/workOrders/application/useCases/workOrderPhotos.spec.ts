@@ -19,7 +19,11 @@ import { ListWorkOrderPhotosUseCase } from './listWorkOrderPhotos.useCase.js';
 import { UpdateWorkOrderPhotoUseCase } from './updateWorkOrderPhoto.useCase.js';
 import { UploadWorkOrderPhotoUseCase } from './uploadWorkOrderPhoto.useCase.js';
 
-const params = { organizationId: 'organization', workOrderId: 'work-order', userId: 'member' };
+const params = {
+  organizationId: 'organization',
+  workOrderId: 'work-order',
+  userId: 'member'
+};
 const upload = { buffer: Buffer.from('source'), size: 6, mimeType: 'image/jpeg' };
 const input = { stage: 'BEFORE', caption: '  Antes do serviço  ' } as const;
 
@@ -127,12 +131,20 @@ function setup() {
     }),
   };
 
-  return { photos, access, processor, storage, imageProcessor, unitOfWork };
+  return {
+    photos,
+    access,
+    processor,
+    storage,
+    imageProcessor,
+    unitOfWork
+  };
 }
 
 describe('work order photo management', () => {
   it('uploads privately and returns only safe metadata', async () => {
     const fixture = setup();
+
     const result = await new UploadWorkOrderPhotoUseCase(
       fixture.processor,
       fixture.imageProcessor,
@@ -308,6 +320,7 @@ describe('work order photo management', () => {
 
     fixture.storage.delete.mockImplementation(async () => {
       expect(fixture.photos.photos).toHaveLength(0);
+
       throw new Error('Storage temporarily unavailable');
     });
 
@@ -375,7 +388,13 @@ function setupPublic() {
   };
   const useCase = new GetPublicWorkOrderPhotoContentUseCase(unitOfWork, new NodeWorkOrderShareSecurity(), storage);
 
-  return { photo, share, storage, useCase, token: 'a'.repeat(64) };
+  return {
+    photo,
+    share,
+    storage,
+    useCase,
+    token: 'a'.repeat(64)
+  };
 }
 
 describe('public work order photo access', () => {
@@ -399,6 +418,7 @@ describe('public work order photo access', () => {
       await expect(fixture.useCase.execute(fixture.token, 'photo')).rejects.toMatchObject({
         code: 'WORK_ORDER_SHARE_NOT_FOUND',
       });
+
       expect(fixture.storage.get).not.toHaveBeenCalled();
     },
   );

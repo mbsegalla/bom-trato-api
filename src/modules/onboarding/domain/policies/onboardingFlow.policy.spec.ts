@@ -6,8 +6,16 @@ import { OnboardingFlowPolicy } from './onboardingFlow.policy.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const snapshot: OnboardingSnapshot = {
-  organizationId: 'org', isOwner: true, setupCompletedAt: null, planPriceId: null, priceAvailable: false,
-  subscriptions: [], checkoutStatus: null, trial: null, trialEligible: false, hasPaidSubscriptionHistory: false,
+  organizationId: 'org',
+  isOwner: true,
+  setupCompletedAt: null,
+  planPriceId: null,
+  priceAvailable: false,
+  subscriptions: [],
+  checkoutStatus: null,
+  trial: null,
+  trialEligible: false,
+  hasPaidSubscriptionHistory: false,
 };
 
 describe('OnboardingFlowPolicy', () => {
@@ -22,11 +30,27 @@ describe('OnboardingFlowPolicy', () => {
   });
 
   it('routes eligible owners into setup, verified trial users into app, and other members to owner', () => {
-    expect(OnboardingFlowPolicy.resolve({ ...snapshot, trialEligible: true }, now)).toMatchObject({ step: 'CREATE_BUSINESS', trialEligible: true });
-    expect(OnboardingFlowPolicy.resolve({ ...snapshot, isOwner: false, trialEligible: true }, now).step).toBe('CONTACT_OWNER');
-    const trial = OrganizationTrial.create({ id: 'trial', organizationId: 'org', ownerId: 'owner', now }).snapshot();
+    expect(OnboardingFlowPolicy.resolve({ ...snapshot, trialEligible: true }, now)).toMatchObject({
+      step: 'CREATE_BUSINESS',
+      trialEligible: true
+    });
+    expect(OnboardingFlowPolicy.resolve({
+      ...snapshot,
+      isOwner: false,
+      trialEligible: true
+    }, now).step).toBe('CONTACT_OWNER');
+
+    const trial = OrganizationTrial.create({
+      id: 'trial',
+      organizationId: 'org',
+      ownerId: 'owner',
+      now
+    }).snapshot();
+
     expect(OnboardingFlowPolicy.resolve({ ...snapshot, trial, setupCompletedAt: now }, now)).toMatchObject({
-      step: 'APP', accessSource: 'TRIAL', trial: { active: true, remainingDays: 14 },
+      step: 'APP',
+      accessSource: 'TRIAL',
+      trial: { active: true, remainingDays: 14 },
     });
   });
 });

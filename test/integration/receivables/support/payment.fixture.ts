@@ -6,7 +6,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, vi } from 'vitest';
 
 import { PrismaService } from '../../../../src/infrastructure/database/prisma.service.js';
 import { ConfirmReceivableProviderPaymentUseCase } from '../../../../src/modules/receivables/application/useCases/confirmReceivableProviderPayment.useCase.js';
-import type { RegisterProviderChargeInput, VerifiedProviderPayment } from '../../../../src/modules/receivables/domain/types/receivableProviderPayment.types.js';
+import type {
+  RegisterProviderChargeInput,
+  VerifiedProviderPayment
+} from '../../../../src/modules/receivables/domain/types/receivableProviderPayment.types.js';
 import { pixCrc16 } from '../../../../src/modules/receivables/domain/policies/receivablePixCharge.policy.js';
 import { MercadoPagoConnectionRuntime } from '../../../../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 import { MercadoPagoCredentialService } from '../../../../src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.js';
@@ -23,6 +26,7 @@ const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
 export function paymentIntegrationSuite(name: string, callback: () => void): void {
   if (url === undefined) {
     describe.skip(name, callback);
+
     return;
   }
 
@@ -56,6 +60,7 @@ export function createPaymentFixture() {
 
   beforeAll(async () => {
     prisma = new PrismaService({ url: disposableDatabaseUrl() });
+
     await prisma.$connect();
     useCase = new ConfirmReceivableProviderPaymentUseCase(new PrismaReceivableProviderPaymentRepository(prisma));
   });
@@ -65,6 +70,7 @@ export function createPaymentFixture() {
     if (!prisma) return;
 
     const ids = webhookClientIds.splice(0);
+
     await prisma.mercadoPagoLiveWebhookEvent.deleteMany({ where: { clientId: { in: ids } } });
     await prisma.mercadoPagoWebhookEvent.deleteMany({ where: { clientId: { in: ids } } });
 
@@ -92,14 +98,25 @@ export function createPaymentFixture() {
 
   async function fixture() {
     const now = new Date();
+
     const user = await prisma.user.create({
-      data: { name: 'Fixture owner', email: randomUUID() + '@example.invalid', emailVerifiedAt: now },
+      data: {
+        name: 'Fixture owner',
+        email: randomUUID() + '@example.invalid',
+        emailVerifiedAt: now
+      },
     });
     users.push(user.id);
+
     const organization = await prisma.organization.create({
-      data: { name: 'Fixture organization', ownerId: user.id, setupCompletedAt: now },
+      data: {
+        name: 'Fixture organization',
+        ownerId: user.id,
+        setupCompletedAt: now
+      },
     });
     organizations.push(organization.id);
+
     await prisma.organizationMember.create({
       data: { organizationId: organization.id, userId: user.id, role: 'OWNER' },
     });
@@ -124,16 +141,32 @@ export function createPaymentFixture() {
       updatedById: user.id,
     };
     const totals = { subtotalInCents: 10_000, discountInCents: 0, totalInCents: 10_000 };
+
     const quote = await prisma.quote.create({
-      data: { ...snapshot, ...totals, status: 'APPROVED', sentAt: now, decidedAt: now },
+      data: {
+        ...snapshot,
+        ...totals,
+        status: 'APPROVED',
+        sentAt: now,
+        decidedAt: now
+      },
     });
     const workOrder = await prisma.workOrder.create({
       data: { ...snapshot, ...totals, quoteId: quote.id },
     });
     const receivable = await prisma.receivable.create({
-      data: { ...snapshot, workOrderId: workOrder.id, amountInCents: 10_000, dueAt: now },
+      data: {
+        ...snapshot,
+        workOrderId: workOrder.id,
+        amountInCents: 10_000,
+        dueAt: now
+      },
     });
-    const actor = { organizationId: organization.id, userId: user.id, receivableId: receivable.id };
+    const actor = {
+      organizationId: organization.id,
+      userId: user.id,
+      receivableId: receivable.id
+    };
     const registration: RegisterProviderChargeInput = {
       provider: 'fixture-provider',
       externalAccountId: randomUUID(),
@@ -152,7 +185,13 @@ export function createPaymentFixture() {
       amountInCents: registration.expectedAmountInCents,
       paidAt: now,
     };
-    return { actor, registration, payment, receivable };
+
+    return {
+      actor,
+      registration,
+      payment,
+      receivable
+    };
   }
 
   function tlv(id: string, value: string): string {
@@ -161,9 +200,17 @@ export function createPaymentFixture() {
 
   function fixtureQr(): string {
     const payload = [
-      tlv('00', '01'), tlv('01', '12'), tlv('26', tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test')),
-      tlv('52', '0000'), tlv('53', '986'), tlv('54', '100.00'), tlv('58', 'BR'), tlv('59', 'TEST'),
-      tlv('60', 'SAO PAULO'), tlv('62', tlv('05', '***')), '6304',
+      tlv('00', '01'),
+      tlv('01', '12'),
+      tlv('26', tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test')),
+      tlv('52', '0000'),
+      tlv('53', '986'),
+      tlv('54', '100.00'),
+      tlv('58', 'BR'),
+      tlv('59', 'TEST'),
+      tlv('60', 'SAO PAULO'),
+      tlv('62', tlv('05', '***')),
+      '6304',
     ].join('');
     return payload + pixCrc16(payload);
   }
@@ -172,6 +219,7 @@ export function createPaymentFixture() {
     const setup = await fixture();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 3_600_000);
+
     const session = await prisma.authSession.create({
       data: {
         userId: setup.actor.userId,
@@ -199,6 +247,7 @@ export function createPaymentFixture() {
       encryptionKey: 'a'.repeat(64),
       redirectUri: 'https://example.invalid/mercado-pago/callback',
     });
+
     await prisma.mercadoPagoConnection.create({
       data: {
         organizationId: actor.organizationId,
@@ -209,25 +258,51 @@ export function createPaymentFixture() {
         connectedAt: now,
         expiresAt,
         accessTokenCiphertext: runtime.cipher.seal(
-          ['credential', actor.organizationId, clientId, 'true', accountId, 'access'], accessToken,
+          [
+            'credential',
+            actor.organizationId,
+            clientId,
+            'true',
+            accountId,
+            'access'
+          ], accessToken,
         ),
         refreshTokenCiphertext: runtime.cipher.seal(
-          ['credential', actor.organizationId, clientId, 'true', accountId, 'refresh'], 'fixture-refresh',
+          [
+            'credential',
+            actor.organizationId,
+            clientId,
+            'true',
+            accountId,
+            'refresh'
+          ], 'fixture-refresh',
         ),
       },
     });
     const credentials = new MercadoPagoCredentialService(prisma, runtime);
     const credentialAccess = vi.spyOn(credentials, 'accessForOwner').mockResolvedValue({
-      accountId, accessToken, liveMode: true, expiresAt,
+      accountId,
+      accessToken,
+      liveMode: true,
+      expiresAt,
     });
+
     const create = vi.spyOn(runtime.requireEnabled().client, 'createLivePix').mockImplementation(async (input) => {
       // A distinct connection can only read a committed reservation.
       const reserved = await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: input.issuanceId } });
+
       expect(reserved).toMatchObject({ status: 'RESERVED', organizationId: actor.organizationId, accountId });
+
       return {
-        kind: 'PENDING', paymentId, accountId, issuanceId: input.issuanceId,
-        amountInCents: input.amountInCents, currency: 'brl', liveMode: true,
-        copyAndPaste: fixtureQr(), expiresAt: input.expiresAt,
+        kind: 'PENDING',
+        paymentId,
+        accountId,
+        issuanceId: input.issuanceId,
+        amountInCents: input.amountInCents,
+        currency: 'brl',
+        liveMode: true,
+        copyAndPaste: fixtureQr(),
+        expiresAt: input.expiresAt,
       };
     });
     const repository = new PrismaMercadoPagoLivePixRepository(prisma, runtime, credentials);
@@ -238,7 +313,20 @@ export function createPaymentFixture() {
       buyerDocumentNumber: '19119119100',
       confirmed: true,
     };
-    return { ...setup, actor, repository, credentials, credentialAccess, create, input, clientId, accountId, paymentId, runtime };
+
+    return {
+      ...setup,
+      actor,
+      repository,
+      credentials,
+      credentialAccess,
+      create,
+      input,
+      clientId,
+      accountId,
+      paymentId,
+      runtime
+    };
   }
 
   function liveReview(f: Awaited<ReturnType<typeof liveFixture>>, workerEnabled = true) {
@@ -266,9 +354,13 @@ export function createPaymentFixture() {
     });
     const read = vi.spyOn(f.runtime.requireEnabled().client, 'readLivePix').mockImplementation(async (input) => {
       expect(input).toMatchObject({
-        issuanceId: issuance.issuanceId, accountId: f.accountId, paymentId: f.paymentId,
-        amountInCents: 10_000, accessToken: 'fixture-access',
+        issuanceId: issuance.issuanceId,
+        accountId: f.accountId,
+        paymentId: f.paymentId,
+        amountInCents: 10_000,
+        accessToken: 'fixture-access',
       });
+
       return { status: 'APPROVED', payment: approval(input.eventId) };
     });
     function notice(paymentId = f.paymentId) {
@@ -287,9 +379,12 @@ export function createPaymentFixture() {
     }
     async function delivery() {
       const event = notice();
+
       await inbox.enqueue(event);
       const job = await claim();
+
       expect(job.deliveryKey).toBe(event.deliveryKey);
+
       return job;
     }
     function stored(job: ClaimedMercadoPagoWebhook) {
@@ -300,18 +395,36 @@ export function createPaymentFixture() {
     function issuanceRow() {
       return prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: issuance.issuanceId } });
     }
-    return { ...f, issuance, inbox, sandbox, processor, read, approval, notice, claim, delivery, stored, issuanceRow };
+    return {
+      ...f,
+      issuance,
+      inbox,
+      sandbox,
+      processor,
+      read,
+      approval,
+      notice,
+      claim,
+      delivery,
+      stored,
+      issuanceRow
+    };
   }
 
   async function ledger(receivableId: string) {
     const receivable = await prisma.receivable.findUniqueOrThrow({ where: { id: receivableId } });
     const payments = await prisma.receivablePayment.findMany({ where: { receivableId } });
+
     return { receivable, payments };
   }
 
   return {
-    get prisma() { return prisma; },
-    get useCase() { return useCase; },
+    get prisma() {
+      return prisma;
+    },
+    get useCase() {
+      return useCase;
+    },
     users,
     fixture,
     fixtureQr,

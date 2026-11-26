@@ -25,16 +25,32 @@ export async function createHttpFixture(controllers: Type<unknown>[], providers:
   const app = module.createNestApplication();
   const verifyAccess = vi.fn<AuthSecurity['verifyAccess']>().mockResolvedValue({ sub: userId, sid: 'session' });
   const authenticate = vi.fn<AuthRepository['authenticate']>().mockResolvedValue({
-    id: userId, name: 'Fixture', email: 'owner@example.invalid', selectedPlanPriceId: null,
-    emailVerifiedAt: new Date('2026-01-01T00:00:00Z'), disabledAt: null,
+    id: userId,
+    name: 'Fixture',
+    email: 'owner@example.invalid',
+    selectedPlanPriceId: null,
+    emailVerifiedAt: new Date('2026-01-01T00:00:00Z'),
+    disabledAt: null,
   });
   app.setGlobalPrefix('api');
   app.useGlobalGuards(new AccessTokenGuard(app.get(Reflector), { verifyAccess } as unknown as AuthSecurity,
     { authenticate } as unknown as AuthRepository, {} as AuthCookies, {} as PostgresAuthRateLimit));
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true,
-    exceptionFactory: validationExceptionFactory, validationError: { target: false, value: false } }));
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    exceptionFactory: validationExceptionFactory,
+    validationError: { target: false, value: false }
+  }));
   app.useGlobalFilters(new GlobalExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+
   await app.init();
-  return { app, server: app.getHttpServer() as Server, verifyAccess, authenticate };
+
+  return {
+    app,
+    server: app.getHttpServer() as Server,
+    verifyAccess,
+    authenticate
+  };
 }

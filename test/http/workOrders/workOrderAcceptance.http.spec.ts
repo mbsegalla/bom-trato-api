@@ -36,7 +36,13 @@ const userId = '44444444-4444-4444-8444-444444444444';
 const privateRoute = `/api/organizations/${organizationId}/work-orders/${workOrderId}/acceptance`;
 const publicRoute = '/api/public/work-orders/acceptance';
 const token = 'a'.repeat(64);
-const body = { token, snapshotHash: 'b'.repeat(64), signerName: 'Maria da Silva', consent: true, consentVersion: '1' };
+const body = {
+  token,
+  snapshotHash: 'b'.repeat(64),
+  signerName: 'Maria da Silva',
+  consent: true,
+  consentVersion: '1'
+};
 const receipt: WorkOrderAcceptanceReceipt = {
   id: '33333333-3333-4333-8333-333333333333',
   signerName: 'Maria da Silva',
@@ -79,7 +85,11 @@ describe('work order acceptance HTTP contract', () => {
         { provide: GeneratePublicWorkOrderReportUseCase, useValue: { execute: async () => new Uint8Array() } },
         {
           provide: PublicPortfolioConsentUseCase,
-          useValue: { status: async () => ({}), consent: async () => ({}), revoke: async () => ({}) },
+          useValue: {
+            status: async () => ({}),
+            consent: async () => ({}),
+            revoke: async () => ({})
+          },
         },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: async () => new Uint8Array() } },
         { provide: PostgresPublicShareRateLimit, useValue: { check: rateLimit } },
@@ -115,6 +125,7 @@ describe('work order acceptance HTTP contract', () => {
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
     app.useGlobalInterceptors(new ResponseInterceptor(app.get(Reflector)));
+
     await app.init();
     server = app.getHttpServer();
   });
@@ -182,6 +193,7 @@ describe('work order acceptance HTTP contract', () => {
       .post(publicRoute)
       .send({ ...body, ...change })
       .expect(400);
+
     expect(accept).not.toHaveBeenCalled();
   });
 
@@ -190,17 +202,21 @@ describe('work order acceptance HTTP contract', () => {
     async (field) => {
       const payload: Record<string, unknown> = { ...body };
       delete payload[field];
+
       await request(server).post(`${publicRoute}?${field}=ignored`).send(payload).expect(400);
+
       expect(accept).not.toHaveBeenCalled();
     },
   );
 
   it('passes a well-formed previous consent version to the use case for a stale snapshot conflict', async () => {
     accept.mockRejectedValueOnce(new WorkOrderAcceptanceError('WORK_ORDER_ACCEPTANCE_SNAPSHOT_CONFLICT'));
+
     const response = await request(server)
       .post(publicRoute)
       .send({ ...body, consentVersion: '0' })
       .expect(409);
+
     expect(accept).toHaveBeenCalledWith(token, { ...body, consentVersion: '0' });
     expect(response.body).toMatchObject({ success: false, error: { code: 'WORK_ORDER_ACCEPTANCE_SNAPSHOT_CONFLICT' } });
   });
@@ -212,7 +228,9 @@ describe('work order acceptance HTTP contract', () => {
     ['INVALID_WORK_ORDER_ACCEPTANCE_INPUT', 400],
   ] as const)('maps %s to the standard error envelope', async (code, status) => {
     accept.mockRejectedValueOnce(new WorkOrderAcceptanceError(code));
+
     const response = await request(server).post(publicRoute).send(body).expect(status);
+
     expect(response.body).toMatchObject({ success: false, statusCode: status, error: { code } });
     expect(response.headers['cache-control']).toContain('no-store');
   });
@@ -224,7 +242,9 @@ describe('work order acceptance HTTP contract', () => {
     [new WorkOrderError('WORK_ORDERS_BUSY'), 503],
   ] as const)('preserves existing token and platform errors %s', async (error, status) => {
     accept.mockRejectedValueOnce(error);
+
     const response = await request(server).post(publicRoute).send(body).expect(status);
+
     expect(response.body).toMatchObject({ success: false, statusCode: status, error: { code: error.code } });
     expect(response.text).not.toContain(token);
   });
@@ -233,7 +253,9 @@ describe('work order acceptance HTTP contract', () => {
     rateLimit.mockRejectedValueOnce(
       new ApiException(HttpStatus.TOO_MANY_REQUESTS, 'RATE_LIMIT_EXCEEDED', 'Too many requests'),
     );
+
     await request(server).post(publicRoute).send(body).expect('Referrer-Policy', 'no-referrer').expect(429);
+
     expect(accept).not.toHaveBeenCalled();
   });
 
@@ -243,6 +265,7 @@ describe('work order acceptance HTTP contract', () => {
       .set('Authorization', 'Bearer fixture')
       .expect('Cache-Control', 'private, no-store')
       .expect(200);
+
     expect(internal).toHaveBeenCalledWith({ organizationId, workOrderId, userId });
     expect(response.body).toMatchObject({
       success: true,
@@ -259,7 +282,9 @@ describe('work order acceptance HTTP contract', () => {
 
   it('represents a pending acceptance explicitly without inventing a receipt', async () => {
     internal.mockResolvedValueOnce({ receipt: null });
+
     const response = await request(server).get(privateRoute).set('Authorization', 'Bearer fixture').expect(200);
+
     expect(response.body).toMatchObject({ data: { receipt: null } });
   });
 
@@ -273,6 +298,7 @@ describe('work order acceptance HTTP contract', () => {
       .get(privateRoute.replace(workOrderId, 'invalid'))
       .set('Authorization', 'Bearer fixture')
       .expect(400);
+
     expect(internal).not.toHaveBeenCalled();
   });
 });

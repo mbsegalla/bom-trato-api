@@ -7,7 +7,12 @@ describe('work order photo image processing', () => {
   const processor = new SharpWorkOrderPhotoImageProcessor();
 
   it('decodes an image, applies orientation, removes metadata and returns bounded WebP', async () => {
-    const source = await sharp({ create: { width: 3000, height: 1500, channels: 3, background: '#334455' } })
+    const source = await sharp({ create: {
+      width: 3000,
+      height: 1500,
+      channels: 3,
+      background: '#334455'
+    } })
       .withMetadata({ orientation: 6 })
       .jpeg()
       .toBuffer();
@@ -22,7 +27,12 @@ describe('work order photo image processing', () => {
   });
 
   it.each(['jpeg', 'png', 'webp'] as const)('accepts actual %s image bytes', async (format) => {
-    const source = await sharp({ create: { width: 5, height: 7, channels: 3, background: '#334455' } })
+    const source = await sharp({ create: {
+      width: 5,
+      height: 7,
+      channels: 3,
+      background: '#334455'
+    } })
       .toFormat(format)
       .toBuffer();
 
@@ -58,7 +68,12 @@ describe('work order photo image processing', () => {
   });
 
   it('rejects oversized pixel dimensions even when compressed file size is small', async () => {
-    const source = await sharp({ create: { width: 6400, height: 6400, channels: 3, background: '#ffffff' } })
+    const source = await sharp({ create: {
+      width: 6400,
+      height: 6400,
+      channels: 3,
+      background: '#ffffff'
+    } })
       .png()
       .toBuffer();
 
@@ -71,7 +86,13 @@ describe('work order photo image processing', () => {
 
   it('rejects animated WebP and corrupted image data', async () => {
     const pixels = Buffer.concat([Buffer.alloc(16 * 16 * 3, 255), Buffer.alloc(16 * 16 * 3, 0)]);
-    const animated = await sharp(pixels, { raw: { width: 16, height: 32, channels: 3, pageHeight: 16 } })
+
+    const animated = await sharp(pixels, { raw: {
+      width: 16,
+      height: 32,
+      channels: 3,
+      pageHeight: 16
+    } })
       .webp({ loop: 0, delay: [100, 100] })
       .toBuffer();
 

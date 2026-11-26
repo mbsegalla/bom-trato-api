@@ -8,6 +8,7 @@ describe('NodeOrganizationInvitationTokens', () => {
     const tokens = new NodeOrganizationInvitationTokens();
     const first = tokens.create();
     const second = tokens.create();
+
     expect(first.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(first.value).not.toBe(second.value);
     expect(first.hash).toBe(createHash('sha256').update(first.value).digest('hex'));

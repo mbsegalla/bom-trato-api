@@ -33,6 +33,7 @@ suite('Mercado Pago webhook inbox (disposable PostgreSQL)', () => {
 
   beforeAll(async () => {
     prisma = new PrismaService({ url: disposableDatabaseUrl() });
+
     await prisma.$connect();
     const runtime = new MercadoPagoConnectionRuntime({
       enabled: false,
@@ -48,6 +49,7 @@ suite('Mercado Pago webhook inbox (disposable PostgreSQL)', () => {
 
   afterEach(async () => {
     if (!prisma) return;
+
     await prisma.mercadoPagoWebhookEvent.deleteMany({ where: { clientId: { in: clientIds.splice(0) } } });
   });
 
@@ -58,6 +60,7 @@ suite('Mercado Pago webhook inbox (disposable PostgreSQL)', () => {
   function notice() {
     const clientId = String(randomInt(1_000_000_000, 9_999_999_999));
     clientIds.push(clientId);
+
     return {
       clientId,
       deliveryKey: createHash('sha256').update(randomUUID()).digest('hex'),
@@ -69,13 +72,20 @@ suite('Mercado Pago webhook inbox (disposable PostgreSQL)', () => {
 
   it('deduplicates concurrent deliveries and only one worker obtains the lease', async () => {
     const event = notice();
-    await Promise.all([repository.enqueue(event), repository.enqueue(event), repository.enqueue(event)]);
+
+    await Promise.all([
+      repository.enqueue(event),
+      repository.enqueue(event),
+      repository.enqueue(event)
+    ]);
+
     expect(await prisma.mercadoPagoWebhookEvent.count({ where: { clientId: event.clientId } })).toBe(1);
 
     const claims = await Promise.all([
       repository.claim(event.clientId, randomUUID()),
       repository.claim(event.clientId, randomUUID()),
     ]);
+
     expect(claims.filter((claim) => claim !== null)).toHaveLength(1);
     expect(await repository.claim(event.clientId, randomUUID())).toBeNull();
   });
@@ -83,18 +93,29 @@ suite('Mercado Pago webhook inbox (disposable PostgreSQL)', () => {
   it('recovers an expired lease and rejects stale completion', async () => {
     const event = notice();
     const key = { clientId_deliveryKey: { clientId: event.clientId, deliveryKey: event.deliveryKey } };
+
     await repository.enqueue(event);
     const original = await repository.claim(event.clientId, randomUUID());
     if (original === null) throw new Error('Fixture claim failed');
-    await prisma.mercadoPagoWebhookEvent.update({ where: key, data: { leaseExpiresAt: new Date(Date.now() - 60_000) } });
+
+    await prisma.mercadoPagoWebhookEvent.update({
+      where: key,
+      data: { leaseExpiresAt: new Date(Date.now() - 60_000) }
+    });
     const replacement = await repository.claim(event.clientId, randomUUID());
     if (replacement === null) throw new Error('Expired claim was not recovered');
 
     expect(await repository.settle(original, { kind: 'RETRY', code: 'UNMATCHED_PAYMENT' })).toBe(false);
     expect(await repository.settle(replacement, { kind: 'RETRY', code: 'UNMATCHED_PAYMENT' })).toBe(true);
+
     const stored = await prisma.mercadoPagoWebhookEvent.findUniqueOrThrow({ where: key });
+
     expect(stored).toMatchObject({
-      attempts: 1, leaseToken: null, leaseExpiresAt: null, processedAt: null, reviewRequiredAt: null,
+      attempts: 1,
+      leaseToken: null,
+      leaseExpiresAt: null,
+      processedAt: null,
+      reviewRequiredAt: null,
       resultCode: 'UNMATCHED_PAYMENT',
     });
     expect(stored.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
@@ -104,15 +125,19 @@ suite('Mercado Pago webhook inbox (disposable PostgreSQL)', () => {
     const event = notice();
     const other = notice();
     const key = { clientId_deliveryKey: { clientId: event.clientId, deliveryKey: event.deliveryKey } };
+
     await repository.enqueue(event);
     await repository.enqueue(other);
     await prisma.mercadoPagoWebhookEvent.update({ where: key, data: { attempts: 24 } });
 
     const claimed = await repository.claim(event.clientId, randomUUID());
     if (claimed === null) throw new Error('Fixture claim failed');
+
     expect(claimed.clientId).toBe(event.clientId);
     expect(await repository.settle(claimed, { kind: 'RETRY', code: 'UNMATCHED_PAYMENT' })).toBe(true);
+
     const stored = await prisma.mercadoPagoWebhookEvent.findUniqueOrThrow({ where: key });
+
     expect(stored).toMatchObject({ attempts: 25, processedAt: null, resultCode: 'UNMATCHED_PAYMENT' });
     expect(stored.reviewRequiredAt).toBeInstanceOf(Date);
     expect(await repository.claim(event.clientId, randomUUID())).toBeNull();

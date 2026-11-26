@@ -9,6 +9,7 @@ describe('DashboardPeriod', () => {
   it('accepts the maximum inclusive duration and isolates mutable date snapshots', () => {
     const period = DashboardPeriod.create(from, at(366));
     period.snapshot().from.setTime(0);
+
     expect(period.snapshot()).toEqual({ from, to: at(366) });
   });
 

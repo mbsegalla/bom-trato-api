@@ -12,6 +12,7 @@ describe('address HTTP routes', () => {
   let fixture: Awaited<ReturnType<typeof createHttpFixture>>;
   const findByPostalCode = vi.fn<GetAddressByPostalCodeUseCase['execute']>();
   const cities = vi.fn<ListBrazilianCitiesUseCase['execute']>();
+
   beforeAll(async () => {
     fixture = await createHttpFixture([AddressController], [
       { provide: GetAddressByPostalCodeUseCase, useValue: { execute: findByPostalCode } },
@@ -19,20 +20,35 @@ describe('address HTTP routes', () => {
       { provide: ListBrazilianStatesUseCase, useValue: new ListBrazilianStatesUseCase() },
     ]);
   });
-  beforeEach(() => { findByPostalCode.mockReset(); cities.mockReset(); });
-  afterAll(async () => { await fixture?.app.close(); });
+
+  beforeEach(() => {
+    findByPostalCode.mockReset();
+    cities.mockReset();
+  });
+
+  afterAll(async () => {
+    await fixture?.app.close();
+  });
 
   it('requires authentication and returns a wrapped state list', async () => {
     await request(fixture.server).get('/api/address/states').expect(401);
     const response = await request(fixture.server).get('/api/address/states').set('Authorization', 'Bearer fixture').expect(200);
+
     expect(response.body.data).toHaveLength(27);
     expect(response.body.success).toBe(true);
   });
 
   it('maps missing postal codes and upstream failures to the correct HTTP status', async () => {
-    for (const [code, status] of [['INVALID_POSTAL_CODE', 400], ['POSTAL_CODE_NOT_FOUND', 404], ['ADDRESS_PROVIDER_UNAVAILABLE', 503], ['ADDRESS_PROVIDER_INVALID_RESPONSE', 502]] as const) {
+    for (const [code, status] of [
+      ['INVALID_POSTAL_CODE', 400],
+      ['POSTAL_CODE_NOT_FOUND', 404],
+      ['ADDRESS_PROVIDER_UNAVAILABLE', 503],
+      ['ADDRESS_PROVIDER_INVALID_RESPONSE', 502]
+    ] as const) {
       findByPostalCode.mockRejectedValueOnce(new AddressError(code));
+
       const response = await request(fixture.server).get('/api/address/postal-codes/01001000').set('Authorization', 'Bearer fixture').expect(status);
+
       expect(response.body.error.code).toBe(code);
     }
   });

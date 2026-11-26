@@ -70,6 +70,7 @@ describe('Mercado Pago client', () => {
 
   it('exchanges a code server-side and requires the sandbox response', async () => {
     const { client, transport } = fixture(tokenResponse);
+
     const result = await client.exchangeCode('fixture-code', 'a'.repeat(43));
 
     expect(result).toMatchObject({
@@ -98,7 +99,11 @@ describe('Mercado Pago client', () => {
   });
 
   it('returns both rotated credentials on refresh and rejects another account', async () => {
-    const { client } = fixture({ ...tokenResponse, refresh_token: 'rotated-refresh', access_token: 'rotated-access' });
+    const { client } = fixture({
+      ...tokenResponse,
+      refresh_token: 'rotated-refresh',
+      access_token: 'rotated-access'
+    });
 
     await expect(client.refreshCredentials('123456', 'old-refresh')).resolves.toMatchObject({
       accessToken: 'rotated-access',
@@ -188,7 +193,10 @@ describe('Mercado Pago client', () => {
     const client = new MercadoPagoClient({ ...config, liveMode: true }, transport);
 
     await expect(client.readApprovedPixPayment(lookup)).resolves.toMatchObject({
-      liveMode: true, externalPaymentId: lookup.paymentId, amountInCents: 35001, currency: 'brl',
+      liveMode: true,
+      externalPaymentId: lookup.paymentId,
+      amountInCents: 35001,
+      currency: 'brl',
     });
     await expect(client.readApprovedPixPayment(lookup)).rejects.toThrow('MODE_MISMATCH');
   });

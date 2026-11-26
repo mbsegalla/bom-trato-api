@@ -17,10 +17,17 @@ describe('Mercado Pago credential encryption', () => {
   it('rejects another organization, mode, application or token purpose', () => {
     const encrypted = cipher.seal(context, 'fixture-token');
 
-    for (const [index, replacement] of [[1, 'organization-b'], [2, '333'], [3, 'true'], [4, '999'], [5, 'refresh']] as const) {
+    for (const [index, replacement] of [
+      [1, 'organization-b'],
+      [2, '333'],
+      [3, 'true'],
+      [4, '999'],
+      [5, 'refresh']
+    ] as const) {
       const different = [...context];
 
       different[index] = replacement;
+
       expect(() => cipher.open(different, encrypted)).toThrow('MERCADO_PAGO_UNAVAILABLE');
     }
   });
