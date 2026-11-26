@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ExecutionContext } from '@nestjs/common';
 import { HttpException } from '@nestjs/common';
 import type { PostgresPublicShareRateLimit } from '../../../../../infrastructure/http/rateLimits/postgresPublicShareRateLimit.js';
-import { ReceivablePaymentLinkRateLimitGuard } from './receivablePaymentLinkRateLimitGuard.js';
+import { WorkOrderShareRateLimitGuard } from './workOrderShareRateLimit.guard.js';
 
-describe('ReceivablePaymentLinkRateLimitGuard', () => {
+describe('WorkOrderShareRateLimitGuard', () => {
   it('sets privacy headers before checking the actual request IP, including rejected requests', async () => {
     const check = vi.fn().mockRejectedValue(new HttpException('rate limited', 429));
     const setHeader = vi.fn();
@@ -14,7 +14,7 @@ describe('ReceivablePaymentLinkRateLimitGuard', () => {
       getRequest: () => ({ ip: '192.0.2.1', socket: { remoteAddress: '192.0.2.2' }, headers: { 'x-forwarded-for': '192.0.2.3' } }),
       getResponse: () => response,
     }) } as unknown as ExecutionContext;
-    const guard = new ReceivablePaymentLinkRateLimitGuard({ check } as unknown as PostgresPublicShareRateLimit);
+    const guard = new WorkOrderShareRateLimitGuard({ check } as unknown as PostgresPublicShareRateLimit);
     await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 429 });
     expect(check).toHaveBeenCalledWith('192.0.2.1', response);
     expect(setHeader.mock.calls).toEqual([
