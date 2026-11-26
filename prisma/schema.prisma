@@ -1148,11 +1148,29 @@ model Receivable {
   workOrder          WorkOrder           @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
   customer           Customer            @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
   receivablePayments ReceivablePayment[]
+  paymentLink        ReceivablePaymentLink?
 
   @@unique([workOrderId, kind])
+  @@unique([id, organizationId])
   @@index([organizationId, status, dueAt, id])
   @@index([organizationId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([organizationId, customerId])
+}
+
+model ReceivablePaymentLink {
+  receivableId             String    @id @db.Uuid
+  organizationId           String    @db.Uuid
+  tokenHash                String    @unique @db.VarChar(64)
+  receivableVersion        Int
+  receivingSettingsVersion Int
+  createdById              String    @db.Uuid
+  createdAt                DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt                DateTime  @db.Timestamptz(3)
+  revokedAt                DateTime? @db.Timestamptz(3)
+
+  receivable Receivable @relation(fields: [receivableId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([receivableId, organizationId])
 }
 
 model ReceivablePayment {

@@ -10,7 +10,9 @@ export type ReceivingSettingsErrorCode =
   | 'RECEIVING_SETTINGS_BUSY'
   | 'RECEIVABLE_NOT_FOUND'
   | 'PIX_DESTINATION_NOT_CONFIGURED'
-  | 'PIX_CHARGE_NOT_AVAILABLE';
+  | 'PIX_CHARGE_NOT_AVAILABLE'
+  | 'PAYMENT_LINK_UNAVAILABLE'
+  | 'PAYMENT_LINK_VERSION_CONFLICT';
 
 export class ReceivingSettingsError extends Error {
   constructor(readonly code: ReceivingSettingsErrorCode) {

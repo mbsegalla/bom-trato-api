@@ -18,6 +18,8 @@ const statuses = {
   RECEIVABLE_NOT_FOUND: HttpStatus.NOT_FOUND,
   PIX_DESTINATION_NOT_CONFIGURED: HttpStatus.CONFLICT,
   PIX_CHARGE_NOT_AVAILABLE: HttpStatus.CONFLICT,
+  PAYMENT_LINK_UNAVAILABLE: HttpStatus.NOT_FOUND,
+  PAYMENT_LINK_VERSION_CONFLICT: HttpStatus.CONFLICT,
 } satisfies Record<ReceivingSettingsErrorCode, HttpStatus>;
 
 export function receivingSettingsOperation<T>(operation: () => Promise<T>): Promise<T> {
