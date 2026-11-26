@@ -13,13 +13,13 @@ pnpm check
 pnpm build
 ```
 
-Run formatting **after** ESLint autofixes. Fix all failures instead of disabling Husky, lint rules, or required checks.
+Run formatting **after** ESLint autofixes. The repository owner validates and corrects lint/formatting locally before merging. ESLint, Prettier, `pnpm check` and Husky remain unchanged. CI deliberately does not run `pnpm check`, ESLint or Prettier; it runs `pnpm typecheck` and the functional checks below. A green CI is not evidence of a clean lint/format check.
 
 ### Preflight and promotion
 
 1. Inspect the current `develop`, `main` and `ci/preflight` heads and any open pull request. Start from the current `develop` and include any missing `main` changes when necessary. Never discard pending work on the preflight branch; resolve divergences deliberately.
-2. Run lint autofixes, formatting, checks, tests and build locally when dependencies are available. Publish the candidate to `ci/preflight`, not `develop`. The same read-only CI job runs with the same lockfile and configuration on all three branches.
-3. Verify a completed, successful push workflow for the exact candidate SHA on `ci/preflight`. If it fails, use the actual lint/formatting diff in the job logs and fix the candidate there. Revalidate every changed SHA. Do not promote a pending, skipped, canceled or failed candidate.
+2. Follow the repository's coding conventions and run local lint/format checks when dependencies are available. Publish the candidate to `ci/preflight`, not `develop`. The same read-only functional CI job runs with the same lockfile and configuration on all three branches.
+3. Verify a completed, successful push workflow for the exact candidate SHA on `ci/preflight`. Fix functional failures there using the job logs. Revalidate every changed SHA. Do not promote a pending, skipped, canceled or failed candidate.
 4. Verify `develop` has not moved since the candidate was prepared and the candidate includes its head in its ancestry. Fast-forward `develop` to the exact approved commit using a non-force update with an expected-head guard. If `develop` or `main` changed in the meantime, review the new changes, integrate as needed and revalidate before promotion.
 5. Confirm the successful `develop` push workflow for the promoted SHA before opening or updating the release pull request. The PR's merge check must also pass. Do not merge to `main` automatically.
 
@@ -33,7 +33,7 @@ See the repository Actions tab for run results and logs. No automatic deployment
 
 ## Backend validation
 
-The `Backend validation` job checks Prisma, generates the client, runs `pnpm check`, applies all migrations to a fresh PostgreSQL 17 service, runs the Vitest suite, and builds the API. The database and its fixed credentials are disposable CI-only fixtures. Do not point this workflow at a real database.
+The `Backend validation` job checks Prisma, generates the client, runs `pnpm typecheck`, applies all migrations to a fresh PostgreSQL 17 service, runs the Vitest suite, and builds the API. The database and its fixed credentials are disposable CI-only fixtures. Do not point this workflow at a real database.
 
 The local backend also needs a valid development `DATABASE_URL` for Prisma commands. Run the following after installing dependencies:
 

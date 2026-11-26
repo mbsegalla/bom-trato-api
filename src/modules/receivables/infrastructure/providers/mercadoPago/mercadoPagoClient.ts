@@ -35,7 +35,8 @@ interface PaymentLookup {
   accessToken: string;
 }
 
-type MercadoPagoErrorCode = 'INVALID_INPUT' | 'INVALID_RESPONSE' | 'REQUEST_FAILED' | 'ACCOUNT_MISMATCH' | 'MODE_MISMATCH';
+type MercadoPagoErrorCode =
+  'INVALID_INPUT' | 'INVALID_RESPONSE' | 'REQUEST_FAILED' | 'ACCOUNT_MISMATCH' | 'MODE_MISMATCH';
 
 export class MercadoPagoError extends Error {
   constructor(
