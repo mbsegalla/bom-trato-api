@@ -234,3 +234,20 @@ for (const file of additionalStylePaths) {
   await writeFile(file, text, 'utf8');
 }
 console.log('ADDITIONAL_PRETTIER_FILES=' + additionalStylePaths.length);
+
+// Only the two style rules reported by the full repository lint.
+const remainingStylePaths = ["src/app.module.ts","src/modules/receivables/application/useCases/manageMercadoPagoLivePix.useCase.ts","src/modules/receivables/domain/policies/mercadoPagoLivePixReview.policy.ts","src/modules/receivables/domain/policies/mercadoPagoSandboxPix.policy.ts","src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoClient.ts","src/modules/receivables/infrastructure/transactions/mercadoPagoLiveSettlement.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixReviewRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLiveWebhookRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRecoveryRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.ts","src/modules/receivables/infrastructure/transactions/prismaReceivableProviderPaymentRepository.ts","src/modules/receivables/infrastructure/workers/mercadoPagoLiveWebhook.worker.ts","src/modules/receivables/infrastructure/workers/mercadoPagoWebhook.worker.ts","src/modules/receivables/infrastructure/workers/processMercadoPagoLiveWebhook.service.ts","src/modules/receivables/infrastructure/workers/processMercadoPagoWebhook.service.ts","src/modules/receivables/mercadoPagoConnection.module.ts","src/modules/receivables/presentation/http/controllers/mercadoPagoLiveWebhook.controller.ts","test/http/support/http.fixture.ts","test/integration/receivables/support/payment.fixture.ts","test/integration/support/disposableDatabase.fixture.ts"];
+const styleOnly = new ESLint({ fix: (message) => message.ruleId === 'curly' || message.ruleId === 'simple-import-sort/imports' });
+const remaining = await styleOnly.lintFiles(remainingStylePaths);
+await ESLint.outputFixes(remaining);
+for (const file of remainingStylePaths) {
+  const config = await prettier.resolveConfig(file);
+  let text = await readFile(file, 'utf8');
+  for (let pass = 0; pass < 6; pass++) {
+    const next = await prettier.format(text, { ...config, filepath: file });
+    if (next === text) break;
+    text = next;
+  }
+  await writeFile(file, text, 'utf8');
+}
+console.log('ADDITIONAL_LINT_STYLE_FILES=' + remainingStylePaths.length);
