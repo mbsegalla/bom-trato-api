@@ -80,12 +80,15 @@ export function createPaymentFixture() {
       await prisma.mercadoPagoLivePix.deleteMany({ where: { organizationId } });
       await prisma.receivableProviderCharge.deleteMany({ where: { organizationId } });
       await prisma.receivablePayment.deleteMany({ where: { receivable: { organizationId } } });
+      await prisma.receivablePaymentLink.deleteMany({ where: { organizationId } });
       await prisma.receivable.deleteMany({ where: { organizationId } });
       await prisma.workOrder.deleteMany({ where: { organizationId } });
       await prisma.quote.deleteMany({ where: { organizationId } });
       await prisma.customer.deleteMany({ where: { organizationId } });
       await prisma.organizationTrial.deleteMany({ where: { organizationId } });
       await prisma.mercadoPagoConnection.deleteMany({ where: { organizationId } });
+      await prisma.mercadoPagoOAuthAttempt.deleteMany({ where: { organizationId } });
+      await prisma.organizationReceivingSettings.deleteMany({ where: { organizationId } });
       await prisma.organizationMember.deleteMany({ where: { organizationId } });
       await prisma.organization.deleteMany({ where: { id: organizationId } });
     }

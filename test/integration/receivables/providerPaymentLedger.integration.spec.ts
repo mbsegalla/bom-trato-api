@@ -174,4 +174,66 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
       .toMatchObject({ reviewReason: 'OWNER_CHANGED', paymentId: null });
     expect((await ledger(second.receivable.id)).payments).toHaveLength(0);
   });
+  it('refuses to register a provider charge against another tenant receivable', async () => {
+    const first = await context.fixture();
+    const second = await context.fixture();
+    const actor = { ...first.actor, receivableId: second.receivable.id };
+
+    await expect(context.useCase.register(actor, first.registration)).rejects.toThrow('RECEIVABLE_NOT_FOUND');
+    expect(await context.prisma.receivableProviderCharge.count({ where: { receivableId: second.receivable.id } })).toBe(0);
+  });
+
+  it('rejects a stale version or a mismatched outstanding amount without registering a charge', async () => {
+    const f = await context.fixture();
+
+    await expect(context.useCase.register(f.actor, { ...f.registration, receivableVersion: 2 }))
+      .rejects.toThrow('RECEIVABLE_VERSION_CONFLICT');
+    await expect(context.useCase.register(f.actor, { ...f.registration, expectedAmountInCents: 9999 }))
+      .rejects.toThrow('INVALID_RECEIVABLE_INPUT');
+    expect(await context.prisma.receivableProviderCharge.count({ where: { receivableId: f.receivable.id } })).toBe(0);
+  });
+
+  it.each([{ receivableVersion: 2 }, { expectedAmountInCents: 9999 }])('rejects changed data under the original provider identity', async (patch) => {
+    const f = await context.fixture();
+    const id = await context.useCase.register(f.actor, f.registration);
+
+    await expect(context.useCase.register(f.actor, { ...f.registration, ...patch })).rejects.toThrow('IDEMPOTENCY_CONFLICT');
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
+      .toMatchObject({ expectedAmountInCents: f.registration.expectedAmountInCents, receivableVersion: f.registration.receivableVersion });
+  });
+
+  it('retains a currency mismatch as sticky review without touching the ledger', async () => {
+    const f = await context.fixture();
+    const id = await context.useCase.register(f.actor, f.registration);
+    const wrong = { ...f.payment, currency: 'usd' };
+
+    expect(await context.useCase.execute(wrong)).toBe('REVIEW_REQUIRED');
+    expect(await context.useCase.execute(f.payment)).toBe('REVIEW_REQUIRED');
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
+      .toMatchObject({ reviewReason: 'CURRENCY_MISMATCH', confirmedCurrency: 'usd', confirmedEventId: wrong.eventId, paymentId: null });
+    expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
+
+  it('rejects a future payment date without consuming the valid provider registration', async () => {
+    const f = await context.fixture();
+    const id = await context.useCase.register(f.actor, f.registration);
+
+    await expect(context.useCase.execute({ ...f.payment, paidAt: new Date(Date.now() + 60_000) }))
+      .rejects.toThrow('INVALID_PAYMENT_DATE');
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
+      .toMatchObject({ confirmedEventId: null, paymentId: null, reviewReason: null });
+    expect(await context.useCase.execute(f.payment)).toBe('APPLIED');
+    expect((await context.ledger(f.receivable.id)).payments).toHaveLength(1);
+  });
+
+  it('does not allow a generic Mercado Pago confirmation to bypass the durable live inbox', async () => {
+    const f = await context.fixture();
+    const registration = { ...f.registration, provider: 'mercado-pago' };
+    const id = await context.useCase.register(f.actor, registration);
+
+    expect(await context.useCase.execute({ ...f.payment, provider: registration.provider })).toBe('UNMATCHED');
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
+      .toMatchObject({ confirmedEventId: null, paymentId: null, reviewReason: null });
+    expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
+  });
 });
