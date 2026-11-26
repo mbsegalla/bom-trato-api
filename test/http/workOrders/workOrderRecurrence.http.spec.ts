@@ -10,19 +10,19 @@ import type { NextFunction, Response } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GlobalExceptionFilter } from '../src/infrastructure/http/filters/globalException.filter.js';
-import { ResponseInterceptor } from '../src/infrastructure/http/interceptors/response.interceptor.js';
-import { validationExceptionFactory } from '../src/infrastructure/http/validation/validationException.factory.js';
-import type { AuthRequest } from '../src/modules/auth/presentation/http/authRequest.js';
+import { GlobalExceptionFilter } from '../../../src/infrastructure/http/filters/globalException.filter.js';
+import { ResponseInterceptor } from '../../../src/infrastructure/http/interceptors/response.interceptor.js';
+import { validationExceptionFactory } from '../../../src/infrastructure/http/validation/validationException.factory.js';
+import type { AuthRequest } from '../../../src/modules/auth/presentation/http/authRequest.js';
 import type {
   SaveWorkOrderRecurrenceInput,
   WorkOrderRecurrenceListView,
   WorkOrderRecurrenceView,
-} from '../src/modules/workOrders/application/types/workOrderRecurrence.types.js';
-import { ManageWorkOrderRecurrenceUseCase } from '../src/modules/workOrders/application/useCases/manageWorkOrderRecurrence.useCase.js';
-import { WorkOrderError } from '../src/modules/workOrders/domain/errors/workOrder.error.js';
-import { WorkOrderRecurrenceController } from '../src/modules/workOrders/presentation/http/controllers/workOrderRecurrence.controller.js';
-import { WorkOrderRecurrencesController } from '../src/modules/workOrders/presentation/http/controllers/workOrderRecurrences.controller.js';
+} from '../../../src/modules/workOrders/application/types/workOrderRecurrence.types.js';
+import { ManageWorkOrderRecurrenceUseCase } from '../../../src/modules/workOrders/application/useCases/manageWorkOrderRecurrence.useCase.js';
+import { WorkOrderError } from '../../../src/modules/workOrders/domain/errors/workOrder.error.js';
+import { WorkOrderRecurrenceController } from '../../../src/modules/workOrders/presentation/http/controllers/workOrderRecurrence.controller.js';
+import { WorkOrderRecurrencesController } from '../../../src/modules/workOrders/presentation/http/controllers/workOrderRecurrences.controller.js';
 
 const organizationId = '11111111-1111-4111-8111-111111111111';
 const workOrderId = '22222222-2222-4222-8222-222222222222';

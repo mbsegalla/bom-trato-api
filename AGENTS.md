@@ -8,3 +8,7 @@
 - Document migrations, dependencies, environment variables and any remaining validation limitations in the delivery and PR.
 
 See [CI workflow](docs/ci.md) for the complete procedure.
+
+## Tests
+
+Follow [docs/testing.md](docs/testing.md). Add regression tests in the owning layer for every behavior change; keep unit tests colocated, PostgreSQL integration tests under test/integration by module, and HTTP contracts under test/http by module. Keep fixtures independent and never weaken security checks to make tests pass. Run the relevant tests and full functional CI before merging.
