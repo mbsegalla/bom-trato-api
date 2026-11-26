@@ -53,6 +53,7 @@ jobs:
               'simple-import-sort/imports',
               'simple-import-sort/exports',
               '@typescript-eslint/consistent-type-imports',
+              '@typescript-eslint/no-unnecessary-type-assertion',
               'curly',
               'prefer-const',
               'object-shorthand',

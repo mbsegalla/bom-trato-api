@@ -1,4 +1,5 @@
 import type { ConfigType } from '@nestjs/config';
+import type * as S3 from '@aws-sdk/client-s3';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@aws-sdk/client-s3', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@aws-sdk/client-s3')>();
+  const actual = await importOriginal<typeof S3>();
 
   return {
     ...actual,
