@@ -18,16 +18,19 @@ No customer name, address, review identity, original photograph caption, storage
 ## API
 
 Public share (POST, rate-limited):
+
 - `/api/public/work-orders/portfolio/status`: `{ token }`
 - `/api/public/work-orders/portfolio/consent`: `{ token, photoIds, signerName, consent: true, consentVersion: '1' }`
 - `/api/public/work-orders/portfolio/revoke`: `{ token, photoId }`
 
 Authenticated operations:
+
 - `GET /api/organizations/:organizationId/work-orders/:workOrderId/portfolio`
 - `POST /api/organizations/:organizationId/work-orders/:workOrderId/portfolio/:photoId/publish` with `{ publish: boolean }`
 - `POST /api/organizations/:organizationId/work-orders/:workOrderId/portfolio/:photoId/revoke-consent`
 
 Public professional:
+
 - `GET /api/public/professionals/:slug` now includes a `portfolio` array with public photo IDs, stages and dimensions.
 - `GET /api/public/professionals/:slug/portfolio/:photoId/content` returns `image/webp` with no-store headers if permission is still valid.
 

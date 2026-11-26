@@ -17,6 +17,10 @@ export function workOrderPortfolioOperation<T>(operation: () => Promise<T>): Pro
   return httpOperation(
     () => workOrderShareOperation(operation),
     (error): error is WorkOrderPortfolioError => error instanceof WorkOrderPortfolioError,
-    (error) => ({ status: statuses[error.code], code: error.code, message: error.code.toLowerCase().replaceAll('_', ' ') }),
+    (error) => ({
+      status: statuses[error.code],
+      code: error.code,
+      message: error.code.toLowerCase().replaceAll('_', ' '),
+    }),
   );
 }

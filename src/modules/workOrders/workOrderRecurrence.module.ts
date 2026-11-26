@@ -27,7 +27,8 @@ import { WorkOrderRecurrencesController } from './presentation/http/controllers/
     { provide: WorkOrderRecurrenceReminderRepository, useClass: PrismaWorkOrderRecurrenceReminderRepository },
     {
       provide: RemindWorkOrderRecurrenceUseCase,
-      useFactory: (repository: WorkOrderRecurrenceReminderRepository) => new RemindWorkOrderRecurrenceUseCase(repository),
+      useFactory: (repository: WorkOrderRecurrenceReminderRepository) =>
+        new RemindWorkOrderRecurrenceUseCase(repository),
       inject: [WorkOrderRecurrenceReminderRepository],
     },
     { provide: WorkOrderRecurrenceGeneration, useClass: PrismaWorkOrderRecurrenceGeneration },

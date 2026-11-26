@@ -1,10 +1,10 @@
 import type { WorkOrderPortfolioRepository } from '../ports/workOrderPortfolio.repository.js';
+import type { WorkOrderByIdParams } from '../types/workOrder.types.js';
 import type {
   PortfolioManagementParams,
   PortfolioManagementStatus,
   PortfolioPublicationInput,
 } from '../types/workOrderPortfolio.types.js';
-import type { WorkOrderByIdParams } from '../types/workOrder.types.js';
 
 export class ManageWorkOrderPortfolioUseCase {
   constructor(private readonly repository: WorkOrderPortfolioRepository) {}

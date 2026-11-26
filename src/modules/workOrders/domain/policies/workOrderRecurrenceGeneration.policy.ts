@@ -52,7 +52,8 @@ export function nextWorkOrderRecurrenceVisit(
   let next: Date;
 
   if (unit === 'MONTH') {
-    const months = (current.getUTCFullYear() - visit.getUTCFullYear()) * 12 + current.getUTCMonth() - visit.getUTCMonth();
+    const months =
+      (current.getUTCFullYear() - visit.getUTCFullYear()) * 12 + current.getUTCMonth() - visit.getUTCMonth();
     let periods = Math.max(1, Math.floor(months / count));
 
     next = addMonths(visit, periods * count);

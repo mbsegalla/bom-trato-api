@@ -1,7 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
-import { PIX_KEY_TYPES, type PixKeyType, type SaveReceivingSettingsInput } from '../../../../application/types/receivingSettings.types.js';
+import {
+  PIX_KEY_TYPES,
+  type PixKeyType,
+  type SaveReceivingSettingsInput,
+} from '../../../../application/types/receivingSettings.types.js';
 
 export class SaveReceivingSettingsDto implements SaveReceivingSettingsInput {
   @ApiProperty()

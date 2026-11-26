@@ -4,7 +4,11 @@ import { OrganizationAccessPolicy } from '../../../organizations/domain/policies
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import { ReceivingSettingsError } from '../../domain/errors/receivingSettings.error.js';
 
-export async function assertReceivingSettingsOwner(db: Prisma.TransactionClient, params: OrganizationActorParams, write: boolean) {
+export async function assertReceivingSettingsOwner(
+  db: Prisma.TransactionClient,
+  params: OrganizationActorParams,
+  write: boolean,
+) {
   const access = await readOrganizationAccess(db, params);
   OrganizationAccessPolicy.assertVerifiedMember(access, (code) => new ReceivingSettingsError(code));
 

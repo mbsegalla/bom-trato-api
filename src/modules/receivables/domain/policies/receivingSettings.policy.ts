@@ -1,7 +1,8 @@
 import { ReceivingSettingsError } from '../errors/receivingSettings.error.js';
 import type { PixKeyType, ReceivingSettings, SaveReceivingSettingsInput } from '../types/receivingSettings.types.js';
 
-const emailPattern = /^[a-z0-9.!#$'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+const emailPattern =
+  /^[a-z0-9.!#$'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
 const evpPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function invalid(): never {
@@ -63,12 +64,7 @@ export function normalizePixKey(type: PixKeyType, raw: string): string {
 }
 
 function normalizeMerchantField(value: string, maxLength: number): string {
-  const normalized = value
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .trim()
-    .replace(/ +/g, ' ')
-    .toUpperCase();
+  const normalized = value.normalize('NFD').replace(/\p{M}/gu, '').trim().replace(/ +/g, ' ').toUpperCase();
 
   if (
     normalized.length < 1 ||

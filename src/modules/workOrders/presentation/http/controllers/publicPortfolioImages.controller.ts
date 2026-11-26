@@ -2,10 +2,8 @@ import { Controller, Get, Header, Param, ParseUUIDPipe, StreamableFile } from '@
 import { ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 
 import { PublicRoute } from '../../../../auth/presentation/http/decorators/publicRoute.decorator.js';
-import {
-  GetPublicPortfolioPhotoContentUseCase,
-} from '../../../application/useCases/getPublicPortfolioPhotoContent.useCase.js';
 import { publicProfileOperation } from '../../../../publicProfiles/presentation/http/publicProfileHttpError.js';
+import { GetPublicPortfolioPhotoContentUseCase } from '../../../application/useCases/getPublicPortfolioPhotoContent.useCase.js';
 
 @ApiTags('Public professional portfolio')
 @PublicRoute()

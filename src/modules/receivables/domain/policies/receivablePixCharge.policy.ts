@@ -1,5 +1,6 @@
 import { ReceivingSettingsError } from '../errors/receivingSettings.error.js';
 import type { PixKeyType } from '../types/receivingSettings.types.js';
+
 import { normalizePixKey } from './receivingSettings.policy.js';
 
 interface PixChargeInput {
@@ -46,7 +47,10 @@ export function receivablePixTxid(receivableId: string): string {
   }
 
   // Full 128-bit identifier, losslessly encoded in 25 alphanumeric characters.
-  return BigInt(`0x${receivableId.replaceAll('-', '')}`).toString(36).toUpperCase().padStart(25, '0');
+  return BigInt(`0x${receivableId.replaceAll('-', '')}`)
+    .toString(36)
+    .toUpperCase()
+    .padStart(25, '0');
 }
 
 export function createReceivablePixCharge(input: PixChargeInput): {

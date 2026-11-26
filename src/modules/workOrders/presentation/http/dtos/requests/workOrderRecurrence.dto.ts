@@ -31,7 +31,9 @@ export class SaveWorkOrderRecurrenceDto implements SaveWorkOrderRecurrenceInput 
   @IsBoolean()
   enabled!: boolean;
 
-  @ApiPropertyOptional({ description: 'Enable automatic draft quote generation. Omit to preserve the current setting.' })
+  @ApiPropertyOptional({
+    description: 'Enable automatic draft quote generation. Omit to preserve the current setting.',
+  })
   @ValidateIf((_object: unknown, value: unknown) => value !== undefined)
   @IsBoolean()
   autoGenerateEnabled?: boolean;

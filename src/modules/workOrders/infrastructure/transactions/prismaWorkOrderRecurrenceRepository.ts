@@ -17,7 +17,10 @@ import type {
   WorkOrderRecurrenceView,
 } from '../../application/types/workOrderRecurrence.types.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
-import { workOrderRecurrenceDate, WorkOrderRecurrencePolicy } from '../../domain/policies/workOrderRecurrence.policy.js';
+import {
+  workOrderRecurrenceDate,
+  WorkOrderRecurrencePolicy,
+} from '../../domain/policies/workOrderRecurrence.policy.js';
 import { workOrderRecurrenceVisitFilter } from '../../domain/policies/workOrderRecurrenceVisit.policy.js';
 
 const recurrenceSelect = {

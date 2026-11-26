@@ -11,6 +11,9 @@ export class GetWorkOrderWarrantyUseCase {
     const context = await this.repository.read(params);
     OrganizationAccessPolicy.assertVerifiedMember(context.access, (code) => new WorkOrderError(code));
 
-    return { warranty: context.data.warranty, locked: context.accepted || context.data.workOrder.status === 'CANCELED' };
+    return {
+      warranty: context.data.warranty,
+      locked: context.accepted || context.data.workOrder.status === 'CANCELED',
+    };
   }
 }

@@ -20,10 +20,10 @@ import { AcceptPublicWorkOrderUseCase } from '../src/modules/workOrders/applicat
 import { DeleteWorkOrderPhotoUseCase } from '../src/modules/workOrders/application/useCases/deleteWorkOrderPhoto.useCase.js';
 import { GeneratePublicWorkOrderReportUseCase } from '../src/modules/workOrders/application/useCases/generatePublicWorkOrderReport.useCase.js';
 import { GetPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrder.useCase.js';
-import { PublicPortfolioConsentUseCase } from '../src/modules/workOrders/application/useCases/publicPortfolioConsent.useCase.js';
 import { GetPublicWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrderPhotoContent.useCase.js';
 import { GetWorkOrderPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getWorkOrderPhotoContent.useCase.js';
 import { ListWorkOrderPhotosUseCase } from '../src/modules/workOrders/application/useCases/listWorkOrderPhotos.useCase.js';
+import { PublicPortfolioConsentUseCase } from '../src/modules/workOrders/application/useCases/publicPortfolioConsent.useCase.js';
 import { UpdateWorkOrderPhotoUseCase } from '../src/modules/workOrders/application/useCases/updateWorkOrderPhoto.useCase.js';
 import { UploadWorkOrderPhotoUseCase } from '../src/modules/workOrders/application/useCases/uploadWorkOrderPhoto.useCase.js';
 import { WORK_ORDER_PHOTO_MAX_FILE_SIZE } from '../src/modules/workOrders/domain/entities/workOrderPhoto.entity.js';
@@ -70,7 +70,10 @@ describe('work order photo HTTP contract', () => {
         { provide: GetWorkOrderPhotoContentUseCase, useValue: { execute: content } },
         { provide: GetPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
         { provide: GeneratePublicWorkOrderReportUseCase, useValue: { execute: async () => new Uint8Array() } },
-        { provide: PublicPortfolioConsentUseCase, useValue: { status: async () => ({}), consent: async () => ({}), revoke: async () => ({}) } },
+        {
+          provide: PublicPortfolioConsentUseCase,
+          useValue: { status: async () => ({}), consent: async () => ({}), revoke: async () => ({}) },
+        },
         { provide: AcceptPublicWorkOrderUseCase, useValue: { execute: async () => ({}) } },
         { provide: GetPublicWorkOrderPhotoContentUseCase, useValue: { execute: publicContent } },
         { provide: PostgresPublicShareRateLimit, useValue: { check: rateLimit } },

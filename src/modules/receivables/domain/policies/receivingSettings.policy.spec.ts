@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { SaveReceivingSettingsInput } from '../types/receivingSettings.types.js';
+
 import { normalizePixKey, ReceivingSettingsPolicy } from './receivingSettings.policy.js';
 
 const input: SaveReceivingSettingsInput = {
@@ -45,18 +46,26 @@ describe('receiving settings policy', () => {
       merchantName: 'JOAO SERVICOS',
       merchantCity: 'SAO PAULO',
     });
-    expect(() => ReceivingSettingsPolicy.configure({ ...input, confirmed: false }, 0)).toThrow('INVALID_RECEIVING_SETTINGS');
+    expect(() => ReceivingSettingsPolicy.configure({ ...input, confirmed: false }, 0)).toThrow(
+      'INVALID_RECEIVING_SETTINGS',
+    );
   });
 
   it('rejects stale versions and invalid merchant labels', () => {
     expect(() => ReceivingSettingsPolicy.configure(input, 1)).toThrow('RECEIVING_SETTINGS_VERSION_CONFLICT');
-    expect(() => ReceivingSettingsPolicy.configure({ ...input, merchantName: 'x'.repeat(26) }, 0)).toThrow('INVALID_RECEIVING_SETTINGS');
-    expect(() => ReceivingSettingsPolicy.configure({ ...input, merchantCity: 'São\nPaulo' }, 0)).toThrow('INVALID_RECEIVING_SETTINGS');
+    expect(() => ReceivingSettingsPolicy.configure({ ...input, merchantName: 'x'.repeat(26) }, 0)).toThrow(
+      'INVALID_RECEIVING_SETTINGS',
+    );
+    expect(() => ReceivingSettingsPolicy.configure({ ...input, merchantCity: 'São\nPaulo' }, 0)).toThrow(
+      'INVALID_RECEIVING_SETTINGS',
+    );
   });
 
   it('clears the destination when disabling Pix', () => {
     const disabled = { pixEnabled: false, pixKeyType: null, pixKey: null, merchantName: null, merchantCity: null };
     expect(ReceivingSettingsPolicy.configure({ ...disabled, confirmed: false, version: 1 }, 1)).toEqual(disabled);
-    expect(() => ReceivingSettingsPolicy.configure({ ...input, pixEnabled: false }, 0)).toThrow('INVALID_RECEIVING_SETTINGS');
+    expect(() => ReceivingSettingsPolicy.configure({ ...input, pixEnabled: false }, 0)).toThrow(
+      'INVALID_RECEIVING_SETTINGS',
+    );
   });
 });
