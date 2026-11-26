@@ -1,6 +1,6 @@
 # Continuous integration
 
-CI runs on pushes to `develop` and `main`, and pull requests targeting `main`. It uses Node.js 24, the pnpm version declared in `package.json`, and the committed lockfile. The workflows are read-only, pin their actions to commit SHAs, and do not deploy or use production secrets.
+CI runs automatically on pull requests targeting `main` (including subsequent commits to an open PR). It can also be triggered manually through `workflow_dispatch`. Pushes without an open PR do not automatically run CI, and merging into `main` does not trigger a duplicate push validation. It uses Node.js 24, the pnpm version declared in `package.json`, and the committed lockfile. The workflows are read-only, pin their actions to commit SHAs, and do not deploy or use production secrets.
 
 ## Development workflow
 
@@ -19,12 +19,12 @@ Run formatting **after** ESLint autofixes. The repository owner validates and co
 
 1. Inspect the current `develop` and `main` heads and any open release pull request. Start from the current `develop`; integrate missing `main` changes when necessary without discarding work.
 2. Follow the repository's coding conventions. Run local lint and formatting checks when dependencies are available. Publish changes directly to `develop` using non-force updates with an expected-head guard.
-3. Verify the functional CI push run for the exact published commit. Fix any functional failures on `develop` and revalidate. Do not treat pending, skipped, canceled or failed checks as approval.
-4. Open a release pull request from `develop` to `main` only after successful functional CI. If one is already open, keep it and verify the checks on its latest head. The owner handles local lint and formatting before merging. Do not merge automatically.
+3. Open a release pull request from `develop` to `main` immediately after publishing. If one is already open, reuse it. Each updated PR head triggers the functional checks against the proposed merge.
+4. Verify the completed, successful `pull_request` workflow for the latest PR head and proposed merge. Fix functional failures on `develop` and revalidate. Do not treat pending, skipped, canceled or failed checks as approval. The owner handles local lint and formatting before merging. Do not merge automatically.
 
 The `main` branch remains protected by its existing ruleset. No intermediate branch is required.
 
-PR checks validate the proposed merge into `main`. A successful push check does not replace this merge check. Repository administrators should require the validation job as a status check for `main`, without requiring PRs for pushes to `develop`. This workflow alone does not enforce branch protection.
+PR checks validate the proposed merge into `main`. Keep the existing validation job name as the required status check. For strict protection against changes to the base after validation, enable the ruleset option requiring branches to be up to date before merging. A manual run against a branch does not replace PR validation. This workflow alone does not enforce branch protection.
 
 See the repository Actions tab for run results and logs. No automatic deployment or merge is configured.
 
