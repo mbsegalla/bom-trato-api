@@ -15,7 +15,7 @@ function makeOrder() {
   const quote = Quote.create({
     id: 'quote',
     ...actor,
-    customer: { id: 'customer', name: 'Fixture', email: null, phone: null, archivedAt: null },
+    customer: { id: 'customer', name: 'Fixture', email: null, phone: null },
     details: { title: 'Fixture service' },
   }, now);
   quote.addItem(QuoteItem.create('item', { name: 'Fixture service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 1000 }));

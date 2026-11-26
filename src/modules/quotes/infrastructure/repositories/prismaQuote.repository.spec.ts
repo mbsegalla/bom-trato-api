@@ -12,7 +12,7 @@ function makeQuote() {
   const quote = Quote.create({
     id: 'quote',
     ...actor,
-    customer: { id: 'customer', name: 'Fixture', email: null, phone: null, archivedAt: null },
+    customer: { id: 'customer', name: 'Fixture', email: null, phone: null },
     details: { title: 'Fixture service' },
   }, now);
 
