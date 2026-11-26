@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import type { ConfigType } from '@nestjs/config';
 
+import { appConfig } from '../../../../config/app.config.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PrismaInAppNotificationRepository } from '../../../notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
 import { readOrganizationAccess } from '../../../organizations/infrastructure/access/prismaOrganizationAccess.js';
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import { createRepeatedWorkOrderQuote } from '../../../quotes/application/services/repeatedWorkOrderQuote.service.js';
@@ -10,11 +13,17 @@ import { WorkOrderRecurrenceGeneration } from '../../application/ports/workOrder
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
 import { workOrderRecurrenceDate } from '../../domain/policies/workOrderRecurrence.policy.js';
 import { nextWorkOrderRecurrenceVisit } from '../../domain/policies/workOrderRecurrenceGeneration.policy.js';
+import { workOrderRecurringQuoteNotificationKey } from '../../domain/policies/workOrderRecurrenceReminder.policy.js';
 import { PrismaWorkOrderRepository } from '../repositories/prismaWorkOrder.repository.js';
 
 @Injectable()
 export class PrismaWorkOrderRecurrenceGeneration extends WorkOrderRecurrenceGeneration {
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+
+    @Inject(appConfig.KEY)
+    private readonly config: ConfigType<typeof appConfig>,
+  ) {
     super();
   }
 
@@ -101,10 +110,26 @@ export class PrismaWorkOrderRecurrenceGeneration extends WorkOrderRecurrenceGene
         if (existing === null) {
           const quote = createRepeatedWorkOrderQuote(params, source, workOrder, customer, now);
 
+          const quoteId = quote.snapshot().id;
+
           await quotes.create(quote);
           await db.workOrderRecurrenceGeneration.create({
-            data: { workOrderId, organizationId, visitOn: plan.nextVisitOn, quoteId: quote.snapshot().id, createdAt: now },
+            data: { workOrderId, organizationId, visitOn: plan.nextVisitOn, quoteId, createdAt: now },
           });
+
+          if (this.config.workOrderRecurrenceReminderWorkerEnabled) {
+            const date = visitOn.split('-').reverse().join('/');
+
+            await new PrismaInAppNotificationRepository(db).enqueue({
+              key: workOrderRecurringQuoteNotificationKey(organizationId, quoteId),
+              userId: params.userId,
+              organizationId,
+              type: 'WORK_ORDER_RECURRING_QUOTE_CREATED',
+              title: 'Orçamento recorrente gerado',
+              message: `O orçamento de "${workOrder.title}" para ${customer.name} (visita de ${date}) está em rascunho. Confira os preços antes de enviar.`,
+              href: `/quotes/${quoteId}`,
+            });
+          }
         }
 
         const updated = await db.workOrderRecurrence.updateMany({

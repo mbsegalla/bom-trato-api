@@ -1,0 +1,5 @@
+ALTER TYPE "InAppNotificationType" ADD VALUE 'WORK_ORDER_RECURRENCE_REMINDER' AFTER 'WORK_ORDER_REMINDER';
+ALTER TYPE "InAppNotificationType" ADD VALUE 'WORK_ORDER_RECURRING_QUOTE_CREATED' AFTER 'WORK_ORDER_RECURRENCE_REMINDER';
+
+CREATE INDEX "WorkOrderRecurrence_reminder_due_idx"
+ON "WorkOrderRecurrence"("enabled", "nextVisitOn", "workOrderId");

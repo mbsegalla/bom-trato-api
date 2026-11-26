@@ -14,6 +14,7 @@ export const appConfig = registerAs('app', () => {
       .filter(Boolean),
     frontendUrl: new URL(env.FRONTEND_URL).origin,
     workOrderRecurrenceWorkerEnabled: env.WORK_ORDER_RECURRENCE_WORKER_ENABLED,
+    workOrderRecurrenceReminderWorkerEnabled: env.WORK_ORDER_RECURRENCE_REMINDER_WORKER_ENABLED,
     isProduction: env.NODE_ENV === NodeEnvironment.PRODUCTION,
     swaggerEnabled: env.NODE_ENV !== NodeEnvironment.PRODUCTION,
   };
