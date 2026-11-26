@@ -12,7 +12,10 @@ export type ReceivingSettingsErrorCode =
   | 'PIX_DESTINATION_NOT_CONFIGURED'
   | 'PIX_CHARGE_NOT_AVAILABLE'
   | 'PAYMENT_LINK_UNAVAILABLE'
-  | 'PAYMENT_LINK_VERSION_CONFLICT';
+  | 'PAYMENT_LINK_VERSION_CONFLICT'
+  | 'MERCADO_PAGO_UNAVAILABLE'
+  | 'MERCADO_PAGO_OAUTH_INVALID'
+  | 'MERCADO_PAGO_ACCOUNT_CONFLICT';
 
 export class ReceivingSettingsError extends Error {
   constructor(readonly code: ReceivingSettingsErrorCode) {
