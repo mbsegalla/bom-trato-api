@@ -130,4 +130,58 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
     });
     expect(await repository.claimEvent(randomUUID())).toBeNull();
   });
+  it('defers an event without consuming a retry and allows it to be claimed again when due', async () => {
+    const event = notice();
+
+    await repository.enqueue(event);
+    const first = await repository.claimEvent(randomUUID());
+    if (!first) throw new Error('Fixture claim missing');
+
+    expect(first.id).toBe(event.id);
+    expect(await repository.settleEvent(first, 'DEFER')).toBe(true);
+    expect(await repository.claimEvent(randomUUID())).toBeNull();
+
+    const row = await prisma.stripeWebhookEvent.findUniqueOrThrow({ where: { id: event.id } });
+
+    expect(row).toMatchObject({ attempts: 0, leaseToken: null, leaseExpiresAt: null, processedAt: null });
+    expect(row.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
+
+    await prisma.stripeWebhookEvent.update({
+      where: { id: event.id },
+      data: { nextAttemptAt: new Date(Date.now() - 1000) },
+    });
+    const second = await repository.claimEvent(randomUUID());
+    if (!second) throw new Error('Fixture reclaim missing');
+
+    expect(second.id).toBe(event.id);
+    expect(second.leaseToken).not.toBe(first.leaseToken);
+    expect(await repository.settleEvent(first, 'COMPLETE')).toBe(false);
+    expect(await repository.settleEvent(second, 'COMPLETE')).toBe(true);
+  });
+
+  it('renews a valid lease and prevents redelivery after completion', async () => {
+    const event = notice();
+
+    await repository.enqueue(event);
+    const job = await repository.claimEvent(randomUUID());
+    if (!job) throw new Error('Fixture claim missing');
+
+    expect(job.id).toBe(event.id);
+    await prisma.stripeWebhookEvent.update({
+      where: { id: event.id },
+      data: { leaseExpiresAt: new Date(Date.now() + 30000) },
+    });
+    expect(await repository.renewEventLease(job)).toBe(true);
+
+    const renewed = await prisma.stripeWebhookEvent.findUniqueOrThrow({ where: { id: event.id } });
+
+    expect(renewed.leaseExpiresAt?.getTime()).toBeGreaterThan(Date.now() + 30000);
+    expect(await repository.claimEvent(randomUUID())).toBeNull();
+    expect(await repository.settleEvent(job, 'COMPLETE')).toBe(true);
+    expect(await repository.renewEventLease(job)).toBe(false);
+
+    await repository.enqueue(event);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(await repository.claimEvent(randomUUID())).toBeNull();
+  });
 });
