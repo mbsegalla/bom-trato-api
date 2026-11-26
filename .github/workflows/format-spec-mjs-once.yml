@@ -72,7 +72,12 @@ jobs:
           for (const file of targets) {
             const options = await prettier.resolveConfig(file);
             const before = await readFile(file, 'utf8');
-            const after = await prettier.format(before, { ...options, filepath: file });
+            let after = before;
+            for (let pass = 0; pass < 6; pass++) {
+              const formatted = await prettier.format(after, { ...options, filepath: file });
+              if (formatted === after) break;
+              after = formatted;
+            }
             if (after !== before) await writeFile(file, after, 'utf8');
           }
           const bad = [];
@@ -92,6 +97,13 @@ jobs:
               for (const m of result.messages) counts[m.ruleId ?? 'parser'] = (counts[m.ruleId ?? 'parser'] ?? 0) + 1;
             }
             console.log('ESLINT_REMAINING_RULES=' + JSON.stringify(counts));
+            for (const result of results) {
+              for (const m of result.messages) {
+                if (Object.keys(counts).length <= 10 || ['simple-import-sort/imports', 'simple-import-sort/exports', '@typescript-eslint/consistent-type-imports', 'curly', 'prefer-const', 'object-shorthand', 'no-duplicate-imports'].includes(m.ruleId)) {
+                  console.log('LINT_DIAGNOSTIC=' + JSON.stringify({ file: result.filePath.replace(process.cwd() + '/', ''), line: m.line, column: m.column, rule: m.ruleId, severity: m.severity, message: m.message }));
+                }
+              }
+            }
             if (results.some((r) => r.fatalErrorCount)) throw new Error('ESLint parsing failed');
           }
           const changes = execFileSync('git', ['diff', '--name-only', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
