@@ -11,12 +11,13 @@ const connect = Socket.prototype.connect;
 Socket.prototype.connect = function (...args) {
   const first = Array.isArray(args[0]) ? args[0][0] : args[0];
   const port = typeof first === 'object' && first !== null ? first.port : first;
-  const host =
-    typeof first === 'object' && first !== null
-      ? first.host
-      : typeof args[1] === 'string'
-        ? args[1]
-        : undefined;
+  let host;
+
+  if (typeof first === 'object' && first !== null) {
+    host = first.host;
+  } else if (typeof args[1] === 'string') {
+    host = args[1];
+  }
 
   if (host !== '127.0.0.1' || Number(port) !== 5432) {
     throw new Error('External TCP connections are disabled in full-stack E2E');
