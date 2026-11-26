@@ -8,6 +8,7 @@ import { DatabaseModule } from '../../infrastructure/database/database.module.js
 import { MercadoPagoConnectionRepository } from './application/ports/mercadoPagoConnectionRepository.port.js';
 import { ManageMercadoPagoConnectionUseCase } from './application/useCases/manageMercadoPagoConnection.useCase.js';
 import { MercadoPagoConnectionRuntime } from './infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
+import { MercadoPagoCredentialService } from './infrastructure/transactions/mercadoPagoCredentialService.js';
 import { PrismaMercadoPagoConnectionRepository } from './infrastructure/transactions/prismaMercadoPagoConnectionRepository.js';
 import {
   MercadoPagoConnectionCompletionController,
@@ -23,6 +24,7 @@ import {
       useFactory: (config: ConfigType<typeof mercadoPagoConfig>) => new MercadoPagoConnectionRuntime(config),
       inject: [mercadoPagoConfig.KEY],
     },
+    MercadoPagoCredentialService,
     { provide: MercadoPagoConnectionRepository, useClass: PrismaMercadoPagoConnectionRepository },
     {
       provide: ManageMercadoPagoConnectionUseCase,
@@ -30,5 +32,6 @@ import {
       inject: [MercadoPagoConnectionRepository],
     },
   ],
+  exports: [MercadoPagoCredentialService],
 })
 export class MercadoPagoConnectionModule {}

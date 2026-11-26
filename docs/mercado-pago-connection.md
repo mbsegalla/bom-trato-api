@@ -62,10 +62,11 @@ Mercado Pago dashboard before enabling. Deploy the API before the frontend.
 
 ## Scope and validation
 
-No dynamic charges, real payment, webhook, automated renewal or financial
-ledger write is activated. Reauthorize manually if access expires; implement
-safe refresh-token rotation and deauthorization handling before enabling charge
-creation. Provider grant revocation and token validity are not checked live by
+No dynamic charges, real payment, webhook, scheduled renewal or financial
+ledger write is activated. The subsequent internal credential renewal and
+sandbox transport are documented in [dynamic Pix](mercado-pago-dynamic-pix.md).
+Reauthorize manually if a credential rotation becomes uncertain; complete
+deauthorization handling before enabling charge creation. Provider grant revocation and token validity are not checked live by
 the status endpoint. No payment acceptance is implied by CONNECTED.
 
 Unit tests cover state binding, expiration, replay-state transitions and cipher
