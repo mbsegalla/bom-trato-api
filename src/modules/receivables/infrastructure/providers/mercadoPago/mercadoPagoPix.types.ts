@@ -43,3 +43,10 @@ export type MercadoPagoSandboxPaymentStatus =
   | 'CLOSED'
   | 'REFUNDED'
   | 'REVIEW_REQUIRED';
+
+export type SearchMercadoPagoSandboxPixInput = Omit<ReadMercadoPagoSandboxPixInput, 'paymentId'>;
+
+export type SearchMercadoPagoSandboxPixResult =
+  | { kind: 'NOT_FOUND' }
+  | { kind: 'AMBIGUOUS' }
+  | { kind: 'FOUND'; paymentId: string; status: MercadoPagoSandboxPaymentStatus };

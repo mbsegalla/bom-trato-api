@@ -8,6 +8,8 @@ import type {
   CreateMercadoPagoPixInput,
   MercadoPagoSandboxPaymentStatus,
   ReadMercadoPagoSandboxPixInput,
+  SearchMercadoPagoSandboxPixInput,
+  SearchMercadoPagoSandboxPixResult,
 } from './mercadoPagoPix.types.js';
 
 const API_ORIGIN = 'https://api.mercadopago.com';
@@ -302,6 +304,71 @@ export class MercadoPagoClient {
     }
 
     return { ...identity, kind: 'PENDING', copyAndPaste: code, expiresAt };
+  }
+
+  // Search only the immutable external reference of an existing reservation.
+  // An empty or ambiguous result is not evidence that another Pix can be issued.
+  async searchSandboxPix(input: SearchMercadoPagoSandboxPixInput): Promise<SearchMercadoPagoSandboxPixResult> {
+    if (this.config.liveMode) {
+      throw new MercadoPagoError('MODE_MISMATCH');
+    }
+
+    assertInputId(input.accountId);
+
+    if (
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(input.issuanceId) ||
+      !isToken(input.accessToken) ||
+      !Number.isSafeInteger(input.amountInCents) ||
+      input.amountInCents < 1 ||
+      input.amountInCents > 2147483647
+    ) {
+      throw new MercadoPagoError('INVALID_INPUT');
+    }
+
+    const query = new URLSearchParams({
+      external_reference: input.issuanceId,
+      offset: '0',
+      limit: '2',
+      sort: 'date_created',
+      criteria: 'desc',
+      range: 'date_created',
+    });
+
+    const payload = record(
+      await this.request('/v1/payments/search?' + query.toString(), {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + input.accessToken },
+      }),
+    );
+    const paging = record(payload.paging);
+    const total = paging.total;
+    const results: unknown = payload.results;
+
+    if (
+      typeof total !== 'number' ||
+      !Number.isSafeInteger(total) ||
+      total < 0 ||
+      paging.offset !== 0 ||
+      !Array.isArray(results) ||
+      results.length !== Math.min(total, 2)
+    ) {
+      return invalidResponse();
+    }
+
+    if (total === 0) return { kind: 'NOT_FOUND' };
+    if (total > 1) return { kind: 'AMBIGUOUS' };
+
+    const candidate = record(results[0]);
+
+    if (candidate.external_reference !== input.issuanceId) {
+      return invalidResponse();
+    }
+
+    const paymentId = normalizeId(candidate.id);
+    // Search results alone cannot establish identity or settlement.
+    const status = await this.readSandboxPix({ ...input, paymentId });
+
+    return { kind: 'FOUND', paymentId, status };
   }
 
   // The input must originate from a durable sandbox reservation, not webhook body fields.
