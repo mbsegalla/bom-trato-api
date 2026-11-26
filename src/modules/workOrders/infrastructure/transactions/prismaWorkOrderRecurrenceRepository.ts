@@ -10,12 +10,13 @@ import { WorkOrderRecurrenceRepository } from '../../application/ports/workOrder
 import type { WorkOrderActorParams } from '../../application/ports/workOrderUnitOfWork.port.js';
 import type { WorkOrderByIdParams } from '../../application/types/workOrder.types.js';
 import type {
+  SaveWorkOrderRecurrenceInput,
+  WorkOrderRecurrenceConfiguration,
   WorkOrderRecurrenceListInput,
   WorkOrderRecurrenceListView,
   WorkOrderRecurrenceView,
 } from '../../application/types/workOrderRecurrence.types.js';
 import { WorkOrderError } from '../../domain/errors/workOrder.error.js';
-import type { WorkOrderRecurrenceSettings } from '../../domain/policies/workOrderRecurrence.policy.js';
 import { workOrderRecurrenceDate, WorkOrderRecurrencePolicy } from '../../domain/policies/workOrderRecurrence.policy.js';
 import { workOrderRecurrenceVisitFilter } from '../../domain/policies/workOrderRecurrenceVisit.policy.js';
 
@@ -24,7 +25,13 @@ const recurrenceSelect = {
   intervalCount: true,
   nextVisitOn: true,
   enabled: true,
+  autoGenerateEnabled: true,
   version: true,
+  generations: {
+    orderBy: [{ createdAt: 'desc' }, { visitOn: 'desc' }],
+    take: 1,
+    select: { quoteId: true, visitOn: true },
+  },
 } satisfies Prisma.WorkOrderRecurrenceSelect;
 
 const orderSelect = {
@@ -33,6 +40,19 @@ const orderSelect = {
   customer: { select: { archivedAt: true } },
   recurrence: { select: recurrenceSelect },
 } satisfies Prisma.WorkOrderSelect;
+
+type RecurrenceRow = Prisma.WorkOrderRecurrenceGetPayload<{ select: typeof recurrenceSelect }>;
+
+function toConfiguration(row: RecurrenceRow): WorkOrderRecurrenceConfiguration {
+  const { nextVisitOn, generations, ...recurrence } = row;
+
+  return {
+    ...recurrence,
+    nextVisitOn: nextVisitOn.toISOString().slice(0, 10),
+    lastGeneratedQuoteId: generations[0]?.quoteId ?? null,
+    lastGeneratedVisitOn: generations[0]?.visitOn.toISOString().slice(0, 10) ?? null,
+  };
+}
 
 type RecurrenceOrder = Prisma.WorkOrderGetPayload<{ select: typeof orderSelect }>;
 
@@ -91,13 +111,13 @@ export class PrismaWorkOrderRecurrenceRepository extends WorkOrderRecurrenceRepo
         });
 
         return {
-          items: rows.slice(0, limit).map(({ workOrderId, workOrder, nextVisitOn, ...recurrence }) => ({
+          items: rows.slice(0, limit).map(({ workOrderId, workOrder, ...recurrence }) => ({
             workOrderId,
             title: workOrder.title,
             customerId: workOrder.customerId,
             customerName: workOrder.customer.name,
             customerArchived: workOrder.customer.archivedAt !== null,
-            recurrence: { ...recurrence, nextVisitOn: nextVisitOn.toISOString().slice(0, 10) },
+            recurrence: toConfiguration(recurrence),
           })),
           page,
           hasMore: rows.length > limit,
@@ -124,7 +144,7 @@ export class PrismaWorkOrderRecurrenceRepository extends WorkOrderRecurrenceRepo
     );
   }
 
-  save(params: WorkOrderByIdParams, input: WorkOrderRecurrenceSettings): Promise<WorkOrderRecurrenceView> {
+  save(params: WorkOrderByIdParams, input: SaveWorkOrderRecurrenceInput): Promise<WorkOrderRecurrenceView> {
     return organizationTransaction(
       this.prisma,
       params.organizationId,
@@ -149,8 +169,10 @@ export class PrismaWorkOrderRecurrenceRepository extends WorkOrderRecurrenceRepo
           order.completedAt,
           now,
         );
+        const autoGenerateEnabled = input.autoGenerateEnabled ?? order.recurrence?.autoGenerateEnabled ?? false;
         const data = {
           ...settings,
+          autoGenerateEnabled,
           nextVisitOn: new Date(`${settings.nextVisitOn}T00:00:00.000Z`),
           updatedById: params.userId,
         };
@@ -179,7 +201,7 @@ export class PrismaWorkOrderRecurrenceRepository extends WorkOrderRecurrenceRepo
           }
         }
 
-        return { ...this.toView(order, access, now), recurrence: settings };
+        return this.toView(await this.findOrder(db, params), access, now);
       },
       this.errors(),
     );
@@ -203,13 +225,7 @@ export class PrismaWorkOrderRecurrenceRepository extends WorkOrderRecurrenceRepo
     const customerArchived = order.customer.archivedAt !== null;
 
     return {
-      recurrence:
-        order.recurrence === null
-          ? null
-          : {
-              ...order.recurrence,
-              nextVisitOn: order.recurrence.nextVisitOn.toISOString().slice(0, 10),
-            },
+      recurrence: order.recurrence === null ? null : toConfiguration(order.recurrence),
       canConfigure:
         completed &&
         access.hasPlatformAccess &&

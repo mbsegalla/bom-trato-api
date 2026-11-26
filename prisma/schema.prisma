@@ -785,13 +785,14 @@ model Quote {
   createdAt             DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime         @updatedAt @db.Timestamptz(3)
 
-  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  customer             Customer             @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  sourceLead           Lead?                @relation("LeadConvertedQuote")
+  organization         Organization                   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customer             Customer                       @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sourceLead           Lead?                          @relation("LeadConvertedQuote")
   quoteItems           QuoteItem[]
   quoteStatusHistories QuoteStatusHistory[]
   workOrders           WorkOrder[]
   quoteShares          QuoteShare[]
+  recurrenceGeneration WorkOrderRecurrenceGeneration?
 
   @@unique([id, organizationId])
   @@index([organizationId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -917,22 +918,40 @@ model WorkOrder {
 }
 
 model WorkOrderRecurrence {
-  workOrderId    String                  @id @db.Uuid
-  organizationId String                  @db.Uuid
-  intervalUnit   WorkOrderRecurrenceUnit
-  intervalCount  Int
-  nextVisitOn    DateTime                @db.Date
-  enabled        Boolean
-  version        Int                     @default(1)
-  createdById    String                  @db.Uuid
-  updatedById    String                  @db.Uuid
-  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
+  workOrderId         String                  @id @db.Uuid
+  organizationId      String                  @db.Uuid
+  intervalUnit        WorkOrderRecurrenceUnit
+  intervalCount       Int
+  nextVisitOn         DateTime                @db.Date
+  enabled             Boolean
+  autoGenerateEnabled Boolean                 @default(false)
+  version             Int                     @default(1)
+  createdById         String                  @db.Uuid
+  updatedById         String                  @db.Uuid
+  createdAt           DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                @updatedAt @db.Timestamptz(3)
 
-  workOrder WorkOrder @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  workOrder   WorkOrder                       @relation(fields: [workOrderId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  generations WorkOrderRecurrenceGeneration[]
 
   @@unique([workOrderId, organizationId])
   @@index([organizationId, enabled, nextVisitOn, workOrderId], map: "WorkOrderRecurrence_org_enabled_visit_order_idx")
+  @@index([autoGenerateEnabled, enabled, nextVisitOn, workOrderId], map: "WorkOrderRecurrence_auto_due_idx")
+}
+
+model WorkOrderRecurrenceGeneration {
+  workOrderId    String   @db.Uuid
+  organizationId String   @db.Uuid
+  visitOn        DateTime @db.Date
+  quoteId        String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+
+  recurrence WorkOrderRecurrence @relation(fields: [workOrderId, organizationId], references: [workOrderId, organizationId], onDelete: Restrict, map: "WorkOrderRecurrenceGeneration_recurrence_fkey")
+  quote      Quote               @relation(fields: [quoteId, organizationId], references: [id, organizationId], onDelete: Restrict, map: "WorkOrderRecurrenceGeneration_quote_fkey")
+
+  @@id([workOrderId, visitOn])
+  @@unique([quoteId, organizationId], map: "WorkOrderRecurrenceGeneration_quote_org_key")
+  @@index([workOrderId, createdAt(sort: Desc), visitOn(sort: Desc)], map: "WorkOrderRecurrenceGeneration_latest_idx")
 }
 
 model WorkOrderWarranty {

@@ -14,6 +14,7 @@ export interface EnvironmentVariables {
   STRIPE_WEBHOOK_SECRET: string;
   STRIPE_PORTAL_CONFIGURATION_ID?: string;
   BILLING_WORKER_ENABLED: boolean;
+  WORK_ORDER_RECURRENCE_WORKER_ENABLED: boolean;
   AUTH_JWT_SECRET: string;
   AUTH_CSRF_SECRET: string;
   AUTH_JWT_ISSUER: string;

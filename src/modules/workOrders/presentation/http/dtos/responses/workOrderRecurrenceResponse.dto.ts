@@ -1,16 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 import type {
+  WorkOrderRecurrenceConfiguration,
   WorkOrderRecurrenceListItem,
   WorkOrderRecurrenceListView,
   WorkOrderRecurrenceView,
 } from '../../../../application/types/workOrderRecurrence.types.js';
-import type {
-  WorkOrderRecurrenceSettings,
-  WorkOrderRecurrenceUnit,
-} from '../../../../domain/policies/workOrderRecurrence.policy.js';
+import type { WorkOrderRecurrenceUnit } from '../../../../domain/policies/workOrderRecurrence.policy.js';
 
-export class WorkOrderRecurrenceDto implements WorkOrderRecurrenceSettings {
+export class WorkOrderRecurrenceDto implements WorkOrderRecurrenceConfiguration {
   @ApiProperty({ enum: ['DAY', 'WEEK', 'MONTH'] })
   intervalUnit!: WorkOrderRecurrenceUnit;
 
@@ -25,6 +23,15 @@ export class WorkOrderRecurrenceDto implements WorkOrderRecurrenceSettings {
 
   @ApiProperty({ minimum: 1 })
   version!: number;
+
+  @ApiProperty()
+  autoGenerateEnabled!: boolean;
+
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  lastGeneratedQuoteId!: string | null;
+
+  @ApiProperty({ type: String, format: 'date', nullable: true })
+  lastGeneratedVisitOn!: string | null;
 }
 
 export class WorkOrderRecurrenceResponseDto implements WorkOrderRecurrenceView {
