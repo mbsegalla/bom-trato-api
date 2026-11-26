@@ -232,7 +232,7 @@ export class MercadoPagoClient {
     return this.createPix(input, false);
   }
 
-  // Internal live adapter. No public route can invoke it in this increment.
+  // Internal live adapter. The caller enforces the approved pilot scope.
   async createLivePix(input: CreateMercadoPagoPixInput): Promise<CreatedMercadoPagoPix> {
     return this.createPix(input, true);
   }

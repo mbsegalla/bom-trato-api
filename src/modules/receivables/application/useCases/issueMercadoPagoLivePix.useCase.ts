@@ -1,7 +1,7 @@
 import type { MercadoPagoLivePixRepository } from '../ports/mercadoPagoLivePixRepository.port.js';
 import type { IssueMercadoPagoLivePixInput, MercadoPagoLivePixActor } from '../types/mercadoPagoLivePix.types.js';
 
-// No HTTP controller or public QR presentation in this increment.
+// Internal issuer; release policy is enforced by the repository.
 export class IssueMercadoPagoLivePixUseCase {
   constructor(private readonly repository: MercadoPagoLivePixRepository) {}
 

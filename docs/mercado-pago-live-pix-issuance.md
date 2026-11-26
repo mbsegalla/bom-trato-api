@@ -1,5 +1,7 @@
 # Phase 4.5.7 — isolated live Pix issuance foundation
 
+> Release update (4.5.10): this page documents a historical increment. For the current bounded pilot gate, credential continuity, deployment, homologation checklist and incident response, follow [the production pilot runbook](mercado-pago-production-pilot.md). All live switches remain disabled by default; external verification and explicit operator approval are still mandatory.
+
 Apply migration `20261127000000_add_mercado_pago_live_pix_reservation` and
 regenerate Prisma. No new dependencies or frontend changes.
 
