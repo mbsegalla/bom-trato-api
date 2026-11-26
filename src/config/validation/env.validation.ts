@@ -92,6 +92,7 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
 
   MERCADO_PAGO_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_LIVE_MODE: Joi.boolean().default(false),
+  MERCADO_PAGO_SANDBOX_PIX_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_CLIENT_ID: Joi.string().pattern(/^[1-9]\d{0,29}$/).when('MERCADO_PAGO_ENABLED', {
     is: true,
     then: Joi.required(),
@@ -222,6 +223,10 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
     ].some((key) => key?.toLowerCase() === env.MERCADO_PAGO_ENCRYPTION_KEY?.toLowerCase())
   ) {
     throw new Error('MERCADO_PAGO_ENCRYPTION_KEY must be independent of other application secrets');
+  }
+
+  if (env.MERCADO_PAGO_SANDBOX_PIX_ENABLED && (!env.MERCADO_PAGO_ENABLED || env.MERCADO_PAGO_LIVE_MODE)) {
+    throw new Error('Sandbox Pix requires enabled Mercado Pago in test mode');
   }
 
   const frontend = new URL(env.FRONTEND_URL);

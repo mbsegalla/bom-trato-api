@@ -23,6 +23,8 @@ const statuses = {
   MERCADO_PAGO_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   MERCADO_PAGO_OAUTH_INVALID: HttpStatus.BAD_REQUEST,
   MERCADO_PAGO_ACCOUNT_CONFLICT: HttpStatus.CONFLICT,
+  MERCADO_PAGO_PIX_INVALID: HttpStatus.BAD_REQUEST,
+  MERCADO_PAGO_PIX_CONFLICT: HttpStatus.CONFLICT,
 } satisfies Record<ReceivingSettingsErrorCode, HttpStatus>;
 
 export function receivingSettingsOperation<T>(operation: () => Promise<T>): Promise<T> {
