@@ -38,6 +38,11 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
-    include: ['**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'test/**/*.spec.ts'],
+    coverage: {
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.spec.ts', 'src/generated/**', 'src/**/*.module.ts', 'src/main.ts'],
+      reporter: ['text', 'html', 'json-summary'],
+    },
   },
 });

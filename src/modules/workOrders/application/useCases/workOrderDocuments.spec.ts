@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { WorkOrderDocumentPdfGenerator } from '../src/modules/workOrders/application/ports/workOrderDocumentPdfGenerator.port.js';
-import type { WorkOrderDocumentRepository } from '../src/modules/workOrders/application/ports/workOrderDocumentRepository.port.js';
-import type { WorkOrderDocumentContext } from '../src/modules/workOrders/application/types/workOrderDocument.types.js';
-import { GeneratePublicWorkOrderReportUseCase } from '../src/modules/workOrders/application/useCases/generatePublicWorkOrderReport.useCase.js';
-import { GenerateWorkOrderReportUseCase } from '../src/modules/workOrders/application/useCases/generateWorkOrderReport.useCase.js';
-import type { GetPublicWorkOrderUseCase } from '../src/modules/workOrders/application/useCases/getPublicWorkOrder.useCase.js';
-import { GetWorkOrderWarrantyUseCase } from '../src/modules/workOrders/application/useCases/getWorkOrderWarranty.useCase.js';
-import { UpdateWorkOrderWarrantyUseCase } from '../src/modules/workOrders/application/useCases/updateWorkOrderWarranty.useCase.js';
+import type { WorkOrderDocumentPdfGenerator } from '../../application/ports/workOrderDocumentPdfGenerator.port.js';
+import type { WorkOrderDocumentRepository } from '../../application/ports/workOrderDocumentRepository.port.js';
+import type { WorkOrderDocumentContext } from '../../application/types/workOrderDocument.types.js';
+import { GeneratePublicWorkOrderReportUseCase } from '../../application/useCases/generatePublicWorkOrderReport.useCase.js';
+import { GenerateWorkOrderReportUseCase } from '../../application/useCases/generateWorkOrderReport.useCase.js';
+import type { GetPublicWorkOrderUseCase } from '../../application/useCases/getPublicWorkOrder.useCase.js';
+import { GetWorkOrderWarrantyUseCase } from '../../application/useCases/getWorkOrderWarranty.useCase.js';
+import { UpdateWorkOrderWarrantyUseCase } from '../../application/useCases/updateWorkOrderWarranty.useCase.js';
 
 const params = { organizationId: 'organization', workOrderId: 'work-order', userId: 'member' };
 

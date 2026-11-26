@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { WorkOrderPortfolioRepository } from '../src/modules/workOrders/application/ports/workOrderPortfolio.repository.js';
-import { GetPublicPortfolioPhotoContentUseCase } from '../src/modules/workOrders/application/useCases/getPublicPortfolioPhotoContent.useCase.js';
-import { ManageWorkOrderPortfolioUseCase } from '../src/modules/workOrders/application/useCases/manageWorkOrderPortfolio.useCase.js';
-import { PublicPortfolioConsentUseCase } from '../src/modules/workOrders/application/useCases/publicPortfolioConsent.useCase.js';
-import { NodeWorkOrderShareSecurity } from '../src/modules/workOrders/infrastructure/security/nodeWorkOrderShareSecurity.js';
-import type { PrivateObjectStorage } from '../src/shared/storage/privateObjectStorage.port.js';
+import type { WorkOrderPortfolioRepository } from '../../application/ports/workOrderPortfolio.repository.js';
+import { GetPublicPortfolioPhotoContentUseCase } from '../../application/useCases/getPublicPortfolioPhotoContent.useCase.js';
+import { ManageWorkOrderPortfolioUseCase } from '../../application/useCases/manageWorkOrderPortfolio.useCase.js';
+import { PublicPortfolioConsentUseCase } from '../../application/useCases/publicPortfolioConsent.useCase.js';
+import { NodeWorkOrderShareSecurity } from '../../infrastructure/security/nodeWorkOrderShareSecurity.js';
+import type { PrivateObjectStorage } from '../../../../shared/storage/privateObjectStorage.port.js';
 
 const TOKEN = 'a'.repeat(64);
 const key = 'private/organization/photo.webp';

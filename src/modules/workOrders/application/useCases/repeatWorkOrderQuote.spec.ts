@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { OrganizationAccessContext } from '../src/modules/organizations/domain/policies/organizationAccess.policy.js';
+import type { OrganizationAccessContext } from '../../../../modules/organizations/domain/policies/organizationAccess.policy.js';
 import type {
   QuoteActorParams,
   QuoteReadContext,
   QuoteTransaction,
-} from '../src/modules/quotes/application/ports/quoteUnitOfWork.port.js';
-import { QuoteUnitOfWork } from '../src/modules/quotes/application/ports/quoteUnitOfWork.port.js';
-import { QuoteApplicationService } from '../src/modules/quotes/application/services/quoteApplicationService.service.js';
-import { RepeatWorkOrderQuoteUseCase } from '../src/modules/quotes/application/useCases/repeatWorkOrderQuote.useCase.js';
-import { Quote } from '../src/modules/quotes/domain/entities/quote.entity.js';
-import { QuoteItem } from '../src/modules/quotes/domain/entities/quoteItem.entity.js';
-import { WorkOrder } from '../src/modules/workOrders/domain/entities/workOrder.entity.js';
+} from '../../../../modules/quotes/application/ports/quoteUnitOfWork.port.js';
+import { QuoteUnitOfWork } from '../../../../modules/quotes/application/ports/quoteUnitOfWork.port.js';
+import { QuoteApplicationService } from '../../../../modules/quotes/application/services/quoteApplicationService.service.js';
+import { RepeatWorkOrderQuoteUseCase } from '../../../../modules/quotes/application/useCases/repeatWorkOrderQuote.useCase.js';
+import { Quote } from '../../../../modules/quotes/domain/entities/quote.entity.js';
+import { QuoteItem } from '../../../../modules/quotes/domain/entities/quoteItem.entity.js';
+import { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 
 const params = { organizationId: 'organization', userId: 'operator', quoteId: 'source-quote' };
 const originalTime = new Date('2026-01-01T12:00:00.000Z');

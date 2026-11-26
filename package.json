@@ -30,7 +30,12 @@
     "billing:sync": "pnpm run build && node dist/scripts/billing/syncBilling.js",
     "billing:recover": "pnpm run build && node dist/scripts/billing/recoverBilling.js",
     "cleanup:auth": "pnpm run build && node dist/scripts/auth/cleanupAuth.js",
-    "analytics:trial": "pnpm run build && node dist/scripts/analytics/trialMetrics.js"
+    "analytics:trial": "pnpm run build && node dist/scripts/analytics/trialMetrics.js",
+    "test": "vitest run --config vitest.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts src",
+    "test:integration": "vitest run --config vitest.config.ts test/integration",
+    "test:http": "vitest run --config vitest.config.ts test/http",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",

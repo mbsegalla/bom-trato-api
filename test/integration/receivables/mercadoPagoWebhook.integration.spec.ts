@@ -4,9 +4,9 @@ import { createHash, randomInt, randomUUID } from 'node:crypto';
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { PrismaService } from '../src/infrastructure/database/prisma.service.js';
-import { MercadoPagoConnectionRuntime } from '../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
-import { PrismaMercadoPagoWebhookRepository } from '../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
+import { PrismaService } from '../../../src/infrastructure/database/prisma.service.js';
+import { MercadoPagoConnectionRuntime } from '../../../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.js';
+import { PrismaMercadoPagoWebhookRepository } from '../../../src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.js';
 
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
 const suite = url === undefined ? describe.skip : describe;
