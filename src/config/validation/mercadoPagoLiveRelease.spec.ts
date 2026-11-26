@@ -1,6 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { validateEnvironment } from './env.validation.js';
+import { appConfig } from '../app.config.js';
+import { authConfig } from '../auth.config.js';
+import { databaseConfig } from '../database.config.js';
+import { mercadoPagoConfig } from '../mercadoPago.config.js';
+import { mercadoPagoLiveWebhookConfig } from '../mercadoPagoLiveWebhook.config.js';
+import { mercadoPagoWebhookConfig } from '../mercadoPagoWebhook.config.js';
+import { notificationConfig } from '../notification.config.js';
+import { quoteShareConfig } from '../quoteShare.config.js';
+import { receivingSettingsConfig } from '../receivingSettings.config.js';
+import { storageConfig } from '../storage.config.js';
+import { stripeConfig } from '../stripe.config.js';
+import { envValidationSchema, validateEnvironment } from './env.validation.js';
 
 const organizationId = '4586a4c1-924c-4a48-9949-a837e7540c2c';
 const base = {
@@ -214,5 +225,120 @@ describe('environment security and configuration boundaries', () => {
     [{ MERCADO_PAGO_LIVE_WEBHOOK_WORKER_ENABLED: 'true' }, 'live webhook worker requires'],
   ] as const)('rejects unsafe payment feature combinations', (patch, message) => {
     expect(() => validateEnvironment({ ...base, ...patch })).toThrow(message);
+  });
+});
+
+describe('configuration factories with validated environment', () => {
+  function configure(overrides: Record<string, string | undefined> = {}) {
+    // Isolate all schema-managed values from CI/developer environment variables.
+    const values: Record<string, string | undefined> = { ...base, ...overrides };
+    for (const key of Object.keys(envValidationSchema.describe().keys ?? {})) vi.stubEnv(key, values[key]);
+  }
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('maps application origin, worker flags, port and explicit trusted proxies', () => {
+    configure({ PORT: '4321', TRUST_PROXY: '127.0.0.1, 10.0.0.0/8, ::1',
+      FRONTEND_URL: 'https://web.example.invalid/', WORK_ORDER_RECURRENCE_WORKER_ENABLED: 'false',
+      WORK_ORDER_RECURRENCE_REMINDER_WORKER_ENABLED: 'true' });
+    expect(appConfig()).toMatchObject({
+      port: 4321, trustProxy: ['127.0.0.1', '10.0.0.0/8', '::1'], frontendUrl: 'https://web.example.invalid',
+      workOrderRecurrenceWorkerEnabled: false, workOrderRecurrenceReminderWorkerEnabled: true,
+      isProduction: true, swaggerEnabled: false,
+    });
+  });
+
+  it('uses development settings without trusted proxies by default', () => {
+    configure({ NODE_ENV: 'development', FRONTEND_URL: 'http://localhost:3000' });
+    expect(appConfig()).toMatchObject({ trustProxy: [], isProduction: false, swaggerEnabled: true, frontendUrl: 'http://localhost:3000' });
+  });
+
+  it('maps authentication settings and action token TTLs without mixing independent secrets', () => {
+    configure({ AUTH_ACCESS_TTL_SECONDS: '300', AUTH_IDLE_TTL_SECONDS: '3600', AUTH_ABSOLUTE_TTL_SECONDS: '7200',
+      AUTH_RETENTION_DAYS: '90', AUTH_CLEANUP_WORKER_ENABLED: 'false', AUTH_JWT_ISSUER: 'fixture-issuer',
+      AUTH_JWT_AUDIENCE: 'fixture-audience' });
+    expect(authConfig()).toEqual({
+      jwtSecret: base.AUTH_JWT_SECRET, csrfSecret: base.AUTH_CSRF_SECRET, issuer: 'fixture-issuer',
+      audience: 'fixture-audience', accessTtlSeconds: 300, idleTtlSeconds: 3600, absoluteTtlSeconds: 7200,
+      retentionDays: 90, cleanupWorkerEnabled: false, googleClientId: base.AUTH_GOOGLE_CLIENT_ID,
+      verificationTtlSeconds: 86400, resetTtlSeconds: 1800,
+    });
+  });
+
+  it('maps the database, Stripe and quote-sharing settings independently', () => {
+    configure({ STRIPE_PORTAL_CONFIGURATION_ID: 'bpc_fixture', BILLING_WORKER_ENABLED: 'false', QUOTE_SHARE_CLEANUP_WORKER_ENABLED: 'false' });
+    expect(databaseConfig()).toEqual({ url: base.DATABASE_URL });
+    expect(stripeConfig()).toEqual({
+      secretKey: base.STRIPE_SECRET_KEY, webhookSecret: base.STRIPE_WEBHOOK_SECRET,
+      portalConfigurationId: 'bpc_fixture', workerEnabled: false,
+    });
+    expect(quoteShareConfig()).toEqual({ rateLimitSecret: base.QUOTE_SHARE_RATE_LIMIT_SECRET, cleanupWorkerEnabled: false });
+  });
+
+  it('preserves notification template identities and the sender address', () => {
+    configure({ NOTIFICATION_WORKER_ENABLED: 'false', TRIAL_LIFECYCLE_WORKER_ENABLED: 'true',
+      ...Object.fromEntries(Object.keys(base).filter((key) => key.startsWith('RESEND_TEMPLATE_'))
+        .map((key) => [key, 'fixture-' + key.slice(16).toLowerCase()])) });
+    const config = notificationConfig();
+    expect(config).toMatchObject({
+      apiKey: base.RESEND_API_KEY, encryptionKey: base.NOTIFICATION_ENCRYPTION_KEY,
+      from: 'Fixture <fixture@example.invalid>', workerEnabled: false, trialLifecycleEnabled: true,
+    });
+    expect(config.templates).toEqual(Object.fromEntries(Object.keys(base).filter((key) => key.startsWith('RESEND_TEMPLATE_'))
+      .map((key) => [key.slice(16), 'fixture-' + key.slice(16).toLowerCase()])));
+  });
+
+  it.each([undefined, 'private-fixture-bucket'])('normalizes the public storage URL and preserves the private bucket boundary', (bucket) => {
+    configure({ STORAGE_PRIVATE_BUCKET: bucket, STORAGE_PUBLIC_BASE_URL: 'https://assets.example.invalid///' });
+    expect(storageConfig()).toEqual({
+      endpoint: base.STORAGE_S3_ENDPOINT, region: 'auto', accessKeyId: base.STORAGE_S3_ACCESS_KEY_ID,
+      secretAccessKey: base.STORAGE_S3_SECRET_ACCESS_KEY, bucket: base.STORAGE_BUCKET, privateBucket: bucket ?? null,
+      publicBaseUrl: 'https://assets.example.invalid',
+    });
+  });
+
+  it.each([undefined, '6'.repeat(64)])('does not substitute another secret for the receiving settings encryption key', (key) => {
+    configure({ RECEIVING_SETTINGS_ENCRYPTION_KEY: key });
+    expect(receivingSettingsConfig()).toEqual({ encryptionKey: key });
+  });
+
+  it('leaves both webhook modes and payment issuance disabled by default', () => {
+    configure();
+    expect(mercadoPagoConfig()).toMatchObject({
+      enabled: false, liveMode: false, sandboxPixEnabled: false, livePixEnabled: false,
+      redirectUri: 'https://web.example.invalid/mercado-pago/callback',
+    });
+    expect(mercadoPagoWebhookConfig()).toEqual({ enabled: false, workerEnabled: false, clientId: undefined, secret: undefined });
+    expect(mercadoPagoLiveWebhookConfig()).toEqual({ enabled: false, workerEnabled: false, clientId: undefined, secret: undefined });
+  });
+
+  it.each(['false', 'true'])('enables only sandbox intake and the explicitly configured worker', (worker) => {
+    configure({
+      MERCADO_PAGO_ENABLED: 'true', MERCADO_PAGO_CLIENT_ID: '123456', MERCADO_PAGO_CLIENT_SECRET: 'fixture-secret',
+      MERCADO_PAGO_ENCRYPTION_KEY: '5'.repeat(64), MERCADO_PAGO_SANDBOX_PIX_ENABLED: 'true',
+      MERCADO_PAGO_WEBHOOK_ENABLED: 'true', MERCADO_PAGO_WEBHOOK_WORKER_ENABLED: worker,
+      MERCADO_PAGO_WEBHOOK_SECRET: 'fixture-sandbox-signing-secret',
+    });
+    expect(mercadoPagoConfig()).toMatchObject({ enabled: true, liveMode: false, sandboxPixEnabled: true, livePixEnabled: false, clientId: '123456' });
+    expect(mercadoPagoWebhookConfig()).toMatchObject({ enabled: true, workerEnabled: worker === 'true', secret: 'fixture-sandbox-signing-secret' });
+    expect(mercadoPagoLiveWebhookConfig()).toMatchObject({ enabled: false, workerEnabled: false });
+  });
+
+  it('maps the approved bounded live pilot and does not enable sandbox intake', () => {
+    configure(approved);
+    expect(mercadoPagoConfig()).toMatchObject({
+      enabled: true, liveMode: true, sandboxPixEnabled: false, livePixEnabled: true,
+      livePilotOrganizationId: organizationId, livePilotAccountId: '123456', livePilotMaxAmountInCents: 10000,
+      clientId: '123456789', clientSecret: 'fixture-client-secret', encryptionKey: '5'.repeat(64),
+    });
+    expect(mercadoPagoLiveWebhookConfig()).toMatchObject({ enabled: true, workerEnabled: true, secret: 'fixture-live-signing-secret' });
+    expect(mercadoPagoWebhookConfig()).toMatchObject({ enabled: false, workerEnabled: false });
+  });
+
+  it('allows live webhook intake without starting its worker when new issuance is disabled', () => {
+    configure({ ...approved, MERCADO_PAGO_LIVE_PIX_ENABLED: 'false', MERCADO_PAGO_LIVE_HOMOLOGATION_APPROVED: 'false',
+      MERCADO_PAGO_LIVE_WEBHOOK_WORKER_ENABLED: 'false' });
+    expect(mercadoPagoConfig()).toMatchObject({ livePixEnabled: false });
+    expect(mercadoPagoLiveWebhookConfig()).toMatchObject({ enabled: true, workerEnabled: false });
   });
 });

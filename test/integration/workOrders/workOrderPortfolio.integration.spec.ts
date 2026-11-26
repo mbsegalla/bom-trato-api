@@ -150,4 +150,100 @@ databaseSuite('portfolio consent and public photo privacy (disposable PostgreSQL
     expect(await f.repository.listPublishedForSlug(f.profile.slug)).toEqual([]);
     await expect(f.repository.getPublicPhotoKey(f.profile.slug, f.before.id)).rejects.toThrow('PUBLIC_PROFILE_NOT_FOUND');
   });
+  it.each([
+    { consent: false }, { consentVersion: 'old' }, { photoIds: null }, { photoIds: [] },
+    { photoIds: Array.from({ length: 21 }, (_, index) => String(index)) },
+    { photoIds: ['duplicate', 'duplicate'] }, { signerName: null }, { signerName: ' ' }, { signerName: 'x'.repeat(101) },
+  ])('rejects invalid consent without persisting partial authorization', async (patch) => {
+    const f = await fixture();
+    await expect(f.repository.consent(f.tokenHash, { ...f.consent, ...patch } as typeof f.consent))
+      .rejects.toThrow('INVALID_PORTFOLIO_CONSENT');
+    expect(await db.prisma.workOrderPhoto.count({
+      where: { workOrderId: f.order.id, portfolioConsentedAt: { not: null } },
+    })).toBe(0);
+  });
+
+  it('allows a verified member to revoke publication and consent after subscription access ends', async () => {
+    const f = await fixture();
+    await f.repository.consent(f.tokenHash, f.consent);
+    await f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: true });
+    await db.prisma.organizationTrial.update({
+      where: { organizationId: f.actor.organizationId }, data: { revokedAt: new Date() },
+    });
+    await expect(f.repository.publish({ ...f.params, photoId: f.after.id }, { publish: true })).rejects.toThrow('SUBSCRIPTION_REQUIRED');
+    await f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: false });
+    expect(await f.repository.listPublishedForSlug(f.profile.slug)).toEqual([]);
+    const result = await f.repository.revokeForOrganization({ ...f.params, photoId: f.before.id });
+    expect(result.photos).toContainEqual({
+      id: f.before.id, stage: 'BEFORE', visibleInPortal: true, consented: false, published: false,
+    });
+    await expect(f.repository.revokeForOrganization({ ...f.params, photoId: f.share.id })).rejects.toThrow('PORTFOLIO_PHOTO_NOT_FOUND');
+  });
+
+  it('requires renewed consent before republishing a revoked photo', async () => {
+    const f = await fixture();
+    await f.repository.consent(f.tokenHash, f.consent);
+    await f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: true });
+    await f.repository.revokeForOrganization({ ...f.params, photoId: f.before.id });
+    await expect(f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: true })).rejects.toThrow('PORTFOLIO_CONSENT_REQUIRED');
+    await f.repository.consent(f.tokenHash, { ...f.consent, signerName: 'New signer' });
+    expect(await f.repository.getPortalStatus(f.tokenHash)).toMatchObject({
+      photos: expect.arrayContaining([{ id: f.before.id, consented: true, published: false }]),
+    });
+    expect(await db.prisma.workOrderPhoto.findUniqueOrThrow({ where: { id: f.before.id } })).toMatchObject({
+      portfolioConsentName: 'New signer', portfolioRevokedAt: null, portfolioPublishedAt: null,
+    });
+    await f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: true });
+    expect(await f.repository.listPublishedForSlug(f.profile.slug)).toHaveLength(1);
+  });
+
+  it('denies access to nonexistent shares and unknown public profiles', async () => {
+    const f = await fixture();
+    const unknown = 'f'.repeat(64);
+    await expect(f.repository.getPortalStatus(unknown)).rejects.toThrow('WORK_ORDER_SHARE_NOT_FOUND');
+    await expect(f.repository.consent(unknown, f.consent)).rejects.toThrow('WORK_ORDER_SHARE_NOT_FOUND');
+    await expect(f.repository.revoke(unknown, f.before.id)).rejects.toThrow('WORK_ORDER_SHARE_NOT_FOUND');
+    expect(await f.repository.listPublishedForSlug('missing-' + f.profile.slug)).toEqual([]);
+    await expect(f.repository.getPublicPhotoKey('missing-' + f.profile.slug, f.before.id)).rejects.toThrow('PUBLIC_PROFILE_NOT_FOUND');
+  });
+
+  it('rejects publication of a hidden or during-service photo even with another photo consented', async () => {
+    const f = await fixture();
+    await f.repository.consent(f.tokenHash, f.consent);
+    await expect(f.repository.publish({ ...f.params, photoId: f.hidden.id }, { publish: true })).rejects.toThrow('PORTFOLIO_CONSENT_REQUIRED');
+    await expect(f.repository.publish({ ...f.params, photoId: f.during.id }, { publish: true })).rejects.toThrow('PORTFOLIO_CONSENT_REQUIRED');
+    expect(await f.repository.listPublishedForSlug(f.profile.slug)).toEqual([]);
+  });
+
+  it('rejects malformed publication values before opening a write transaction', async () => {
+    const f = await fixture();
+    expect(() => f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: 'true' } as unknown as { publish: boolean }))
+      .toThrow('INVALID_PORTFOLIO_CONSENT');
+    expect(await f.repository.listPublishedForSlug(f.profile.slug)).toEqual([]);
+  });
+
+  it('never publishes photos for work orders no longer completed', async () => {
+    const f = await fixture();
+    await f.repository.consent(f.tokenHash, f.consent);
+    await f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: true });
+    await db.prisma.workOrder.update({ where: { id: f.order.id }, data: { status: 'IN_PROGRESS', completedAt: null } });
+    expect(await f.repository.listPublishedForSlug(f.profile.slug)).toEqual([]);
+    await expect(f.repository.getPublicPhotoKey(f.profile.slug, f.before.id)).rejects.toThrow('PUBLIC_PROFILE_NOT_FOUND');
+    await expect(f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: true })).rejects.toThrow('PORTFOLIO_WORK_ORDER_NOT_COMPLETED');
+    await f.repository.publish({ ...f.params, photoId: f.before.id }, { publish: false });
+  });
+
+  it('limits public photos to twelve and returns only the public stage and dimensions', async () => {
+    const f = await fixture();
+    const photos = await Promise.all(Array.from({ length: 13 }, (_, index) => f.photo(index % 2 === 0 ? 'AFTER' : 'BEFORE')));
+    await f.repository.consent(f.tokenHash, { ...f.consent, photoIds: photos.map((photo) => photo.id) });
+    for (const photo of photos) await f.repository.publish({ ...f.params, photoId: photo.id }, { publish: true });
+    const published = await f.repository.listPublishedForSlug(f.profile.slug);
+    expect(published).toHaveLength(12);
+    expect(published.some((photo) => photo.stage === 'AFTER')).toBe(true);
+    for (const photo of published) {
+      expect(Object.keys(photo).sort()).toEqual(['height', 'id', 'stage', 'width']);
+      expect(photo).toMatchObject({ width: 800, height: 600 });
+    }
+  });
 });
