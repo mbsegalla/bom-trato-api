@@ -26,7 +26,10 @@ function complete(code: string, issuanceId: string): Disposition {
   return { kind: 'COMPLETE', code, matchedIssuanceId: issuanceId };
 }
 
-export function bindingFrom(row: BoundIssuance, job: Pick<ClaimedMercadoPagoWebhook, 'clientId' | 'paymentId'>): LivePixWebhookBinding {
+export function bindingFrom(
+  row: BoundIssuance,
+  job: Pick<ClaimedMercadoPagoWebhook, 'clientId' | 'paymentId'>,
+): LivePixWebhookBinding {
   return {
     issuanceId: row.id,
     organizationId: row.organizationId,
@@ -41,10 +44,13 @@ export function bindingFrom(row: BoundIssuance, job: Pick<ClaimedMercadoPagoWebh
 }
 
 export function matchesBinding(row: BoundIssuance | null, binding: LivePixWebhookBinding): row is BoundIssuance {
-  if (row === null || row.providerCharge === null) return false;
+  if (row === null || row.providerCharge === null) {
+    return false;
+  }
   const charge = row.providerCharge;
 
-  return row.id === binding.issuanceId &&
+  return (
+    row.id === binding.issuanceId &&
     row.organizationId === binding.organizationId &&
     row.receivableId === binding.receivableId &&
     row.receivableVersion === binding.receivableVersion &&
@@ -62,27 +68,26 @@ export function matchesBinding(row: BoundIssuance | null, binding: LivePixWebhoo
     charge.provider === 'mercado-pago' &&
     charge.externalAccountId === binding.accountId &&
     charge.externalPaymentId === binding.paymentId &&
-    charge.expectedAmountInCents === binding.amountInCents;
+    charge.expectedAmountInCents === binding.amountInCents
+  );
 }
 
-function verifiedForEvent(
-  payment: VerifiedProviderPayment,
-  binding: LivePixWebhookBinding,
-  eventId: string,
-): boolean {
+function verifiedForEvent(payment: VerifiedProviderPayment, binding: LivePixWebhookBinding, eventId: string): boolean {
   try {
     assertVerifiedProviderPayment(payment, new Date());
   } catch {
     return false;
   }
 
-  return payment.provider === 'mercado-pago' &&
+  return (
+    payment.provider === 'mercado-pago' &&
     payment.liveMode === true &&
     payment.eventId === eventId &&
     payment.externalAccountId === binding.accountId &&
     payment.externalPaymentId === binding.paymentId &&
     payment.amountInCents === binding.amountInCents &&
-    payment.currency === 'brl';
+    payment.currency === 'brl'
+  );
 }
 
 export async function applyLivePixObservation(
@@ -92,9 +97,15 @@ export async function applyLivePixObservation(
   eventId: string,
   observation: Extract<LiveWebhookOutcome, { kind: 'CHECKED' }>['observation'],
 ): Promise<Disposition> {
-  if (observation.status === 'REFUNDED') return markLivePixReview(db, row, 'VERIFIED_REFUNDED');
-  if (observation.status === 'INVALID_PROVIDER_PAYMENT') return markLivePixReview(db, row, 'INVALID_PROVIDER_PAYMENT');
-  if (observation.status === 'REVIEW_REQUIRED') return markLivePixReview(db, row, 'VERIFIED_REVIEW_REQUIRED');
+  if (observation.status === 'REFUNDED') {
+    return markLivePixReview(db, row, 'VERIFIED_REFUNDED');
+  }
+  if (observation.status === 'INVALID_PROVIDER_PAYMENT') {
+    return markLivePixReview(db, row, 'INVALID_PROVIDER_PAYMENT');
+  }
+  if (observation.status === 'REVIEW_REQUIRED') {
+    return markLivePixReview(db, row, 'VERIFIED_REVIEW_REQUIRED');
+  }
 
   // Review is sticky. In particular, an older approved lookup must never
   // apply after a refund, mismatch or authorization change was observed.
@@ -133,7 +144,9 @@ export async function applyLivePixObservation(
     return markLivePixReview(db, row, 'INVALID_PROVIDER_PAYMENT');
   }
 
-  if (row.status === 'CLOSED') return markLivePixReview(db, row, 'APPROVAL_AFTER_CLOSURE');
+  if (row.status === 'CLOSED') {
+    return markLivePixReview(db, row, 'APPROVAL_AFTER_CLOSURE');
+  }
 
   const result = await confirmRegisteredProviderPayment(
     db,
@@ -153,7 +166,11 @@ export async function applyLivePixObservation(
   return complete('LEDGER_' + result, row.id);
 }
 
-export async function markLivePixReview(db: Prisma.TransactionClient, row: BoundIssuance, code: string): Promise<Disposition> {
+export async function markLivePixReview(
+  db: Prisma.TransactionClient,
+  row: BoundIssuance,
+  code: string,
+): Promise<Disposition> {
   await db.mercadoPagoLivePix.update({
     where: { id: row.id },
     data: {

@@ -9,7 +9,9 @@ import { PostgresAuthRateLimit } from './postgresAuthRateLimit.js';
 const secret = 'a'.repeat(64);
 
 function fixture(body: unknown = {}, ip: string | undefined = '127.0.0.1', remoteAddress?: string) {
-  const query = vi.fn().mockResolvedValue([{ count: 1, expiresAt: new Date(Date.now() + 60000) }]);
+  const query = vi
+    .fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue([{ count: 1, expiresAt: new Date(Date.now() + 60000) }]);
   const setHeader = vi.fn();
   const limiter = new PostgresAuthRateLimit({ $queryRaw: query } as unknown as PrismaService, secret);
   const request = { body, ip, socket: { remoteAddress } } as unknown as Request;

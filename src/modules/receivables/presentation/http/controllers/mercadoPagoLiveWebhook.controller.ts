@@ -36,7 +36,9 @@ export class MercadoPagoLiveWebhookController {
       new Date(),
     );
 
-    if (notice === null) throw new UnauthorizedException();
+    if (notice === null) {
+      throw new UnauthorizedException();
+    }
 
     // A delivery body never authorizes a ledger mutation. Acknowledge only
     // after the signed metadata has been stored in the separate live inbox.

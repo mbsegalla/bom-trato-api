@@ -75,9 +75,13 @@ export class PrismaMercadoPagoWebhookRepository extends MercadoPagoWebhookReposi
       take: 2,
     });
 
-    if (matches.length > 1) return { kind: 'REVIEW', code: 'AMBIGUOUS_PAYMENT' };
+    if (matches.length > 1) {
+      return { kind: 'REVIEW', code: 'AMBIGUOUS_PAYMENT' };
+    }
     const row = matches[0];
-    if (!row) return { kind: 'RETRY', code: 'UNMATCHED_PAYMENT' };
+    if (!row) {
+      return { kind: 'RETRY', code: 'UNMATCHED_PAYMENT' };
+    }
 
     const binding: SandboxPixWebhookBinding = {
       issuanceId: row.id,
@@ -185,9 +189,15 @@ export class PrismaMercadoPagoWebhookRepository extends MercadoPagoWebhookReposi
     }
 
     try {
-      await assertReceivingSettingsOwner(db, { organizationId: binding.organizationId, userId: binding.ownerId }, false);
+      await assertReceivingSettingsOwner(
+        db,
+        { organizationId: binding.organizationId, userId: binding.ownerId },
+        false,
+      );
     } catch (error: unknown) {
-      if (error instanceof ReceivingSettingsError) return null;
+      if (error instanceof ReceivingSettingsError) {
+        return null;
+      }
       throw error;
     }
 

@@ -21,6 +21,8 @@ import type { PostgresAuthRateLimit } from '../../../src/modules/auth/infrastruc
 import { AuthCookies } from '../../../src/modules/auth/presentation/http/authCookies.js';
 import { AuthController } from '../../../src/modules/auth/presentation/http/controllers/auth.controller.js';
 import { UserError } from '../../../src/modules/users/domain/errors/user.error.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
+import { readJsonObject, readJsonString } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const origin = 'https://app.example.invalid';
@@ -125,7 +127,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       .set('Origin', origin)
       .set('Cookie', refreshToken ? cookies.refreshName + '=' + refreshToken : '')
       .expect(200);
-    const token = response.body.data.csrfToken as string;
+    const token = readJsonString(readJsonObject(readJsonObject(response.body).data).csrfToken);
     const values = cookieHeaders(response.headers).map((header) => header.split(';')[0]);
     if (refreshToken) {
       values.push(cookies.refreshName + '=' + refreshToken);
@@ -148,11 +150,11 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
   }
 
   function assertTokenResponse(response: { body: { data: unknown }; headers: Record<string, unknown> }) {
-    expect(response.body.data).toEqual({
+    expect(readJsonObject(response.body).data).toEqual({
       accessToken: tokens.accessToken,
       expiresIn: 900,
       tokenType: 'Bearer',
-      csrfToken: expect.any(String),
+      csrfToken: asymmetric.any(String),
     });
     const values = cookieHeaders(response.headers);
     expect(
@@ -237,11 +239,11 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       email: ' OWNER@EXAMPLE.COM ',
     });
     expect(response.status).toBe(201);
-    expect(response.body.data).toEqual(message);
+    expect(readJsonObject(response.body).data).toEqual(message);
     expect(register).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         ...registerBody,
-        ipAddress: expect.any(String),
+        ipAddress: asymmetric.any(String),
         userAgent: 'fixture-agent',
       }),
     );
@@ -277,7 +279,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
     login.mockRejectedValueOnce(new AuthError('INVALID_CREDENTIALS'));
     const response = await post('/login', { email, password });
     expect(response.status).toBe(401);
-    expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe('INVALID_CREDENTIALS');
     expect(cookieHeaders(response.headers)).toHaveLength(0);
   });
 
@@ -302,7 +304,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
     refresh.mockRejectedValueOnce(new Error('fixture database unavailable'));
     const response = await post('/refresh', {}, 'old-refresh');
     expect(response.status).toBe(500);
-    expect(response.body.error.code).toBe('INTERNAL_SERVER_ERROR');
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe('INTERNAL_SERVER_ERROR');
     expect(cookieHeaders(response.headers)).toHaveLength(0);
   });
 
@@ -330,7 +332,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       .get(route + '/me')
       .set('Authorization', 'Bearer fixture')
       .expect(200);
-    expect(response.body.data).toEqual({
+    expect(readJsonObject(response.body).data).toEqual({
       id: userId,
       name: 'Fixture',
       email: 'owner@example.invalid',
@@ -388,7 +390,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
     async (path) => {
       const response = await post(path, { email: ' OWNER@EXAMPLE.COM ' });
       expect(response.status).toBe(202);
-      expect(response.body.data).toEqual(message);
+      expect(readJsonObject(response.body).data).toEqual(message);
       expect(path === '/forgot-password' ? forgot : resend).toHaveBeenCalledWith(email);
     },
   );
@@ -422,12 +424,12 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
     const response = await post('/google', { credential: 'fixture-google-credential' }, 'old-refresh');
     expect(response.status).toBe(200);
     expect(google).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         credential: 'fixture-google-credential',
         selectedPlanPriceId: null,
         previousRefreshToken: 'old-refresh',
         userAgent: 'fixture-agent',
-        ipAddress: expect.any(String),
+        ipAddress: asymmetric.any(String),
       }),
     );
     assertTokenResponse(response);
@@ -451,7 +453,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       .get(route + '/identities')
       .set('Authorization', 'Bearer fixture')
       .expect(200);
-    expect(response.body.data).toEqual({ providers: ['PASSWORD'] });
+    expect(readJsonObject(response.body).data).toEqual({ providers: ['PASSWORD'] });
     expect(identities).toHaveBeenCalledWith(userId);
   });
 });

@@ -16,6 +16,8 @@ import { SendQuoteUseCase } from '../../../src/modules/quotes/application/useCas
 import { UpdateQuoteUseCase } from '../../../src/modules/quotes/application/useCases/updateQuote.useCase.js';
 import { QuoteError } from '../../../src/modules/quotes/domain/errors/quote.error.js';
 import { QuotesController } from '../../../src/modules/quotes/presentation/http/controllers/quotes.controller.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/quotes';
@@ -110,7 +112,7 @@ describe('private quote HTTP contracts', () => {
       .expect(201);
     expect(create).toHaveBeenCalledExactlyOnceWith(
       actor,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         ...body,
         notes: null,
         validUntil: null,
@@ -154,7 +156,7 @@ describe('private quote HTTP contracts', () => {
       .expect(200);
     expect(list).toHaveBeenCalledExactlyOnceWith(
       actor,
-      expect.objectContaining({ page: 2, limit: 5, status: 'SENT', customerId: lineId }),
+      asymmetric.objectContaining({ page: 2, limit: 5, status: 'SENT', customerId: lineId }),
     );
   });
 
@@ -199,7 +201,7 @@ describe('private quote HTTP contracts', () => {
       .expect(200);
     expect(update).toHaveBeenCalledWith(
       { ...params, version },
-      expect.objectContaining({
+      asymmetric.objectContaining({
         version,
         title: 'Revised quote',
         discountInCents: 0,
@@ -231,7 +233,7 @@ describe('private quote HTTP contracts', () => {
       .expect(200);
     expect(add).toHaveBeenCalledWith(
       { ...params, version },
-      expect.objectContaining({ version, quantity: '1.500', catalogServiceId: lineId }),
+      asymmetric.objectContaining({ version, quantity: '1.500', catalogServiceId: lineId }),
     );
     await request(fixture.server)
       .put(route + '/' + quoteId + '/items/' + lineId)
@@ -240,9 +242,9 @@ describe('private quote HTTP contracts', () => {
       .expect(200);
     expect(replace).toHaveBeenCalledWith(
       { ...params, version, itemId: lineId },
-      expect.objectContaining({
+      asymmetric.objectContaining({
         quantity: '2',
-        custom: expect.objectContaining({ ...custom, description: null }),
+        custom: asymmetric.objectContaining({ ...custom, description: null }),
       }),
     );
   });
@@ -308,6 +310,6 @@ describe('private quote HTTP contracts', () => {
       .set('Authorization', auth)
       .send({ version })
       .expect(status);
-    expect(response.body.error.code).toBe(code);
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe(code);
   });
 });

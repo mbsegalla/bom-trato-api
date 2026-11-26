@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { PaymentMethodUpdate } from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { BillingWork } from '../events/billing.events.js';
@@ -71,7 +72,7 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
         status: 'APPLIED',
         stripeSetupIntentId: 'seti_fixture',
         activeOrganizationId: null,
-        completedAt: expect.any(Date),
+        completedAt: asymmetric.any(Date),
       },
     });
     expect(f.scheduleChanged).toHaveBeenCalledTimes(2);
@@ -98,7 +99,7 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
     expect(f.scheduleChanged).toHaveBeenCalledWith(BillingWork.PAYMENT_METHOD_UPDATES);
     expect(f.updateMany).toHaveBeenCalledWith({
       where: { id: 'update', status: 'PENDING' },
-      data: { nextCheckAt: expect.any(Date) },
+      data: { nextCheckAt: asymmetric.any(Date) },
     });
   });
 
@@ -107,7 +108,7 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
 
     expect(await f.repository.due()).toEqual([]);
     expect(f.findMany).toHaveBeenCalledWith({
-      where: { status: 'PENDING', nextCheckAt: { lte: expect.any(Date) } },
+      where: { status: 'PENDING', nextCheckAt: { lte: asymmetric.any(Date) } },
       orderBy: [{ nextCheckAt: 'asc' }, { id: 'asc' }],
       take: 5,
     });

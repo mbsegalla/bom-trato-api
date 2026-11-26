@@ -6,14 +6,14 @@ import type { VerifiedProviderPayment } from '../../../domain/types/receivablePr
 import type {
   CreatedMercadoPagoPix,
   CreateMercadoPagoPixInput,
-  MercadoPagoSandboxPaymentStatus,
-  ReadMercadoPagoSandboxPixInput,
-  ReadMercadoPagoLivePixInput,
   MercadoPagoLivePaymentObservation,
-  SearchMercadoPagoSandboxPixInput,
-  SearchMercadoPagoSandboxPixResult,
+  MercadoPagoSandboxPaymentStatus,
+  ReadMercadoPagoLivePixInput,
+  ReadMercadoPagoSandboxPixInput,
   SearchMercadoPagoLivePixInput,
   SearchMercadoPagoLivePixResult,
+  SearchMercadoPagoSandboxPixInput,
+  SearchMercadoPagoSandboxPixResult,
 } from './mercadoPagoPix.types.js';
 
 const API_ORIGIN = 'https://api.mercadopago.com';
@@ -324,20 +324,26 @@ export class MercadoPagoClient {
   // An empty or ambiguous result is not evidence that another Pix can be issued.
   async searchSandboxPix(input: SearchMercadoPagoSandboxPixInput): Promise<SearchMercadoPagoSandboxPixResult> {
     const candidate = await this.findBoundPixCandidate(input, false);
-    if (candidate.kind !== 'FOUND') return candidate;
+    if (candidate.kind !== 'FOUND') {
+      return candidate;
+    }
     const status = await this.readSandboxPix({ ...input, paymentId: candidate.paymentId });
     return { ...candidate, status };
   }
 
   async searchLivePix(input: SearchMercadoPagoLivePixInput): Promise<SearchMercadoPagoLivePixResult> {
     const candidate = await this.findBoundPixCandidate(input, true);
-    if (candidate.kind !== 'FOUND') return candidate;
+    if (candidate.kind !== 'FOUND') {
+      return candidate;
+    }
     const observation = await this.readLivePix({ ...input, paymentId: candidate.paymentId });
     return { ...candidate, observation };
   }
 
-  private async findBoundPixCandidate(input: SearchMercadoPagoSandboxPixInput, liveMode: boolean):
-    Promise<{ kind: 'NOT_FOUND' } | { kind: 'AMBIGUOUS' } | { kind: 'FOUND'; paymentId: string }> {
+  private async findBoundPixCandidate(
+    input: SearchMercadoPagoSandboxPixInput,
+    liveMode: boolean,
+  ): Promise<{ kind: 'NOT_FOUND' } | { kind: 'AMBIGUOUS' } | { kind: 'FOUND'; paymentId: string }> {
     if (this.config.liveMode !== liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
     }
@@ -384,8 +390,12 @@ export class MercadoPagoClient {
       return invalidResponse();
     }
 
-    if (total === 0) return { kind: 'NOT_FOUND' };
-    if (total > 1) return { kind: 'AMBIGUOUS' };
+    if (total === 0) {
+      return { kind: 'NOT_FOUND' };
+    }
+    if (total > 1) {
+      return { kind: 'AMBIGUOUS' };
+    }
 
     const candidate = record(results[0]);
 

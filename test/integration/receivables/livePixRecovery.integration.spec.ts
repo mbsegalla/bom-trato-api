@@ -33,7 +33,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   });
 
   it('recovers an uncertain live creation by its immutable reference and settles once with a distinct audit record', async () => {
-    const { prisma, fixture, liveFixture, liveReview, ledger } = context;
+    const { prisma, liveFixture, liveReview, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));
@@ -102,7 +102,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   });
 
   it('never treats an empty live search as permission to create another payment', async () => {
-    const { fixture, liveFixture, liveReview, ledger } = context;
+    const { liveFixture, liveReview, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));
@@ -124,7 +124,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   });
 
   it('rolls back recovery binding and audit completion when the ledger write fails', async () => {
-    const { prisma, fixture, liveFixture, liveReview, ledger } = context;
+    const { prisma, liveFixture, liveReview, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));

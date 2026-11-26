@@ -23,11 +23,17 @@ export function createDisposableDatabaseFixture() {
   const cleanups: (() => Promise<unknown>)[] = [];
 
   beforeAll(async () => {
-    if (!url) throw new Error('Missing disposable integration database URL');
+    if (!url) {
+      throw new Error('Missing disposable integration database URL');
+    }
     const parsed = new URL(url);
-    if (parsed.protocol !== 'postgresql:' || !['localhost', '127.0.0.1'].includes(parsed.hostname) ||
-      parsed.pathname !== '/bom_trato_ci' || parsed.username !== 'bom_trato_ci' ||
-      parsed.searchParams.get('schema') !== 'public') {
+    if (
+      parsed.protocol !== 'postgresql:' ||
+      !['localhost', '127.0.0.1'].includes(parsed.hostname) ||
+      parsed.pathname !== '/bom_trato_ci' ||
+      parsed.username !== 'bom_trato_ci' ||
+      parsed.searchParams.get('schema') !== 'public'
+    ) {
       throw new Error('Tests require disposable local bom_trato_ci database');
     }
     prisma = new PrismaService({ url });
@@ -36,7 +42,9 @@ export function createDisposableDatabaseFixture() {
   });
 
   afterEach(async () => {
-    for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
+    for (const cleanup of cleanups.splice(0).reverse()) {
+      await cleanup();
+    }
   });
 
   afterAll(async () => {
@@ -48,12 +56,14 @@ export function createDisposableDatabaseFixture() {
   }
 
   async function user() {
-    const row = await prisma.user.create({ data: {
-      name: 'Fixture user',
-      email: randomUUID() + '@example.invalid',
-      passwordHash: 'fixture-hash',
-      emailVerifiedAt: new Date(),
-    } });
+    const row = await prisma.user.create({
+      data: {
+        name: 'Fixture user',
+        email: randomUUID() + '@example.invalid',
+        passwordHash: 'fixture-hash',
+        emailVerifiedAt: new Date(),
+      },
+    });
     cleanup(() => prisma.user.deleteMany({ where: { id: row.id } }));
 
     return row;
@@ -63,22 +73,26 @@ export function createDisposableDatabaseFixture() {
     const owner = await user();
     const now = new Date();
 
-    const org = await prisma.organization.create({ data: {
-      name: 'Fixture organization',
-      ownerId: owner.id,
-      setupCompletedAt: now
-    } });
+    const org = await prisma.organization.create({
+      data: {
+        name: 'Fixture organization',
+        ownerId: owner.id,
+        setupCompletedAt: now,
+      },
+    });
     cleanup(() => prisma.organization.deleteMany({ where: { id: org.id } }));
 
     await prisma.organizationMember.create({ data: { organizationId: org.id, userId: owner.id, role: 'OWNER' } });
     cleanup(() => prisma.organizationMember.deleteMany({ where: { organizationId: org.id } }));
 
-    await prisma.organizationTrial.create({ data: {
-      organizationId: org.id,
-      ownerId: owner.id,
-      startsAt: new Date(now.getTime() - 60000),
-      expiresAt: new Date(now.getTime() + 86400000),
-    } });
+    await prisma.organizationTrial.create({
+      data: {
+        organizationId: org.id,
+        ownerId: owner.id,
+        startsAt: new Date(now.getTime() - 60000),
+        expiresAt: new Date(now.getTime() + 86400000),
+      },
+    });
     cleanup(() => prisma.organizationTrial.deleteMany({ where: { organizationId: org.id } }));
 
     return { organizationId: org.id, userId: owner.id };
@@ -90,6 +104,6 @@ export function createDisposableDatabaseFixture() {
     },
     cleanup,
     user,
-    tenant
+    tenant,
   };
 }

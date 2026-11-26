@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { OrganizationInvitation } from '../../domain/entities/organizationInvitation.entity.js';
 
@@ -23,7 +24,9 @@ function fixture() {
   const findUnique = vi.fn().mockResolvedValue(null);
   const findMany = vi.fn().mockResolvedValue([]);
   const create = vi.fn().mockResolvedValue(undefined);
-  const update = vi.fn().mockResolvedValue(undefined);
+  const update = vi
+    .fn<(args: Prisma.OrganizationInvitationUpdateArgs) => Promise<unknown>>()
+    .mockResolvedValue(undefined);
   const repository = new PrismaOrganizationInvitationRepository({
     organizationInvitation: { findFirst, findUnique, findMany, create, update },
   } as unknown as Prisma.TransactionClient);
@@ -69,8 +72,8 @@ describe('PrismaOrganizationInvitationRepository', () => {
     await other.repository.save(other.invitation);
 
     expect(other.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'REVOKED', pendingEmail: null }),
+      asymmetric.objectContaining({
+        data: asymmetric.objectContaining({ status: 'REVOKED', pendingEmail: null }),
       }),
     );
   });
@@ -88,7 +91,7 @@ describe('PrismaOrganizationInvitationRepository', () => {
     for (const id of ['first', 'second']) {
       expect(f.update).toHaveBeenCalledWith({
         where: { id, organizationId },
-        data: { tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) },
+        data: { tokenHash: asymmetric.stringMatching(/^[a-f0-9]{64}$/) },
       });
     }
     expect(f.update.mock.calls[0][0].data.tokenHash).not.toBe(f.update.mock.calls[1][0].data.tokenHash);
@@ -103,7 +106,7 @@ describe('PrismaOrganizationInvitationRepository', () => {
 
     expect(f.findMany).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { organizationId, status: 'PENDING', expiresAt: { gt: now } },
       }),
     );
@@ -115,7 +118,7 @@ describe('PrismaOrganizationInvitationRepository', () => {
     });
     expect(f.findMany).toHaveBeenNthCalledWith(
       3,
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { organizationId, status: 'ACCEPTED' },
       }),
     );
@@ -131,6 +134,6 @@ describe('PrismaOrganizationInvitationRepository', () => {
       page: 1,
       hasMore: true,
     });
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId }, take: 2 }));
+    expect(f.findMany).toHaveBeenCalledWith(asymmetric.objectContaining({ where: { organizationId }, take: 2 }));
   });
 });

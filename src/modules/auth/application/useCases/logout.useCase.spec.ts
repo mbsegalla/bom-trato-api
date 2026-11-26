@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 
@@ -31,6 +32,6 @@ describe('LogoutUseCase', () => {
 
     await useCase.execute({ refreshToken: 'a'.repeat(43), reason: 'LOGOUT' });
 
-    expect(revokeByToken).toHaveBeenCalledWith({ tokenHash: 'hash', reason: 'LOGOUT', now: expect.any(Date) });
+    expect(revokeByToken).toHaveBeenCalledWith({ tokenHash: 'hash', reason: 'LOGOUT', now: asymmetric.any(Date) });
   });
 });

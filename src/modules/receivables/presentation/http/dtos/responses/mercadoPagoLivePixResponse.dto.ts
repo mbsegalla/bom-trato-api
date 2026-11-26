@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-import type { LivePixViewStatus, MercadoPagoLivePixView } from '../../../../application/types/mercadoPagoLivePix.types.js';
+import type {
+  LivePixViewStatus,
+  MercadoPagoLivePixView,
+} from '../../../../application/types/mercadoPagoLivePix.types.js';
 
 export class MercadoPagoLivePixResponseDto implements MercadoPagoLivePixView {
   @ApiProperty({ format: 'uuid' })
@@ -15,7 +18,9 @@ export class MercadoPagoLivePixResponseDto implements MercadoPagoLivePixView {
   canIssue!: boolean;
   @ApiProperty()
   canRecover!: boolean;
-  @ApiProperty({ enum: ['NOT_ISSUED', 'PROCESSING', 'PENDING', 'REVIEW_REQUIRED', 'EXPIRED', 'STALE', 'SETTLED', 'CLOSED'] })
+  @ApiProperty({
+    enum: ['NOT_ISSUED', 'PROCESSING', 'PENDING', 'REVIEW_REQUIRED', 'EXPIRED', 'STALE', 'SETTLED', 'CLOSED'],
+  })
   status!: LivePixViewStatus;
   @ApiProperty({ type: String, nullable: true })
   issuanceId!: string | null;

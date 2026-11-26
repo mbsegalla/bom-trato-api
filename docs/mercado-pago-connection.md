@@ -3,6 +3,7 @@
 The feature is disabled by default. Only a verified owner with current platform
 access can start/complete OAuth. Read and local disconnect require a verified
 owner, but not a paid subscription. Endpoints:
+
 - GET/DELETE /api/organizations/:organizationId/mercado-pago/connection
 - POST /api/organizations/:organizationId/mercado-pago/connection/start
 - POST /api/mercado-pago/connection/complete (authenticated; state determines organization)
@@ -45,6 +46,7 @@ Apply `20261126180000_add_mercado_pago_connections` and regenerate Prisma.
 No new dependencies. Existing installations remain usable without enabling this.
 
 API-only configuration:
+
 ```dotenv
 MERCADO_PAGO_ENABLED=false
 MERCADO_PAGO_LIVE_MODE=false

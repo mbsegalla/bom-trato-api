@@ -10,6 +10,7 @@ import { MarkLeadContactedUseCase } from '../../../src/modules/leads/application
 import { LeadError } from '../../../src/modules/leads/domain/errors/lead.error.js';
 import { LeadsController } from '../../../src/modules/leads/presentation/http/controllers/leads.controller.js';
 import { PublicLeadsController } from '../../../src/modules/leads/presentation/http/controllers/publicLeads.controller.js';
+import { readJsonObject } from '../../support/testJson.js';
 import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 describe('leads HTTP contracts', () => {
@@ -163,6 +164,6 @@ describe('leads HTTP contracts', () => {
       .set('Authorization', auth)
       .expect(status);
 
-    expect(response.body.error.code).toBe(code);
+    expect(readJsonObject(readJsonObject(response.body).error).code).toBe(code);
   });
 });

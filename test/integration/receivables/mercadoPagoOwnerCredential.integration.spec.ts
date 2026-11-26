@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, it, vi } from 'vitest';
 
 import { MercadoPagoCredentialService } from '../../../src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.js';
+import { asymmetric } from '../../support/asymmetricMatchers.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
@@ -107,7 +108,10 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     const refresh = vi.spyOn(f.client, 'refreshCredentials').mockImplementation(async (accountId, token) => {
       expect(accountId).toBe(f.accountId);
       expect(token).toBe('fixture-refresh');
-      expect(await f.read()).toMatchObject({ refreshClaimId: expect.any(String), refreshStartedAt: expect.any(Date) });
+      expect(await f.read()).toMatchObject({
+        refreshClaimId: asymmetric.any(String),
+        refreshStartedAt: asymmetric.any(Date),
+      });
       return f.rotated;
     });
 

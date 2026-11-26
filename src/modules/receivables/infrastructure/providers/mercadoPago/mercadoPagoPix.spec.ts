@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../../test/support/asymmetricMatchers.js';
+
 import { MercadoPagoClient } from './mercadoPagoClient.js';
 import type { CreateMercadoPagoPixInput } from './mercadoPagoPix.types.js';
 
@@ -60,7 +62,7 @@ describe('Mercado Pago sandbox Pix transport', () => {
     });
     expect(transport).toHaveBeenCalledWith(
       'https://api.mercadopago.com/v1/payments',
-      expect.objectContaining({
+      asymmetric.objectContaining({
         method: 'POST',
         redirect: 'error',
         headers: {
@@ -158,13 +160,13 @@ describe('Mercado Pago live Pix transport (mock provider only)', () => {
     });
     expect(transport).toHaveBeenCalledWith(
       'https://api.mercadopago.com/v1/payments',
-      expect.objectContaining({
+      asymmetric.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({
+        headers: asymmetric.objectContaining({
           Authorization: 'Bearer fixture-access',
           'X-Idempotency-Key': input.issuanceId,
         }),
-        body: expect.stringContaining('"external_reference":"' + input.issuanceId + '"'),
+        body: asymmetric.stringContaining('"external_reference":"' + input.issuanceId + '"'),
       }),
     );
     expect(transport).toHaveBeenCalledTimes(1);

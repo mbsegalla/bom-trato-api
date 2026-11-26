@@ -71,7 +71,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
   });
 
   it('enforces the pilot organization, seller and amount limit before provider creation', async () => {
-    const { prisma, fixture, liveFixture, liveReview } = context;
+    const { prisma, liveFixture, liveReview } = context;
 
     const f = await liveFixture();
     const other = await liveFixture();
@@ -98,7 +98,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
   });
 
   it('permits only one unresolved reservation per pilot organization', async () => {
-    const { prisma, fixture, liveFixture, liveReview } = context;
+    const { prisma, liveFixture, liveReview } = context;
 
     const f = await liveFixture();
     const now = new Date();
@@ -146,7 +146,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
   });
 
   it('preserves uncertain live creation and never sends a second POST', async () => {
-    const { prisma, fixture, liveFixture, ledger } = context;
+    const { prisma, liveFixture, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));

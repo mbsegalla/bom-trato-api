@@ -69,27 +69,27 @@ first transaction until results have been reviewed.
 ## External acceptance checklist (all items pending until evidenced)
 
 - [ ] Deploy isolated test environment with HTTPS, test credentials and
-  test seller/buyer. No real payer data.
+      test seller/buyer. No real payer data.
 - [ ] Verify app OAuth authorization, offline_access scope, authorized
-  owner, disconnect/reconnect and token rotation.
+      owner, disconnect/reconnect and token rotation.
 - [ ] Issue sandbox payment; verify immutable reference, currency, amount,
-  account, QR, expiry, retry and no double POST after a timeout.
+      account, QR, expiry, retry and no double POST after a timeout.
 - [ ] Test payment notifications: correct signature, wrong signature,
-  duplicate delivery, worker restart, pending/approved/closed/refunded
-  outcomes and no real ledger mutation in test mode.
+      duplicate delivery, worker restart, pending/approved/closed/refunded
+      outcomes and no real ledger mutation in test mode.
 - [ ] Verify unknown/mismatched identities, expired credentials and
-  reference recovery, including no reissue after empty search.
+      reference recovery, including no reissue after empty search.
 - [ ] Verify mobile/browser behavior, tenant separation, active session,
-  current version, QR expiry, copy and automatic status refresh.
+      current version, QR expiry, copy and automatic status refresh.
 - [ ] Confirm the selected API and production application support the
-  actual request/response fields and payment-topic signature, verify
-  the fee schedule, consent/privacy, seller account and funding path.
+      actual request/response fields and payment-topic signature, verify
+      the fee schedule, consent/privacy, seller account and funding path.
 - [ ] Review test evidence, previous/current CI, rollback and incident
-  procedure; confirm support owner and explicit first-pilot approval.
+      procedure; confirm support owner and explicit first-pilot approval.
 - [ ] During the separately authorized live pilot, verify one real
-  payment with a consenting payer: provider status, seller receipt,
-  exactly one linked ledger entry, receivable balance, duplicate
-  notifications and hidden paid QR. Stop issuance on any discrepancy.
+      payment with a consenting payer: provider status, seller receipt,
+      exactly one linked ledger entry, receivable balance, duplicate
+      notifications and hidden paid QR. Stop issuance on any discrepancy.
 
 Record result, date, environment, provider/application reference and
 operator for each item. Do not include secrets or payer documents in

@@ -27,7 +27,14 @@ function fixture() {
     templates: { VERIFY_EMAIL: 'fixture-template' },
   } as ConfigType<typeof notificationConfig>;
   const cipher = new NotificationCipher(config);
-  const createMany = vi.fn().mockResolvedValue({ count: 1 });
+  const createMany = vi
+    .fn<
+      (args: {
+        data: { id: string; encryptedPayload: string }[];
+        skipDuplicates: boolean;
+      }) => Promise<{ count: number }>
+    >()
+    .mockResolvedValue({ count: 1 });
   const prisma = { notificationOutbox: { createMany } };
   const emitter = new EventEmitter2();
   const notify = vi.fn();
@@ -87,7 +94,15 @@ describe('PrismaNotificationOutbox', () => {
 
   it('uses the supplied transaction and reports insertion to the caller instead of waking the worker early', async () => {
     const f = fixture();
-    const createMany = vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    const createMany = vi
+      .fn<
+        (args: {
+          data: { id: string; encryptedPayload: string }[];
+          skipDuplicates: boolean;
+        }) => Promise<{ count: number }>
+      >()
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     const inserted = vi.fn();
     const transactional = f.outbox.using(
       { notificationOutbox: { createMany } } as unknown as Prisma.TransactionClient,

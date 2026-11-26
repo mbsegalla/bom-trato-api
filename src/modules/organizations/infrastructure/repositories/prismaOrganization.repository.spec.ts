@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { Prisma } from '../../../../generated/prisma/client.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { Organization } from '../../domain/entities/organization.entity.js';
@@ -41,11 +42,11 @@ describe('PrismaOrganizationRepository', () => {
 
     expect(await f.repository.create(input)).toEqual(organization);
     expect(f.create).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         data: {
           ...organization,
           creationKey: input.creationKey,
-          setupCompletedAt: expect.any(Date),
+          setupCompletedAt: asymmetric.any(Date),
           organizationMembers: { create: { userId: organization.ownerId, role: 'OWNER' } },
           billingCustomer: { create: { billingEmail: input.billingEmail, billingName: organization.name } },
         },
@@ -61,7 +62,7 @@ describe('PrismaOrganizationRepository', () => {
     await expect(f.repository.create(input)).rejects.toThrow('IDEMPOTENCY_CONFLICT');
 
     expect(f.find).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { ownerId_creationKey: { ownerId: organization.ownerId, creationKey: input.creationKey } },
       }),
     );
@@ -91,7 +92,7 @@ describe('PrismaOrganizationRepository', () => {
 
     expect(await f.repository.listOwned('owner')).toEqual([organization]);
     expect(f.list).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { ownerId: 'owner', setupCompletedAt: { not: null } },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         take: 100,

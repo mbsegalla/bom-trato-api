@@ -8,7 +8,7 @@ import type { storageConfig } from '../../config/storage.config.js';
 import { S3PrivateObjectStorage } from './s3PrivateObjectStorage.js';
 
 const mocks = vi.hoisted(() => ({
-  send: vi.fn(),
+  send: vi.fn<(command: PutObjectCommand | GetObjectCommand | DeleteObjectCommand) => Promise<unknown>>(),
   construct: vi.fn(),
 }));
 

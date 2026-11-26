@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 
 import { PrismaPublicWorkOrderUnitOfWork } from './prismaPublicWorkOrderUnitOfWork.js';
@@ -26,7 +27,9 @@ function fixture() {
   const findPhoto = vi.fn().mockResolvedValue(null);
   const member = vi.fn().mockResolvedValue({ user: { name: 'Fixture user', disabledAt: null, emailVerifiedAt: now } });
   const organization = vi.fn().mockResolvedValue({ subscriptions: [], trial: null });
-  const query = vi.fn().mockResolvedValue([{ id: 'org' }]);
+  const query = vi
+    .fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue([{ id: 'org' }]);
   const db = {
     workOrderShare: { findUnique: findShare },
     workOrder: { findFirst: findOrder },
@@ -50,10 +53,10 @@ describe('PrismaPublicWorkOrderUnitOfWork', () => {
     const f = fixture();
     expect(await f.unit.read('hash', async (tx) => tx.share)).toEqual(share);
     expect(f.source).not.toHaveBeenCalled();
-    expect(f.findShare).toHaveBeenCalledWith(expect.objectContaining({ where: { tokenHash: 'hash' } }));
+    expect(f.findShare).toHaveBeenCalledWith(asymmetric.objectContaining({ where: { tokenHash: 'hash' } }));
     expect(f.transaction).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({ isolationLevel: 'RepeatableRead' }),
+      asymmetric.any(Function),
+      asymmetric.objectContaining({ isolationLevel: 'RepeatableRead' }),
     );
   });
 
@@ -104,11 +107,11 @@ describe('PrismaPublicWorkOrderUnitOfWork', () => {
     });
     expect(result).not.toHaveProperty('assignedToId');
     expect(f.findOrder).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { id: 'order', organizationId: 'org' },
-        select: expect.objectContaining({
-          workOrderPhotos: expect.objectContaining({ where: { visibleInPortal: true } }),
-          workOrderChecklistItems: expect.objectContaining({ where: { visibleInPortal: true } }),
+        select: asymmetric.objectContaining({
+          workOrderPhotos: asymmetric.objectContaining({ where: { visibleInPortal: true } }),
+          workOrderChecklistItems: asymmetric.objectContaining({ where: { visibleInPortal: true } }),
         }),
       }),
     );
@@ -130,7 +133,7 @@ describe('PrismaPublicWorkOrderUnitOfWork', () => {
     f.member.mockResolvedValue(member);
     expect(await f.unit.read('hash', (tx) => tx.findWorkOrder())).toMatchObject({ assignedToName: null });
     expect(f.member).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { organizationId_userId: { organizationId: 'org', userId: 'user' } },
       }),
     );
@@ -150,7 +153,7 @@ describe('PrismaPublicWorkOrderUnitOfWork', () => {
     const f = fixture();
     await f.unit.read('hash', (tx) => tx.findPhoto('photo'));
     expect(f.findPhoto).toHaveBeenCalledWith(
-      expect.objectContaining({
+      asymmetric.objectContaining({
         where: { id: 'photo', organizationId: 'org', workOrderId: 'order', visibleInPortal: true },
       }),
     );
@@ -162,6 +165,6 @@ describe('PrismaPublicWorkOrderUnitOfWork', () => {
       hasAccess: false,
       source: 'NONE',
     });
-    expect(f.organization).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'org' } }));
+    expect(f.organization).toHaveBeenCalledWith(asymmetric.objectContaining({ where: { id: 'org' } }));
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 
@@ -27,7 +28,7 @@ function fixture() {
     targetPlanPrice: { plan: { name: 'Pro' } },
     organization,
   };
-  const query = vi.fn().mockResolvedValue([]);
+  const query = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([]);
   const invoiceRead = vi.fn().mockResolvedValue(invoice);
   const changeRead = vi.fn().mockResolvedValue(change);
   const invoiceUpdate = vi.fn().mockResolvedValue(invoice);
@@ -82,8 +83,8 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     expect(f.query).toHaveBeenCalledTimes(1);
     expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE SKIP LOCKED');
     expect(operation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        billingSuccessNotification: expect.objectContaining({
+      asymmetric.objectContaining({
+        billingSuccessNotification: asymmetric.objectContaining({
           kind: 'INVOICE',
           id: 'invoice',
           organizationId: 'organization',
@@ -93,7 +94,7 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     );
     expect(f.invoiceUpdate).toHaveBeenCalledExactlyOnceWith({
       where: { id: 'invoice' },
-      data: { paymentNotificationHandledAt: expect.any(Date) },
+      data: { paymentNotificationHandledAt: asymmetric.any(Date) },
     });
     expect(f.changeUpdate).not.toHaveBeenCalled();
     expect(f.notifyWorker).not.toHaveBeenCalled();
@@ -106,13 +107,13 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
 
     expect(await f.unit.run(operation)).toBe(true);
     expect(operation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        billingSuccessNotification: expect.objectContaining({ kind: 'PLAN_CHANGE', id: 'change', planName: 'Pro' }),
+      asymmetric.objectContaining({
+        billingSuccessNotification: asymmetric.objectContaining({ kind: 'PLAN_CHANGE', id: 'change', planName: 'Pro' }),
       }),
     );
     expect(f.changeUpdate).toHaveBeenCalledExactlyOnceWith({
       where: { id: 'change' },
-      data: { appliedNotificationHandledAt: expect.any(Date) },
+      data: { appliedNotificationHandledAt: asymmetric.any(Date) },
     });
     expect(f.invoiceUpdate).not.toHaveBeenCalled();
   });
@@ -131,9 +132,9 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
 
     await f.unit.run(operation);
     expect(operation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        billingSuccessNotification: expect.objectContaining({
-          recipient: expect.objectContaining({ enabled: false }),
+      asymmetric.objectContaining({
+        billingSuccessNotification: asymmetric.objectContaining({
+          recipient: asymmetric.objectContaining({ enabled: false }),
         }),
       }),
     );

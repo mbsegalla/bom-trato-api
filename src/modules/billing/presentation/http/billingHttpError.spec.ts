@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 
 import { billingOperation } from './billingHttpError.js';
@@ -40,7 +41,7 @@ describe('billingOperation', () => {
       status,
       publicError: {
         code,
-        message: expect.not.stringContaining('private provider failure'),
+        message: asymmetric.not.stringContaining('private provider failure'),
         details: [],
       },
     });

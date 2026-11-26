@@ -23,7 +23,12 @@ export type LivePixObservation =
 
 export type LiveWebhookRetry = {
   kind: 'RETRY';
-  code: 'UNMATCHED_PAYMENT' | 'CREDENTIAL_UNAVAILABLE' | 'PROVIDER_UNAVAILABLE' | 'CONNECTION_CHANGED' | 'PROCESSING_FAILED';
+  code:
+    | 'UNMATCHED_PAYMENT'
+    | 'CREDENTIAL_UNAVAILABLE'
+    | 'PROVIDER_UNAVAILABLE'
+    | 'CONNECTION_CHANGED'
+    | 'PROCESSING_FAILED';
 };
 
 export type LiveWebhookReview = {

@@ -1,7 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Equals, IsEmail, IsIn, IsInt, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 
-import type { IssueMercadoPagoLivePixInput, RecoverMercadoPagoLivePixInput } from '../../../../application/types/mercadoPagoLivePix.types.js';
+import type {
+  IssueMercadoPagoLivePixInput,
+  RecoverMercadoPagoLivePixInput,
+} from '../../../../application/types/mercadoPagoLivePix.types.js';
 
 export class IssueMercadoPagoLivePixDto implements IssueMercadoPagoLivePixInput {
   @ApiProperty({ minimum: 1 })

@@ -19,8 +19,8 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { PlansModule } from './modules/plans/plans.module.js';
 import { PublicProfilesModule } from './modules/publicProfiles/publicProfiles.module.js';
 import { QuotesModule } from './modules/quotes/quotes.module.js';
-import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { MercadoPagoConnectionModule } from './modules/receivables/mercadoPagoConnection.module.js';
+import { ReceivablesModule } from './modules/receivables/receivables.module.js';
 import { ReceivingSettingsModule } from './modules/receivables/receivingSettings.module.js';
 import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { ServiceCatalogModule } from './modules/serviceCatalog/serviceCatalog.module.js';

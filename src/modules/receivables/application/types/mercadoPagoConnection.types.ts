@@ -5,11 +5,7 @@ export interface MercadoPagoConnectionActor extends OrganizationActorParams {
 }
 
 export type MercadoPagoConnectionStatus =
-  | 'NOT_CONNECTED'
-  | 'CONNECTED'
-  | 'EXPIRED'
-  | 'DISCONNECTED'
-  | 'RECONNECT_REQUIRED';
+  'NOT_CONNECTED' | 'CONNECTED' | 'EXPIRED' | 'DISCONNECTED' | 'RECONNECT_REQUIRED';
 
 export interface MercadoPagoConnectionView {
   available: boolean;

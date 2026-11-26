@@ -6,7 +6,10 @@ import { PrismaService } from '../../../../infrastructure/database/prisma.servic
 import { organizationTransaction } from '../../../organizations/infrastructure/transactions/organizationTransaction.js';
 import type { MercadoPagoConnectionActor } from '../../application/types/mercadoPagoConnection.types.js';
 import { ReceivingSettingsError } from '../../domain/errors/receivingSettings.error.js';
-import { decideMercadoPagoCredentialAccess, MERCADO_PAGO_REFRESH_MARGIN_MS } from '../../domain/policies/mercadoPagoRefresh.policy.js';
+import {
+  decideMercadoPagoCredentialAccess,
+  MERCADO_PAGO_REFRESH_MARGIN_MS,
+} from '../../domain/policies/mercadoPagoRefresh.policy.js';
 import { assertReceivingSettingsOwner } from '../access/assertReceivingSettingsOwner.js';
 import { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 
@@ -75,7 +78,12 @@ export class MercadoPagoCredentialService {
           select: { liveMode: true, expiresAt: true },
         });
         const oauthInProgress = attempt !== null && attempt.liveMode === liveMode && attempt.expiresAt > now;
-        const decision = decideMercadoPagoCredentialAccess(row, { ownerId: actor.userId, clientId, liveMode }, oauthInProgress, now);
+        const decision = decideMercadoPagoCredentialAccess(
+          row,
+          { ownerId: actor.userId, clientId, liveMode },
+          oauthInProgress,
+          now,
+        );
 
         if (
           row === null ||
@@ -119,7 +127,9 @@ export class MercadoPagoCredentialService {
     // A single persistent claim is committed before contacting the provider.
     // On timeout, crash or invalid response, the old refresh token may already be spent.
     // Retain the claim and require new OAuth; never automatically retry that grant.
-    const credentials = await client.refreshCredentials(claimed.accountId, claimed.refreshToken).catch(() => unavailable());
+    const credentials = await client
+      .refreshCredentials(claimed.accountId, claimed.refreshToken)
+      .catch(() => unavailable());
 
     if (
       credentials.accountId !== claimed.accountId ||
@@ -170,7 +180,10 @@ export class MercadoPagoCredentialService {
           },
           data: {
             accessTokenCiphertext: this.runtime.cipher.seal(aad(claimed.accountId, 'access'), credentials.accessToken),
-            refreshTokenCiphertext: this.runtime.cipher.seal(aad(claimed.accountId, 'refresh'), credentials.refreshToken),
+            refreshTokenCiphertext: this.runtime.cipher.seal(
+              aad(claimed.accountId, 'refresh'),
+              credentials.refreshToken,
+            ),
             expiresAt: credentials.expiresAt,
             refreshClaimId: null,
             refreshStartedAt: null,

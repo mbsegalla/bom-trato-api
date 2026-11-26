@@ -24,8 +24,8 @@ const counts = {
 };
 
 function fixture() {
-  const query = vi.fn().mockResolvedValue([]);
-  const execute = vi.fn().mockResolvedValue(0);
+  const query = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>>().mockResolvedValue([]);
+  const execute = vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<number>>().mockResolvedValue(0);
   const db = { $queryRaw: query, $executeRaw: execute };
   const transaction = vi.fn(async (operation: (client: typeof db) => Promise<unknown>) => operation(db));
   const reader = new PrismaTrialMetricsReader({ $transaction: transaction } as unknown as PrismaService);

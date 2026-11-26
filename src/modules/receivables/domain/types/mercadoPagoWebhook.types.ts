@@ -38,6 +38,14 @@ export type SandboxPixWebhookPreparation =
 export type SandboxWebhookResultStatus = 'PENDING' | 'APPROVED' | 'CLOSED' | 'REFUNDED' | 'REVIEW_REQUIRED';
 
 export type MercadoPagoWebhookOutcome =
-  | { kind: 'RETRY'; code: 'UNMATCHED_PAYMENT' | 'CREDENTIAL_UNAVAILABLE' | 'PROVIDER_UNAVAILABLE' | 'CONNECTION_CHANGED' | 'PROCESSING_FAILED' }
+  | {
+      kind: 'RETRY';
+      code:
+        | 'UNMATCHED_PAYMENT'
+        | 'CREDENTIAL_UNAVAILABLE'
+        | 'PROVIDER_UNAVAILABLE'
+        | 'CONNECTION_CHANGED'
+        | 'PROCESSING_FAILED';
+    }
   | { kind: 'REVIEW'; code: 'AMBIGUOUS_PAYMENT' | 'INVALID_PROVIDER_PAYMENT' }
   | { kind: 'CHECKED'; binding: SandboxPixWebhookBinding; connectedAt: Date; status: SandboxWebhookResultStatus };

@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
+
 import { verifyMercadoPagoWebhook } from './mercadoPagoWebhook.policy.js';
 
 const clientId = '12345';
@@ -37,7 +39,7 @@ describe('Mercado Pago signed webhook delivery', () => {
 
     expect(notice).toEqual({
       clientId,
-      deliveryKey: expect.stringMatching(/^[a-f0-9]{64}$/),
+      deliveryKey: asymmetric.stringMatching(/^[a-f0-9]{64}$/),
       paymentId,
       requestId,
       signedAt: now,

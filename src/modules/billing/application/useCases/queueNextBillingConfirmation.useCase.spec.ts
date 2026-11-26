@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { BillingSuccessNotificationUnitOfWork } from '../ports/billingSuccessNotificationUnitOfWork.port.js';
 import type { BillingSuccessNotification, BillingSuccessNotificationTransaction } from '../types/billing.types.js';
 
 import { QueueNextBillingConfirmationUseCase } from './queueNextBillingConfirmation.useCase.js';

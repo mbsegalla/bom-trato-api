@@ -28,14 +28,17 @@ export const access: OrganizationAccessContext = {
 };
 
 export function receivableState(overrides: Partial<ReceivableProps> = {}): ReceivableProps {
-  const value = Receivable.create({
-    ...actor,
-    id: params.receivableId,
-    source,
-    kind: 'FULL',
-    amountInCents: source.totalInCents,
-    dueAt: now,
-  }, now);
+  const value = Receivable.create(
+    {
+      ...actor,
+      id: params.receivableId,
+      source,
+      kind: 'FULL',
+      amountInCents: source.totalInCents,
+      dueAt: now,
+    },
+    now,
+  );
 
   return { ...value.snapshot(), ...overrides };
 }
@@ -53,12 +56,18 @@ export function receivableFixture(state = receivableState(), permissions = acces
     findPaymentByRequestId: vi.fn<ReceivableRepository['findPaymentByRequestId']>().mockResolvedValue(null),
     createPayment: vi.fn<ReceivableRepository['createPayment']>().mockResolvedValue(undefined),
     savePaymentReversal: vi.fn<ReceivableRepository['savePaymentReversal']>().mockResolvedValue(undefined),
-    listPayments: vi.fn<ReceivableRepository['listPayments']>().mockResolvedValue({ items: [], page: 1, hasMore: false }),
+    listPayments: vi
+      .fn<ReceivableRepository['listPayments']>()
+      .mockResolvedValue({ items: [], page: 1, hasMore: false }),
   };
   const findWorkOrder = vi.fn<ReceivableTransaction['findWorkOrder']>().mockResolvedValue(source);
   const tx: ReceivableTransaction = { access: permissions, receivables, findWorkOrder };
-  const run = vi.fn(async (_actor: typeof actor, operation: (context: ReceivableTransaction) => Promise<unknown>) => operation(tx));
-  const read = vi.fn(async (_actor: typeof actor, operation: (context: ReceivableTransaction) => Promise<unknown>) => operation(tx));
+  const run = vi.fn(async (_actor: typeof actor, operation: (context: ReceivableTransaction) => Promise<unknown>) =>
+    operation(tx),
+  );
+  const read = vi.fn(async (_actor: typeof actor, operation: (context: ReceivableTransaction) => Promise<unknown>) =>
+    operation(tx),
+  );
 
   return {
     receivables,

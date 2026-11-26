@@ -32,7 +32,9 @@ export class ProcessMercadoPagoLiveWebhookService {
     }
 
     const prepared = await this.repository.prepare(job);
-    if (prepared.kind !== 'READY') return prepared;
+    if (prepared.kind !== 'READY') {
+      return prepared;
+    }
 
     const { binding, stamp, accessToken } = prepared;
     if (binding.clientId !== job.clientId || binding.paymentId !== job.paymentId) {

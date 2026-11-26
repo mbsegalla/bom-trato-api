@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { asymmetric } from '../../../../../test/support/asymmetricMatchers.js';
+
 import { authFixture, now, user } from './support/prismaAuth.fixture.js';
 
 const token = {
@@ -33,7 +35,7 @@ describe('PrismaAuthRepository action token persistence', () => {
     expect(await repository.issueAction(request)).toBe(true);
     expect(db.authActionToken.updateMany).toHaveBeenCalledWith({
       where: { userId: user.id, purpose: request.purpose, usedAt: null },
-      data: { usedAt: expect.any(Date) },
+      data: { usedAt: asymmetric.any(Date) },
     });
     expect(db.authActionToken.create).toHaveBeenCalledWith({
       data: { userId: user.id, purpose: request.purpose, tokenHash: request.tokenHash, expiresAt: request.expiresAt },
