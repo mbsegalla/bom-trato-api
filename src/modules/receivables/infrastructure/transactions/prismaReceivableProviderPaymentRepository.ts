@@ -68,6 +68,16 @@ export class PrismaReceivableProviderPaymentRepository extends ReceivableProvide
           return existing.id;
         }
 
+        // Once the dedicated live issuer reserves a receivable, no generic
+        // registration can introduce another charge while the POST is in flight.
+        const liveReservation = await db.mercadoPagoLivePix.findUnique({
+          where: { receivableId_organizationId: { receivableId: params.receivableId, organizationId: params.organizationId } },
+          select: { id: true },
+        });
+        if (liveReservation !== null) {
+          throw new ReceivableError('IDEMPOTENCY_CONFLICT');
+        }
+
         const repository = new PrismaReceivableRepository(db, params.organizationId);
         const receivable = await repository.findById(params.receivableId);
 

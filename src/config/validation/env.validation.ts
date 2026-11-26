@@ -93,6 +93,7 @@ export const envValidationSchema = Joi.object<EnvironmentVariables>({
   MERCADO_PAGO_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_LIVE_MODE: Joi.boolean().default(false),
   MERCADO_PAGO_SANDBOX_PIX_ENABLED: Joi.boolean().default(false),
+  MERCADO_PAGO_LIVE_PIX_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_WEBHOOK_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_WEBHOOK_WORKER_ENABLED: Joi.boolean().default(false),
   MERCADO_PAGO_WEBHOOK_SECRET: Joi.string().min(16).max(2048).pattern(/^[\x21-\x7E]+$/).when('MERCADO_PAGO_WEBHOOK_ENABLED', {
@@ -230,6 +231,12 @@ export function validateEnvironment(values: Record<string, unknown>): Environmen
     ].some((key) => key?.toLowerCase() === env.MERCADO_PAGO_ENCRYPTION_KEY?.toLowerCase())
   ) {
     throw new Error('MERCADO_PAGO_ENCRYPTION_KEY must be independent of other application secrets');
+  }
+
+  // Live issuance is implemented internally but is not deployable until the
+  // production webhook/settlement and operational recovery adapter is ready.
+  if (env.MERCADO_PAGO_LIVE_PIX_ENABLED) {
+    throw new Error('Mercado Pago live Pix activation is blocked until production settlement is available');
   }
 
   if (env.MERCADO_PAGO_SANDBOX_PIX_ENABLED && (!env.MERCADO_PAGO_ENABLED || env.MERCADO_PAGO_LIVE_MODE)) {

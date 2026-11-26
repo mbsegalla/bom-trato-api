@@ -6,11 +6,13 @@ import { MercadoPagoCredentialCipher } from '../../security/mercadoPagoCredentia
 
 import { MercadoPagoClient } from './mercadoPagoClient.js';
 
+type RuntimeConfig = Omit<ConfigType<typeof mercadoPagoConfig>, 'livePixEnabled'> & { livePixEnabled?: boolean };
+
 export class MercadoPagoConnectionRuntime {
   readonly cipher: MercadoPagoCredentialCipher;
   readonly client: MercadoPagoClient | null;
 
-  constructor(private readonly config: ConfigType<typeof mercadoPagoConfig>) {
+  constructor(private readonly config: RuntimeConfig) {
     this.cipher = new MercadoPagoCredentialCipher(config.encryptionKey);
     this.client =
       config.enabled && config.clientId && config.clientSecret && config.encryptionKey
@@ -29,6 +31,10 @@ export class MercadoPagoConnectionRuntime {
 
   get sandboxPixAvailable(): boolean {
     return this.config.sandboxPixEnabled && !this.liveMode && this.client !== null;
+  }
+
+  get livePixAvailable(): boolean {
+    return this.config.livePixEnabled === true && this.liveMode && this.client !== null;
   }
 
   get clientId(): string | undefined {

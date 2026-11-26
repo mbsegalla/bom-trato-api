@@ -141,3 +141,50 @@ describe('Mercado Pago sandbox Pix transport', () => {
     expect(transport).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Mercado Pago live Pix transport (mock provider only)', () => {
+  it('requires a live client and live response; keeps the reservation key and seller token', async () => {
+    const { client, transport } = fixture({ ...response, live_mode: true }, true);
+
+    await expect(client.createLivePix(input)).resolves.toMatchObject({
+      kind: 'PENDING', liveMode: true, issuanceId: input.issuanceId, accountId: input.accountId, paymentId: '456789',
+    });
+    expect(transport).toHaveBeenCalledWith(
+      'https://api.mercadopago.com/v1/payments',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer fixture-access',
+          'X-Idempotency-Key': input.issuanceId,
+        }),
+        body: expect.stringContaining('"external_reference":"' + input.issuanceId + '"'),
+      }),
+    );
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+
+  it('cannot create a live payment with a sandbox client', async () => {
+    const { client, transport } = fixture(response);
+    await expect(client.createLivePix(input)).rejects.toThrow('MODE_MISMATCH');
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { live_mode: false },
+    { external_reference: 'different-reference' },
+    { collector_id: 123457 },
+    { transaction_amount: '350.02' },
+    { transaction_amount_refunded: 1 },
+  ])('rejects inconsistent live responses: %j', async (patch) => {
+    const { client } = fixture({ ...response, live_mode: true, ...patch }, true);
+    await expect(client.createLivePix(input)).rejects.toThrow();
+  });
+
+  it('never treats creation approval as confirmed settlement', async () => {
+    const { client } = fixture({ ...response, live_mode: true, status: 'approved' }, true);
+    await expect(client.createLivePix(input)).resolves.toEqual({
+      kind: 'REVIEW_REQUIRED', paymentId: '456789', accountId: input.accountId,
+      issuanceId: input.issuanceId, amountInCents: input.amountInCents, currency: 'brl', liveMode: true,
+    });
+  });
+});

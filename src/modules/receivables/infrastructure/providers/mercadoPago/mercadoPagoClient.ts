@@ -223,10 +223,18 @@ export class MercadoPagoClient {
     return credentials;
   }
 
-  // Transport only. Never call until a durable issuance UUID and immutable request
-  // snapshot exist. No live charges are enabled in this increment.
+  // Transport only. The caller must commit an immutable reservation first.
   async createSandboxPix(input: CreateMercadoPagoPixInput): Promise<CreatedMercadoPagoPix> {
-    if (this.config.liveMode) {
+    return this.createPix(input, false);
+  }
+
+  // Internal live adapter. No public route can invoke it in this increment.
+  async createLivePix(input: CreateMercadoPagoPixInput): Promise<CreatedMercadoPagoPix> {
+    return this.createPix(input, true);
+  }
+
+  private async createPix(input: CreateMercadoPagoPixInput, liveMode: boolean): Promise<CreatedMercadoPagoPix> {
+    if (this.config.liveMode !== liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
     }
 
@@ -261,7 +269,7 @@ export class MercadoPagoClient {
       throw new MercadoPagoError('ACCOUNT_MISMATCH');
     }
 
-    if (payload.live_mode !== false) {
+    if (payload.live_mode !== liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
     }
 
@@ -283,7 +291,7 @@ export class MercadoPagoClient {
       issuanceId: input.issuanceId,
       amountInCents: input.amountInCents,
       currency: 'brl' as const,
-      liveMode: false,
+      liveMode,
     };
 
     // A creation response alone is not a verified settlement, even if approved.

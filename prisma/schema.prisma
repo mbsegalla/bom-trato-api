@@ -1153,6 +1153,7 @@ model Receivable {
   paymentLink        ReceivablePaymentLink?
   providerCharges    ReceivableProviderCharge[]
   mercadoPagoSandboxPix MercadoPagoSandboxPix?
+  mercadoPagoLivePix    MercadoPagoLivePix?
 
   @@unique([workOrderId, kind])
   @@unique([id, organizationId])
@@ -1230,6 +1231,7 @@ model ReceivableProviderCharge {
 
   receivable Receivable         @relation(fields: [receivableId, organizationId], references: [id, organizationId], onDelete: Restrict, map: "ReceivableProviderCharge_receivable_fkey")
   payment    ReceivablePayment? @relation(fields: [paymentId, receivableId], references: [id, receivableId], onDelete: Restrict, map: "ReceivableProviderCharge_payment_fkey")
+  mercadoPagoLivePix MercadoPagoLivePix?
 
   @@unique([provider, externalAccountId, externalPaymentId], map: "ReceivableProviderCharge_provider_payment_key")
   @@unique([paymentId, receivableId], map: "ReceivableProviderCharge_payment_receivable_key")
@@ -1505,4 +1507,47 @@ model MercadoPagoSandboxPixRecovery {
   issuance MercadoPagoSandboxPix @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
 
   @@index([issuanceId, startedAt])
+}
+
+
+// Separate live reservation. The UUID is also the provider idempotency key,
+// external reference and, once bound, the real ledger charge identifier.
+enum MercadoPagoLivePixStatus {
+  RESERVED
+  PENDING
+  REVIEW_REQUIRED
+}
+
+enum MercadoPagoLivePixResult {
+  UNCERTAIN_CREATION
+  VERIFIED_PENDING
+  VERIFIED_REVIEW_REQUIRED
+  SNAPSHOT_CHANGED
+  BINDING_CONFLICT
+}
+
+model MercadoPagoLivePix {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  organizationId         String                   @db.Uuid
+  receivableId           String                   @db.Uuid
+  receivableVersion      Int
+  clientId               String                   @db.VarChar(30)
+  accountId              String                   @db.VarChar(30)
+  issuedById             String                   @db.Uuid
+  amountInCents          Int
+  status                 MercadoPagoLivePixStatus @default(RESERVED)
+  resultCode             MercadoPagoLivePixResult?
+  externalPaymentId      String?                  @db.VarChar(30)
+  providerChargeId       String?                  @unique @db.Uuid
+  copyAndPasteCiphertext String?
+  requestedExpiresAt     DateTime                 @db.Timestamptz(3)
+  expiresAt              DateTime?                @db.Timestamptz(3)
+  createdAt              DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                 @updatedAt @db.Timestamptz(3)
+
+  receivable     Receivable                @relation(fields: [receivableId, organizationId], references: [id, organizationId], onDelete: Restrict, map: "MercadoPagoLivePix_receivable_fkey")
+  providerCharge ReceivableProviderCharge? @relation(fields: [providerChargeId], references: [id], onDelete: Restrict, map: "MercadoPagoLivePix_providerCharge_fkey")
+
+  @@unique([receivableId, organizationId], map: "MercadoPagoLivePix_receivable_key")
+  @@unique([clientId, externalPaymentId], map: "MercadoPagoLivePix_external_key")
 }
