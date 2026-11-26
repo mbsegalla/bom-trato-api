@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   assertSandboxPixInput,
   isValidSandboxDynamicPix,
+  SANDBOX_PIX_PROCESSING_MS,
   sandboxPixBalance,
   sandboxPixStatus,
-  SANDBOX_PIX_PROCESSING_MS
 } from './mercadoPagoSandboxPix.policy.js';
 import { pixCrc16 } from './receivablePixCharge.policy.js';
 
@@ -15,7 +15,7 @@ const receivable = {
   status: 'PARTIALLY_PAID',
   currency: 'brl',
   amountInCents: 50000,
-  receivedInCents: 15000
+  receivedInCents: 15000,
 };
 const issuance = {
   status: 'PENDING' as const,
@@ -38,7 +38,7 @@ function tlv(id: string, value: string): string {
 
 function code(
   amount: string | null = '350.00',
-  template = tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test')
+  template = tlv('00', 'br.gov.bcb.pix') + tlv('25', 'example.invalid/test'),
 ): string {
   const payload = [
     tlv('00', '01'),
@@ -84,7 +84,9 @@ describe('sandbox Pix issuance policy', () => {
 
     expect(sandboxPixStatus(null, receivable, true, now)).toBe('NOT_ISSUED');
     expect(sandboxPixStatus(reserved, receivable, true, now)).toBe('PROCESSING');
-    expect(sandboxPixStatus(reserved, receivable, true, new Date(now.getTime() + SANDBOX_PIX_PROCESSING_MS))).toBe('REVIEW_REQUIRED');
+    expect(sandboxPixStatus(reserved, receivable, true, new Date(now.getTime() + SANDBOX_PIX_PROCESSING_MS))).toBe(
+      'REVIEW_REQUIRED',
+    );
     expect(sandboxPixStatus({ ...issuance, status: 'REVIEW_REQUIRED' }, receivable, true, now)).toBe('REVIEW_REQUIRED');
   });
 
@@ -94,6 +96,8 @@ describe('sandbox Pix issuance policy', () => {
     expect(isValidSandboxDynamicPix(code('350.01'), 35000)).toBe(false);
     expect(isValidSandboxDynamicPix(code().slice(0, -1) + 'Z', 35000)).toBe(false);
     expect(isValidSandboxDynamicPix(code('350.00', tlv('00', 'br.gov.bcb.pix') + tlv('01', 'key')), 35000)).toBe(false);
-    expect(isValidSandboxDynamicPix(code('350.00', tlv('00', 'wrong') + tlv('25', 'example.invalid')), 35000)).toBe(false);
+    expect(isValidSandboxDynamicPix(code('350.00', tlv('00', 'wrong') + tlv('25', 'example.invalid')), 35000)).toBe(
+      false,
+    );
   });
 });

@@ -102,7 +102,7 @@ describe('Mercado Pago client', () => {
     const { client } = fixture({
       ...tokenResponse,
       refresh_token: 'rotated-refresh',
-      access_token: 'rotated-access'
+      access_token: 'rotated-access',
     });
 
     await expect(client.refreshCredentials('123456', 'old-refresh')).resolves.toMatchObject({
@@ -187,9 +187,10 @@ describe('Mercado Pago client', () => {
   });
 
   it('normalizes a bound live approval only when provider mode and reference agree', async () => {
-    const transport = vi.fn<typeof fetch>().mockResolvedValueOnce(
-      Response.json({ ...paymentResponse, live_mode: true }),
-    ).mockResolvedValueOnce(Response.json(paymentResponse));
+    const transport = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ ...paymentResponse, live_mode: true }))
+      .mockResolvedValueOnce(Response.json(paymentResponse));
     const client = new MercadoPagoClient({ ...config, liveMode: true }, transport);
 
     await expect(client.readApprovedPixPayment(lookup)).resolves.toMatchObject({

@@ -13,7 +13,7 @@ const input = {
   width: 600,
   height: 400,
   sizeInBytes: 1000,
-  createdById: 'owner'
+  createdById: 'owner',
 };
 
 describe('WorkOrderPhoto', () => {
@@ -28,16 +28,21 @@ describe('WorkOrderPhoto', () => {
       visibleInPortal: true,
       caption: null,
       version: 2,
-      objectKey: input.objectKey
+      objectKey: input.objectKey,
     });
     expect(() => photo.update(1, { visibleInPortal: false }, now)).toThrow('WORK_ORDER_PHOTO_VERSION_CONFLICT');
   });
 
   it('enforces caption and capacity boundaries and preserves terminal version', () => {
-    expect(() => WorkOrderPhoto.create({
-      ...input,
-      caption: 'a'.repeat(241)
-    }, now)).toThrow('INVALID_WORK_ORDER_PHOTO_INPUT');
+    expect(() =>
+      WorkOrderPhoto.create(
+        {
+          ...input,
+          caption: 'a'.repeat(241),
+        },
+        now,
+      ),
+    ).toThrow('INVALID_WORK_ORDER_PHOTO_INPUT');
     expect(() => WorkOrderPhoto.assertCapacity(19)).not.toThrow();
     expect(() => WorkOrderPhoto.assertCapacity(20)).toThrow('WORK_ORDER_PHOTO_LIMIT_REACHED');
 

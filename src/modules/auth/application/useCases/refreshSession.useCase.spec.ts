@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthPolicy } from '../types/auth.types.js';
+
 import { RefreshSessionUseCase } from './refreshSession.useCase.js';
 
 function fixture() {

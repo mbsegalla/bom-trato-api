@@ -8,6 +8,7 @@ import { PrismaWorkOrderRecurrenceGeneration } from '../../../src/modules/workOr
 import { PrismaWorkOrderRecurrenceReminderRepository } from '../../../src/modules/workOrders/infrastructure/transactions/prismaWorkOrderRecurrenceReminderRepository.js';
 import { PrismaWorkOrderRecurrenceRepository } from '../../../src/modules/workOrders/infrastructure/transactions/prismaWorkOrderRecurrenceRepository.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
+
 import { createWorkOrderFixture } from './support/workOrder.fixture.js';
 
 databaseSuite('recurring quote generation and reminders (disposable PostgreSQL)', () => {
@@ -67,9 +68,10 @@ databaseSuite('recurring quote generation and reminders (disposable PostgreSQL)'
     await repository.save({ ...f.actor, workOrderId: f.order.id }, input);
 
     const generations = () => db.prisma.workOrderRecurrenceGeneration.findMany({ where: candidate });
-    const notifications = () => db.prisma.inAppNotification.findMany({
-      where: { organizationId: candidate.organizationId },
-    });
+    const notifications = () =>
+      db.prisma.inAppNotification.findMany({
+        where: { organizationId: candidate.organizationId },
+      });
 
     return { ...f, candidate, today, repository, generation, reminder, input, generations, notifications };
   }
@@ -113,11 +115,13 @@ databaseSuite('recurring quote generation and reminders (disposable PostgreSQL)'
         lastGeneratedVisitOn: f.today,
       },
     });
-    expect(await f.notifications()).toMatchObject([{
-      userId: f.actor.userId,
-      type: 'WORK_ORDER_RECURRING_QUOTE_CREATED',
-      href: '/quotes/' + generated.id,
-    }]);
+    expect(await f.notifications()).toMatchObject([
+      {
+        userId: f.actor.userId,
+        type: 'WORK_ORDER_RECURRING_QUOTE_CREATED',
+        href: '/quotes/' + generated.id,
+      },
+    ]);
   }, 30000);
 
   it('skips paused, archived and inaccessible plans even when a worker has already selected them', async () => {
@@ -132,7 +136,10 @@ databaseSuite('recurring quote generation and reminders (disposable PostgreSQL)'
     await f.generation.generate(f.candidate);
 
     await db.prisma.customer.update({ where: { id: f.customer.id }, data: { archivedAt: null } });
-    await db.prisma.organizationTrial.update({ where: { organizationId: f.actor.organizationId }, data: { revokedAt: new Date() } });
+    await db.prisma.organizationTrial.update({
+      where: { organizationId: f.actor.organizationId },
+      data: { revokedAt: new Date() },
+    });
     await f.generation.generate(f.candidate);
 
     expect(await f.generations()).toEqual([]);
@@ -146,12 +153,14 @@ databaseSuite('recurring quote generation and reminders (disposable PostgreSQL)'
     expect(await f.reminder.listCandidates(f.today, 10000)).toContainEqual(f.candidate);
     await Promise.all([f.reminder.enqueue(f.candidate), f.reminder.enqueue(f.candidate)]);
 
-    expect(await f.notifications()).toMatchObject([{
-      userId: f.actor.userId,
-      type: 'WORK_ORDER_RECURRENCE_REMINDER',
-      title: 'Serviço recorrente previsto para hoje',
-      href: '/work-orders/' + f.order.id + '#recurrence',
-    }]);
+    expect(await f.notifications()).toMatchObject([
+      {
+        userId: f.actor.userId,
+        type: 'WORK_ORDER_RECURRENCE_REMINDER',
+        title: 'Serviço recorrente previsto para hoje',
+        href: '/work-orders/' + f.order.id + '#recurrence',
+      },
+    ]);
     expect(await f.generations()).toEqual([]);
   }, 30000);
 

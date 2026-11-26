@@ -2,8 +2,8 @@ import { expect, it } from 'vitest';
 
 import { CustomerApplicationService } from '../../../src/modules/customers/application/services/customerApplicationService.service.js';
 import { CreateCustomerUseCase } from '../../../src/modules/customers/application/useCases/createCustomer.useCase.js';
-import { ListCustomersUseCase } from '../../../src/modules/customers/application/useCases/listCustomers.useCase.js';
 import { GetCustomerOverviewUseCase } from '../../../src/modules/customers/application/useCases/getCustomerOverview.useCase.js';
+import { ListCustomersUseCase } from '../../../src/modules/customers/application/useCases/listCustomers.useCase.js';
 import { PrismaCustomerUnitOfWork } from '../../../src/modules/customers/infrastructure/transactions/prismaCustomerUnitOfWork.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
 
@@ -34,8 +34,12 @@ databaseSuite('customer search and overview (disposable PostgreSQL)', () => {
 
     const params = { page: 1, limit: 10, status: 'ALL' as const };
 
-    expect((await list.execute(actor, { ...params, search: '100%' })).items.map((item) => item.id)).toEqual([percent.id]);
-    expect((await list.execute(actor, { ...params, search: 'a_b' })).items.map((item) => item.id)).toEqual([underscore.id]);
+    expect((await list.execute(actor, { ...params, search: '100%' })).items.map((item) => item.id)).toEqual([
+      percent.id,
+    ]);
+    expect((await list.execute(actor, { ...params, search: 'a_b' })).items.map((item) => item.id)).toEqual([
+      underscore.id,
+    ]);
   });
 
   it('returns disjoint pages and a correctly bounded hasMore flag', async () => {

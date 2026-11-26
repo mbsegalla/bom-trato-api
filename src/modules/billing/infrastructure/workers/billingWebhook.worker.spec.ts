@@ -3,11 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { ClaimedWebhookJob } from '../../domain/types/billing.types.js';
 import { BillingWork } from '../events/billing.events.js';
+
 import { BillingWebhookWorker } from './billingWebhook.worker.js';
 
 const event: ClaimedWebhookJob = {
-  id: 'evt_fixture', type: 'invoice.paid', stripeCustomerId: 'cus_fixture',
-  stripeObjectId: 'in_fixture', attempts: 0, leaseToken: 'lease',
+  id: 'evt_fixture',
+  type: 'invoice.paid',
+  stripeCustomerId: 'cus_fixture',
+  stripeObjectId: 'in_fixture',
+  attempts: 0,
+  leaseToken: 'lease',
   receivedAt: new Date('2026-01-01T00:00:00Z'),
 };
 
@@ -35,19 +40,48 @@ function fixture(workerEnabled = true) {
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const scheduler = {
     doesExist: vi.fn((_type: string, name: string) => timers.has(name)),
-    addTimeout: vi.fn((name: string, timer: ReturnType<typeof setTimeout>) => { timers.set(name, timer); }),
+    addTimeout: vi.fn((name: string, timer: ReturnType<typeof setTimeout>) => {
+      timers.set(name, timer);
+    }),
     deleteTimeout: vi.fn((name: string) => {
       clearTimeout(timers.get(name));
       timers.delete(name);
     }),
   };
   const args = [
-    { workerEnabled }, catalog, plan, sync, payment, alert, confirmation, deleted,
-    billing, webhook, changes, updates, schedule, scheduler,
+    { workerEnabled },
+    catalog,
+    plan,
+    sync,
+    payment,
+    alert,
+    confirmation,
+    deleted,
+    billing,
+    webhook,
+    changes,
+    updates,
+    schedule,
+    scheduler,
   ] as unknown as ConstructorParameters<typeof BillingWebhookWorker>;
   const worker = new BillingWebhookWorker(...args);
 
-  return { worker, catalog, plan, sync, payment, alert, confirmation, deleted, billing, webhook, changes, updates, schedule, scheduler };
+  return {
+    worker,
+    catalog,
+    plan,
+    sync,
+    payment,
+    alert,
+    confirmation,
+    deleted,
+    billing,
+    webhook,
+    changes,
+    updates,
+    schedule,
+    scheduler,
+  };
 }
 
 describe('BillingWebhookWorker', () => {
@@ -65,7 +99,9 @@ describe('BillingWebhookWorker', () => {
   }
 
   afterEach(async () => {
-    for (const worker of workers.splice(0)) await worker.onModuleDestroy();
+    for (const worker of workers.splice(0)) {
+      await worker.onModuleDestroy();
+    }
     vi.useRealTimers();
   });
 
@@ -103,7 +139,8 @@ describe('BillingWebhookWorker', () => {
   });
 
   it.each(['product.created', 'product.updated', 'product.deleted', 'price.created', 'price.updated', 'price.deleted'])(
-    'routes catalog event %s without looking up a customer', async (type) => {
+    'routes catalog event %s without looking up a customer',
+    async (type) => {
       vi.useFakeTimers();
       const f = setup();
       const job = { ...event, type, stripeCustomerId: null };
@@ -121,7 +158,10 @@ describe('BillingWebhookWorker', () => {
     const job = { ...event, type: 'customer.deleted' };
     f.webhook.claimEvent.mockResolvedValueOnce(job);
     await run(f);
-    expect(f.deleted.execute).toHaveBeenCalledWith({ stripeCustomerId: job.stripeCustomerId, deletedAt: job.receivedAt });
+    expect(f.deleted.execute).toHaveBeenCalledWith({
+      stripeCustomerId: job.stripeCustomerId,
+      deletedAt: job.receivedAt,
+    });
     expect(f.sync.execute).not.toHaveBeenCalled();
   });
 

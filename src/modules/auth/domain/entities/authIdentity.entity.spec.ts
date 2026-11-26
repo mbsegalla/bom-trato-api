@@ -10,7 +10,7 @@ describe('AuthIdentity', () => {
       id: 'identity',
       userId: 'user',
       provider: 'GOOGLE',
-      providerAccountId: 'subject'
+      providerAccountId: 'subject',
     });
 
     identity.snapshot().userId = 'other';
@@ -18,17 +18,17 @@ describe('AuthIdentity', () => {
     expect(identity.snapshot().userId).toBe('user');
   });
 
-  it.each([
-    { id: '' },
-    { userId: '' },
-    { providerAccountId: ' ' },
-    { providerAccountId: 'a'.repeat(256) }
-  ])('rejects invalid identity %j', (patch) => {
-    expect(() => AuthIdentity.google({
-      id: 'identity',
-      userId: 'user',
-      providerAccountId: 'subject',
-      ...patch
-    })).toThrow('INVALID_GOOGLE_CREDENTIAL');
-  });
+  it.each([{ id: '' }, { userId: '' }, { providerAccountId: ' ' }, { providerAccountId: 'a'.repeat(256) }])(
+    'rejects invalid identity %j',
+    (patch) => {
+      expect(() =>
+        AuthIdentity.google({
+          id: 'identity',
+          userId: 'user',
+          providerAccountId: 'subject',
+          ...patch,
+        }),
+      ).toThrow('INVALID_GOOGLE_CREDENTIAL');
+    },
+  );
 });

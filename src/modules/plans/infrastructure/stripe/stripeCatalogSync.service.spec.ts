@@ -1,35 +1,52 @@
+import type Stripe from 'stripe';
 import { describe, expect, it, vi } from 'vitest';
 
-import type Stripe from 'stripe';
-
 import type { PrismaClient } from '../../../../generated/prisma/client.js';
+
 import { StripeCatalogSyncService } from './stripeCatalogSync.service.js';
 
 const product = {
-  id: 'prod_fixture', name: 'Fixture plan', description: null, active: true,
+  id: 'prod_fixture',
+  name: 'Fixture plan',
+  description: null,
+  active: true,
   metadata: {
-    plan_code: 'PRO', max_users: '5', team_management_enabled: 'true',
-    display_order: '2', config_version: '3', change_level: '2',
+    plan_code: 'PRO',
+    max_users: '5',
+    team_management_enabled: 'true',
+    display_order: '2',
+    config_version: '3',
+    change_level: '2',
   },
 };
 const price = {
-  id: 'price_fixture', product: product.id, type: 'recurring', currency: 'brl',
-  unit_amount: 1299, billing_scheme: 'per_unit',
+  id: 'price_fixture',
+  product: product.id,
+  type: 'recurring',
+  currency: 'brl',
+  unit_amount: 1299,
+  billing_scheme: 'per_unit',
   recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' },
-  transform_quantity: null, custom_unit_amount: null, lookup_key: 'fixture',
-  active: true, metadata: {},
+  transform_quantity: null,
+  custom_unit_amount: null,
+  lookup_key: 'fixture',
+  active: true,
+  metadata: {},
 };
 
 function fixture() {
   const products = { list: vi.fn().mockReturnValue([product]), retrieve: vi.fn().mockResolvedValue(product) };
   const prices = { list: vi.fn().mockReturnValue([price]), retrieve: vi.fn().mockResolvedValue(price) };
   const plan = {
-    findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn().mockResolvedValue(null),
-    update: vi.fn().mockResolvedValue(undefined), updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    findMany: vi.fn().mockResolvedValue([]),
+    findUnique: vi.fn().mockResolvedValue(null),
+    update: vi.fn().mockResolvedValue(undefined),
+    updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     upsert: vi.fn().mockResolvedValue({ id: 'local-plan' }),
   };
   const planPrice = {
-    updateMany: vi.fn().mockResolvedValue({ count: 1 }), upsert: vi.fn().mockResolvedValue(undefined),
+    updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    upsert: vi.fn().mockResolvedValue(undefined),
   };
   const db = { plan, planPrice };
   const transaction = vi.fn(async (callback: (client: typeof db) => Promise<void>) => callback(db));
@@ -109,7 +126,8 @@ describe('StripeCatalogSyncService', () => {
     await f.service.syncAll();
 
     expect(f.planPrice.updateMany).toHaveBeenCalledWith({
-      where: { lookupKey: { in: [price.lookup_key] } }, data: { lookupKey: null },
+      where: { lookupKey: { in: [price.lookup_key] } },
+      data: { lookupKey: null },
     });
     expect(f.planPrice.updateMany).toHaveBeenCalledWith({
       where: { planId: 'local-plan', stripePriceId: { notIn: [price.id] } },
@@ -148,7 +166,9 @@ describe('StripeCatalogSyncService', () => {
   it('rejects prices with invalid product identity', async () => {
     const f = fixture();
     f.prices.retrieve.mockResolvedValue({ ...price, product: null });
-    await expect(f.service.syncWebhook('price.updated', price.id)).rejects.toThrow('does not reference a valid Stripe product');
+    await expect(f.service.syncWebhook('price.updated', price.id)).rejects.toThrow(
+      'does not reference a valid Stripe product',
+    );
     expect(f.transaction).not.toHaveBeenCalled();
   });
 

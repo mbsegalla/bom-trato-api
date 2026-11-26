@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { appConfig } from '../../../../config/app.config.js';
 import type { RemindWorkOrderRecurrenceUseCase } from '../../application/useCases/remindWorkOrderRecurrence.useCase.js';
+
 import { WorkOrderRecurrenceReminderWorker } from './workOrderRecurrenceReminder.worker.js';
 
 function fixture(enabled = true) {

@@ -19,14 +19,16 @@ databaseSuite('billing mutex persistence (disposable PostgreSQL)', () => {
   it('persists an owned lease during work and removes it after success', async () => {
     const { key, lock } = fixture();
 
-    await expect(lock.run(key, async () => {
-      const row = await db.prisma.billingMutex.findUniqueOrThrow({ where: { key } });
+    await expect(
+      lock.run(key, async () => {
+        const row = await db.prisma.billingMutex.findUniqueOrThrow({ where: { key } });
 
-      expect(row.recoveryRequired).toBe(false);
-      expect(row.leaseUntil.getTime()).toBeGreaterThan(row.acquiredAt.getTime());
+        expect(row.recoveryRequired).toBe(false);
+        expect(row.leaseUntil.getTime()).toBeGreaterThan(row.acquiredAt.getTime());
 
-      return row.token;
-    })).resolves.toEqual(expect.any(String));
+        return row.token;
+      }),
+    ).resolves.toEqual(expect.any(String));
 
     expect(await db.prisma.billingMutex.findUnique({ where: { key } })).toBeNull();
   });
@@ -56,19 +58,20 @@ databaseSuite('billing mutex persistence (disposable PostgreSQL)', () => {
     const second = fixture();
     let entered = 0;
     let release!: () => void;
-    const barrier = new Promise<void>((resolve) => { release = resolve; });
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const operation = async () => {
       entered += 1;
-      if (entered === 2) release();
+      if (entered === 2) {
+        release();
+      }
 
       await barrier;
       return entered;
     };
 
-    const results = await Promise.all([
-      first.lock.run(first.key, operation),
-      second.lock.run(second.key, operation),
-    ]);
+    const results = await Promise.all([first.lock.run(first.key, operation), second.lock.run(second.key, operation)]);
 
     expect(results).toEqual([2, 2]);
   }, 15000);
@@ -76,12 +79,14 @@ databaseSuite('billing mutex persistence (disposable PostgreSQL)', () => {
   it('reclaims an expired lease using a new ownership token', async () => {
     const { key, lock } = fixture();
     const oldToken = randomUUID();
-    await db.prisma.billingMutex.create({ data: {
-      key,
-      token: oldToken,
-      acquiredAt: new Date(Date.now() - 60000),
-      leaseUntil: new Date(Date.now() - 1000),
-    } });
+    await db.prisma.billingMutex.create({
+      data: {
+        key,
+        token: oldToken,
+        acquiredAt: new Date(Date.now() - 60000),
+        leaseUntil: new Date(Date.now() - 1000),
+      },
+    });
 
     await lock.run(key, async () => {
       const row = await db.prisma.billingMutex.findUniqueOrThrow({ where: { key } });
@@ -102,7 +107,11 @@ databaseSuite('billing mutex persistence (disposable PostgreSQL)', () => {
     });
 
     let executed = false;
-    await expect(lock.run(key, async () => { executed = true; })).rejects.toMatchObject({
+    await expect(
+      lock.run(key, async () => {
+        executed = true;
+      }),
+    ).rejects.toMatchObject({
       code: 'BILLING_RECONCILIATION_REQUIRED',
     });
     expect(executed).toBe(false);

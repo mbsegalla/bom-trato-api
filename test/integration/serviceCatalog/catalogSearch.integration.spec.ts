@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
 
 import { ServiceCatalogApplicationService } from '../../../src/modules/serviceCatalog/application/services/serviceCatalogApplicationService.service.js';
+import { ArchiveCatalogServiceUseCase } from '../../../src/modules/serviceCatalog/application/useCases/archiveCatalogService.useCase.js';
 import { CreateCatalogServiceUseCase } from '../../../src/modules/serviceCatalog/application/useCases/createCatalogService.useCase.js';
 import { ListCatalogServicesUseCase } from '../../../src/modules/serviceCatalog/application/useCases/listCatalogServices.useCase.js';
-import { ArchiveCatalogServiceUseCase } from '../../../src/modules/serviceCatalog/application/useCases/archiveCatalogService.useCase.js';
 import { PrismaCatalogServiceUnitOfWork } from '../../../src/modules/serviceCatalog/infrastructure/transactions/prismaCatalogServiceUnitOfWork.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
 
@@ -34,8 +34,12 @@ databaseSuite('catalog search and pagination (disposable PostgreSQL)', () => {
 
     const params = { page: 1, limit: 10, status: 'ALL' as const };
 
-    expect((await list.execute(actor, { ...params, search: '100%' })).items.map((item) => item.id)).toEqual([percent.id]);
-    expect((await list.execute(actor, { ...params, search: 'a_b' })).items.map((item) => item.id)).toEqual([underscore.id]);
+    expect((await list.execute(actor, { ...params, search: '100%' })).items.map((item) => item.id)).toEqual([
+      percent.id,
+    ]);
+    expect((await list.execute(actor, { ...params, search: 'a_b' })).items.map((item) => item.id)).toEqual([
+      underscore.id,
+    ]);
   });
 
   it('paginates within the status filter and does not leak archived services into active pages', async () => {
@@ -46,7 +50,9 @@ databaseSuite('catalog search and pagination (disposable PostgreSQL)', () => {
 
     const rows = [];
     for (let index = 0; index < 3; index++) {
-      rows.push(await create.execute(actor, { name: 'Fixture service ' + index, unit: 'SERVICE', amountInCents: 1000 }));
+      rows.push(
+        await create.execute(actor, { name: 'Fixture service ' + index, unit: 'SERVICE', amountInCents: 1000 }),
+      );
     }
 
     const archived = rows[0]!;
@@ -58,7 +64,12 @@ databaseSuite('catalog search and pagination (disposable PostgreSQL)', () => {
 
     expect(first).toMatchObject({ page: 1, hasMore: true });
     expect(second).toMatchObject({ page: 2, hasMore: false });
-    expect([...first.items, ...second.items].map((item) => item.id).sort()).toEqual(rows.slice(1).map((item) => item.id).sort());
+    expect([...first.items, ...second.items].map((item) => item.id).sort()).toEqual(
+      rows
+        .slice(1)
+        .map((item) => item.id)
+        .sort(),
+    );
     expect(archivedPage.items.map((item) => item.id)).toEqual([archived.id]);
   });
 });

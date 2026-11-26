@@ -38,7 +38,9 @@ describe('PrismaAuthRepository action token persistence', () => {
     expect(db.authActionToken.create).toHaveBeenCalledWith({
       data: { userId: user.id, purpose: request.purpose, tokenHash: request.tokenHash, expiresAt: request.expiresAt },
     });
-    expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(db.authActionToken.updateMany.mock.invocationCallOrder[0]!);
+    expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      db.authActionToken.updateMany.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('updates the password, revokes active sessions and consumes remaining reset tokens together', async () => {
@@ -61,10 +63,14 @@ describe('PrismaAuthRepository action token persistence', () => {
   it('verifies email without revoking unrelated sessions or resetting the password', async () => {
     const { repository, db } = authFixture();
     db.authActionToken.findUnique.mockResolvedValueOnce({ userId: user.id }).mockResolvedValueOnce({
-      ...token, purpose: 'VERIFY_EMAIL', user: { ...user, emailVerifiedAt: null },
+      ...token,
+      purpose: 'VERIFY_EMAIL',
+      user: { ...user, emailVerifiedAt: null },
     });
 
-    expect(await repository.consumeAction({ tokenHash: reset.tokenHash, purpose: 'VERIFY_EMAIL', now })).toBe(user.email);
+    expect(await repository.consumeAction({ tokenHash: reset.tokenHash, purpose: 'VERIFY_EMAIL', now })).toBe(
+      user.email,
+    );
     expect(db.user.update).toHaveBeenCalledWith({ where: { id: user.id }, data: { emailVerifiedAt: now } });
     expect(db.authSession.updateMany).not.toHaveBeenCalled();
   });
@@ -73,7 +79,9 @@ describe('PrismaAuthRepository action token persistence', () => {
     'rejects invalid action token state: %j',
     async (override) => {
       const { repository, db } = authFixture();
-      db.authActionToken.findUnique.mockResolvedValueOnce({ userId: user.id }).mockResolvedValueOnce({ ...token, ...override });
+      db.authActionToken.findUnique
+        .mockResolvedValueOnce({ userId: user.id })
+        .mockResolvedValueOnce({ ...token, ...override });
 
       await expect(repository.consumeAction(reset)).rejects.toThrow('INVALID_TOKEN');
       expect(db.user.update).not.toHaveBeenCalled();
@@ -86,7 +94,9 @@ describe('PrismaAuthRepository action token persistence', () => {
     const { repository, db } = authFixture();
     db.authActionToken.findUnique.mockResolvedValueOnce({ userId: user.id }).mockResolvedValueOnce(token);
 
-    await expect(repository.consumeAction({ tokenHash: reset.tokenHash, purpose: reset.purpose, now })).rejects.toThrow('INVALID_TOKEN');
+    await expect(repository.consumeAction({ tokenHash: reset.tokenHash, purpose: reset.purpose, now })).rejects.toThrow(
+      'INVALID_TOKEN',
+    );
     expect(db.user.update).not.toHaveBeenCalled();
   });
 });

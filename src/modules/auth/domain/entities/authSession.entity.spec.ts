@@ -22,7 +22,7 @@ describe('AuthSession', () => {
     expect(value.snapshot()).toMatchObject({
       idleExpiresAt: at(120),
       absoluteExpiresAt: at(120),
-      lastRefreshedAt: at(100)
+      lastRefreshedAt: at(100),
     });
     expect(() => value.renew(at(120), 60)).toThrow('INVALID_SESSION');
   });
@@ -47,7 +47,11 @@ describe('AuthSession', () => {
     expect(value.snapshot().idleExpiresAt).toEqual(at(60));
   });
 
-  it.each([[0, 120], [-1, 120], [120, 60]])('rejects invalid expiry policy (%i, %i)', (idle, absolute) => {
+  it.each([
+    [0, 120],
+    [-1, 120],
+    [120, 60],
+  ])('rejects invalid expiry policy (%i, %i)', (idle, absolute) => {
     expect(() => AuthSession.start('s', 'u', start, idle, absolute, null)).toThrow();
   });
 });

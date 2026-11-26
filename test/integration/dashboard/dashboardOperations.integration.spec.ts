@@ -35,7 +35,9 @@ databaseSuite('dashboard operational aggregates (disposable PostgreSQL)', () => 
       const source = await quote('APPROVED');
       const row = await db.prisma.workOrder.create({
         data: {
-          ...snapshot, quoteId: source.id, status: 'SCHEDULED',
+          ...snapshot,
+          quoteId: source.id,
+          status: 'SCHEDULED',
           scheduledStartAt: new Date(now.getTime() + offset),
           scheduledEndAt: new Date(now.getTime() + offset + 3600000),
           assignedToId: f.actor.userId,
@@ -46,7 +48,13 @@ databaseSuite('dashboard operational aggregates (disposable PostgreSQL)', () => 
       return row;
     }
 
-    return { ...f, now, quote, scheduled, repository: new PrismaDashboardRepository(db.prisma, f.actor.organizationId) };
+    return {
+      ...f,
+      now,
+      quote,
+      scheduled,
+      repository: new PrismaDashboardRepository(db.prisma, f.actor.organizationId),
+    };
   }
 
   it('separates pending from expired sent quotes and applies the half-open completion period', async () => {
@@ -64,7 +72,9 @@ databaseSuite('dashboard operational aggregates (disposable PostgreSQL)', () => 
       quotes: { draft: 1, awaitingApproval: 2, expiredSent: 1 },
       workOrders: { open: 0, scheduled: 0, inProgress: 0, completedInPeriod: 1 },
     });
-    expect((await f.repository.summary({ ...period, to: f.order.completedAt! }, f.now)).workOrders.completedInPeriod).toBe(0);
+    expect(
+      (await f.repository.summary({ ...period, to: f.order.completedAt! }, f.now)).workOrders.completedInPeriod,
+    ).toBe(0);
   });
 
   it('filters past appointments, sorts upcoming services and reports pagination only within the tenant', async () => {
@@ -79,7 +89,10 @@ databaseSuite('dashboard operational aggregates (disposable PostgreSQL)', () => 
     const first = await f.repository.upcomingWorkOrders(f.now, 1);
 
     expect(first).toMatchObject({ hasMore: true, items: [{ id: earlier.id, assignedTo: { id: f.actor.userId } }] });
-    expect((await f.repository.upcomingWorkOrders(f.now, 10)).items.map((item) => item.id)).toEqual([earlier.id, later.id]);
+    expect((await f.repository.upcomingWorkOrders(f.now, 10)).items.map((item) => item.id)).toEqual([
+      earlier.id,
+      later.id,
+    ]);
     expect((await f.repository.upcomingWorkOrders(f.now, 10)).hasMore).toBe(false);
   });
 
@@ -92,10 +105,12 @@ databaseSuite('dashboard operational aggregates (disposable PostgreSQL)', () => 
 
     const result = await f.repository.financialTrend(period);
 
-    expect(result.items).toEqual(['01', '02', '03'].map((month) => ({
-      periodStart: new Date('2026-' + month + '-01T00:00:00Z'),
-      count: 0,
-      amountInCents: 0,
-    })));
+    expect(result.items).toEqual(
+      ['01', '02', '03'].map((month) => ({
+        periodStart: new Date('2026-' + month + '-01T00:00:00Z'),
+        count: 0,
+        amountInCents: 0,
+      })),
+    );
   });
 });

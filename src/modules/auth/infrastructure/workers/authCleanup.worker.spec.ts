@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { authConfig } from '../../../../config/auth.config.js';
 import type { CleanupAuthUseCase } from '../../application/useCases/cleanupAuth.useCase.js';
+
 import { AuthCleanupWorker } from './authCleanup.worker.js';
 
 const empty = { refreshTokens: 0, sessions: 0, actionTokens: 0, rateLimits: 0 };
@@ -52,7 +53,11 @@ describe('AuthCleanupWorker', () => {
   it('prevents overlapping runs and waits for the active batch during shutdown', async () => {
     const f = fixture();
     let finish!: (result: typeof empty) => void;
-    f.execute.mockReturnValueOnce(new Promise<typeof empty>((resolve) => { finish = resolve; }));
+    f.execute.mockReturnValueOnce(
+      new Promise<typeof empty>((resolve) => {
+        finish = resolve;
+      }),
+    );
 
     const running = f.worker.handleInitialCleanup();
     await f.worker.handleScheduledCleanup();

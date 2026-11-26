@@ -5,6 +5,7 @@ import type { BillingLock } from '../../../billing/application/ports/billingLock
 import type { BillingRepository } from '../../../billing/domain/repositories/billing.repository.js';
 import type { OnboardingRepository } from '../../domain/repositories/onboarding.repository.js';
 import type { OnboardingApplicationService } from '../services/onboardingApplicationService.service.js';
+
 import { SelectOnboardingPlanUseCase } from './selectOnboardingPlan.useCase.js';
 
 const actor = { userId: 'owner', organizationId: 'org', planPriceId: 'target' };
@@ -40,7 +41,11 @@ function fixture() {
   );
 
   return {
-    repository, application, billing, gateway, lock,
+    repository,
+    application,
+    billing,
+    gateway,
+    lock,
     execute: () => useCase.execute(actor.userId, actor.organizationId, actor.planPriceId),
   };
 }
@@ -56,7 +61,9 @@ describe('SelectOnboardingPlanUseCase', () => {
     expect(f.repository.selectPlan).toHaveBeenCalledWith(actor.userId, actor.organizationId, actor.planPriceId);
     expect(f.application.state).toHaveBeenCalledWith(actor.userId, actor.organizationId);
 
-    expect(f.billing.assertOwner.mock.invocationCallOrder[0]).toBeLessThan(f.billing.availablePrice.mock.invocationCallOrder[0]!);
+    expect(f.billing.assertOwner.mock.invocationCallOrder[0]).toBeLessThan(
+      f.billing.availablePrice.mock.invocationCallOrder[0]!,
+    );
     expect(f.lock.run.mock.invocationCallOrder[0]).toBeLessThan(f.repository.selectPlan.mock.invocationCallOrder[0]!);
   });
 
@@ -91,7 +98,9 @@ describe('SelectOnboardingPlanUseCase', () => {
     expect(f.gateway.checkout).toHaveBeenCalledWith(attempt.stripeSessionId);
     expect(f.gateway.expireCheckout).toHaveBeenCalledWith(attempt.stripeSessionId);
     expect(f.billing.closeCheckout).toHaveBeenCalledWith(attempt.id, 'EXPIRED');
-    expect(f.billing.closeCheckout.mock.invocationCallOrder[0]).toBeLessThan(f.repository.selectPlan.mock.invocationCallOrder[0]!);
+    expect(f.billing.closeCheckout.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.selectPlan.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('recovers an unattached remote session before closing it', async () => {
@@ -119,21 +128,24 @@ describe('SelectOnboardingPlanUseCase', () => {
     expect(f.repository.selectPlan).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['already-complete', 'completed-during-expiry'])('preserves a completed payment instead of starting another: %s', async (scenario) => {
-    const f = fixture();
-    f.billing.pendingCheckout.mockResolvedValueOnce(attempt);
+  it.each(['already-complete', 'completed-during-expiry'])(
+    'preserves a completed payment instead of starting another: %s',
+    async (scenario) => {
+      const f = fixture();
+      f.billing.pendingCheckout.mockResolvedValueOnce(attempt);
 
-    if (scenario === 'already-complete') {
-      f.gateway.checkout.mockResolvedValueOnce({ ...session, status: 'COMPLETE' });
-    } else {
-      f.gateway.expireCheckout.mockResolvedValueOnce({ ...session, status: 'COMPLETE' });
-    }
+      if (scenario === 'already-complete') {
+        f.gateway.checkout.mockResolvedValueOnce({ ...session, status: 'COMPLETE' });
+      } else {
+        f.gateway.expireCheckout.mockResolvedValueOnce({ ...session, status: 'COMPLETE' });
+      }
 
-    await expect(f.execute()).rejects.toThrow('SUBSCRIPTION_EXISTS');
-    expect(f.billing.closeCheckout).toHaveBeenCalledWith(attempt.id, 'COMPLETE');
-    expect(f.repository.selectPlan).not.toHaveBeenCalled();
-    expect(f.application.state).not.toHaveBeenCalled();
-  });
+      await expect(f.execute()).rejects.toThrow('SUBSCRIPTION_EXISTS');
+      expect(f.billing.closeCheckout).toHaveBeenCalledWith(attempt.id, 'COMPLETE');
+      expect(f.repository.selectPlan).not.toHaveBeenCalled();
+      expect(f.application.state).not.toHaveBeenCalled();
+    },
+  );
 
   it('requires reconciliation if Stripe does not confirm the requested expiration', async () => {
     const f = fixture();

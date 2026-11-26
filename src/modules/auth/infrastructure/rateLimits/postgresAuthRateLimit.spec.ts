@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { hmacSha256 } from '../../../../shared/security/hmac.js';
+
 import { PostgresAuthRateLimit } from './postgresAuthRateLimit.js';
 
 const secret = 'a'.repeat(64);
@@ -44,16 +45,24 @@ describe('PostgresAuthRateLimit', () => {
     await f.limiter.check(f.request, f.response, bucket);
 
     expect(f.query).toHaveBeenCalledTimes(4);
-    expect(f.query.mock.calls[3]![1]).toBe(hmacSha256(secret, 'email-cooldown:' + bucket + ':user@example.invalid', 'hex'));
+    expect(f.query.mock.calls[3]![1]).toBe(
+      hmacSha256(secret, 'email-cooldown:' + bucket + ':user@example.invalid', 'hex'),
+    );
   });
 
-  it.each([null, 'email', {}, { email: 123 }, { email: 'x'.repeat(255) }])('ignores invalid email bodies %j', async (body) => {
-    const f = fixture(body);
-    await f.limiter.check(f.request, f.response, 'login');
-    expect(f.query).toHaveBeenCalledTimes(2);
-  });
+  it.each([null, 'email', {}, { email: 123 }, { email: 'x'.repeat(255) }])(
+    'ignores invalid email bodies %j',
+    async (body) => {
+      const f = fixture(body);
+      await f.limiter.check(f.request, f.response, 'login');
+      expect(f.query).toHaveBeenCalledTimes(2);
+    },
+  );
 
-  it.each([['192.0.2.1', '192.0.2.1'], [undefined, 'unknown']] as const)('falls back to socket IP or unknown', async (remote, expected) => {
+  it.each([
+    ['192.0.2.1', '192.0.2.1'],
+    [undefined, 'unknown'],
+  ] as const)('falls back to socket IP or unknown', async (remote, expected) => {
     const f = fixture({}, '127.0.0.1', remote);
     Object.assign(f.request, { ip: undefined });
     await f.limiter.check(f.request, f.response, 'csrf');
@@ -71,7 +80,8 @@ describe('PostgresAuthRateLimit', () => {
 
   it('accepts the exact limit and rejects an exceeded route limit', async () => {
     const f = fixture();
-    f.query.mockResolvedValueOnce([{ count: 120, expiresAt: new Date() }])
+    f.query
+      .mockResolvedValueOnce([{ count: 120, expiresAt: new Date() }])
       .mockResolvedValueOnce([{ count: 21, expiresAt: new Date(0) }]);
     await expect(f.limiter.check(f.request, f.response, 'login')).rejects.toMatchObject({ status: 429 });
     expect(f.setHeader).toHaveBeenCalledWith('Retry-After', '1');

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingWork } from '../events/billing.events.js';
+
 import { PrismaBillingScheduleRepository } from './prismaBillingSchedule.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
@@ -24,7 +25,10 @@ function fixture() {
 describe('PrismaBillingScheduleRepository', () => {
   it('accounts for active webhook leases and excludes terminal work', async () => {
     const f = fixture();
-    f.query.mockResolvedValueOnce([{ at: now }]).mockResolvedValueOnce([{ at: null }]).mockResolvedValueOnce([]);
+    f.query
+      .mockResolvedValueOnce([{ at: now }])
+      .mockResolvedValueOnce([{ at: null }])
+      .mockResolvedValueOnce([]);
 
     expect(await f.repository.nextRunAt(BillingWork.WEBHOOKS)).toEqual(now);
     expect(await f.repository.nextRunAt(BillingWork.WEBHOOKS)).toBeNull();

@@ -19,8 +19,11 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     const readConnection = () => context.prisma.mercadoPagoConnection.findUniqueOrThrow({ where });
     const readAttempt = () => context.prisma.mercadoPagoOAuthAttempt.findUniqueOrThrow({ where: attemptWhere });
     const credentials = {
-      accountId: f.accountId, liveMode: true, accessToken: 'new-fixture-access',
-      refreshToken: 'new-fixture-refresh', expiresAt: new Date(Date.now() + 3600000),
+      accountId: f.accountId,
+      liveMode: true,
+      accessToken: 'new-fixture-access',
+      refreshToken: 'new-fixture-refresh',
+      expiresAt: new Date(Date.now() + 3600000),
     };
     async function start() {
       const result = await repository.start(f.actor);
@@ -35,8 +38,13 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
   it('reports the current connection without exposing encrypted credentials', async () => {
     const f = await setup();
     expect(await f.repository.read(f.actor)).toEqual({
-      available: true, liveMode: true, canConnect: true, canDisconnect: true, status: 'CONNECTED',
-      accountId: f.accountId, connectedAt: (await f.readConnection()).connectedAt,
+      available: true,
+      liveMode: true,
+      canConnect: true,
+      canDisconnect: true,
+      status: 'CONNECTED',
+      accountId: f.accountId,
+      connectedAt: (await f.readConnection()).connectedAt,
       expiresAt: (await f.readConnection()).expiresAt,
     });
   });
@@ -45,7 +53,10 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     const f = await setup();
     await context.prisma.mercadoPagoConnection.delete({ where: f.where });
     expect(await f.repository.read(f.actor)).toMatchObject({
-      status: 'NOT_CONNECTED', accountId: null, canConnect: true, canDisconnect: false,
+      status: 'NOT_CONNECTED',
+      accountId: null,
+      canConnect: true,
+      canDisconnect: false,
     });
     await f.start();
     expect(await f.repository.read(f.actor)).toMatchObject({ status: 'NOT_CONNECTED', canDisconnect: true });
@@ -62,7 +73,8 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     });
     expect(await f.repository.read(f.actor)).toMatchObject({ status: 'EXPIRED', canConnect: true });
     await context.prisma.mercadoPagoConnection.update({
-      where: f.where, data: { refreshClaimId: randomUUID(), refreshStartedAt: new Date() },
+      where: f.where,
+      data: { refreshClaimId: randomUUID(), refreshStartedAt: new Date() },
     });
     expect(await f.repository.read(f.actor)).toMatchObject({ status: 'RECONNECT_REQUIRED', canConnect: false });
     await expect(f.start()).rejects.toThrow('RECEIVING_SETTINGS_BUSY');
@@ -74,12 +86,20 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     const row = await f.readAttempt();
     const hash = createHash('sha256').update(state).digest('hex');
     expect(row).toMatchObject({
-      stateHash: hash, ownerId: f.actor.userId, sessionId: f.actor.sessionId,
-      organizationId: f.actor.organizationId, clientId: f.clientId, liveMode: true,
-      consumedAt: null, expiresAt: result.expiresAt,
+      stateHash: hash,
+      ownerId: f.actor.userId,
+      sessionId: f.actor.sessionId,
+      organizationId: f.actor.organizationId,
+      clientId: f.clientId,
+      liveMode: true,
+      consumedAt: null,
+      expiresAt: result.expiresAt,
     });
     expect(row.stateHash).not.toBe(state);
-    const verifier = f.runtime.cipher.open(['verifier', f.actor.organizationId, f.clientId, 'true', hash], row.verifierCiphertext!);
+    const verifier = f.runtime.cipher.open(
+      ['verifier', f.actor.organizationId, f.clientId, 'true', hash],
+      row.verifierCiphertext!,
+    );
     expect(row.verifierCiphertext).not.toContain(verifier);
     expect(url.searchParams.get('code_challenge')).toBe(createHash('sha256').update(verifier).digest('base64url'));
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
@@ -96,18 +116,29 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     expect(exchange).not.toHaveBeenCalled();
   });
 
-  it.each(['wrong-owner', 'wrong-session', 'unknown-state', 'invalid-state'] as const)('rejects %s before exchanging a code', async (reason) => {
-    const f = await setup();
-    const { input } = await f.start();
-    const exchange = vi.spyOn(f.client, 'exchangeCode').mockResolvedValue(f.credentials);
-    const identity = reason === 'wrong-owner' ? { ...f.identity, userId: randomUUID() }
-      : reason === 'wrong-session' ? { ...f.identity, sessionId: randomUUID() } : f.identity;
-    const callback = reason === 'unknown-state' ? { ...input, state: 'a'.repeat(43) }
-      : reason === 'invalid-state' ? { ...input, state: 'invalid' } : input;
-    await expect(f.repository.complete(identity, callback)).rejects.toThrow('MERCADO_PAGO_OAUTH_INVALID');
-    expect(exchange).not.toHaveBeenCalled();
-    expect(await f.readAttempt()).toMatchObject({ consumedAt: null });
-  });
+  it.each(['wrong-owner', 'wrong-session', 'unknown-state', 'invalid-state'] as const)(
+    'rejects %s before exchanging a code',
+    async (reason) => {
+      const f = await setup();
+      const { input } = await f.start();
+      const exchange = vi.spyOn(f.client, 'exchangeCode').mockResolvedValue(f.credentials);
+      const identity =
+        reason === 'wrong-owner'
+          ? { ...f.identity, userId: randomUUID() }
+          : reason === 'wrong-session'
+            ? { ...f.identity, sessionId: randomUUID() }
+            : f.identity;
+      const callback =
+        reason === 'unknown-state'
+          ? { ...input, state: 'a'.repeat(43) }
+          : reason === 'invalid-state'
+            ? { ...input, state: 'invalid' }
+            : input;
+      await expect(f.repository.complete(identity, callback)).rejects.toThrow('MERCADO_PAGO_OAUTH_INVALID');
+      expect(exchange).not.toHaveBeenCalled();
+      expect(await f.readAttempt()).toMatchObject({ consumedAt: null });
+    },
+  );
 
   it('rejects an expired OAuth attempt without consuming it', async () => {
     const f = await setup();
@@ -132,7 +163,10 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
       return f.credentials;
     });
     expect(await f.repository.complete(f.identity, input)).toEqual({
-      organizationId: f.actor.organizationId, organizationName: 'Fixture organization', accountId: f.accountId, liveMode: true,
+      organizationId: f.actor.organizationId,
+      organizationName: 'Fixture organization',
+      accountId: f.accountId,
+      liveMode: true,
     });
     const row = await f.readConnection();
     const aad = ['credential', f.actor.organizationId, f.clientId, 'true', f.accountId];
@@ -168,8 +202,10 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
   it.each(['mode', 'expiry'] as const)('rejects provider credentials with an incompatible %s', async (field) => {
     const f = await setup();
     const { input } = await f.start();
-    const credentials = field === 'mode' ? { ...f.credentials, liveMode: false }
-      : { ...f.credentials, expiresAt: new Date(Date.now() - 1000) };
+    const credentials =
+      field === 'mode'
+        ? { ...f.credentials, liveMode: false }
+        : { ...f.credentials, expiresAt: new Date(Date.now() - 1000) };
     vi.spyOn(f.client, 'exchangeCode').mockResolvedValue(credentials);
     const before = await f.readConnection();
     await expect(f.repository.complete(f.identity, input)).rejects.toThrow('MERCADO_PAGO_OAUTH_INVALID');
@@ -200,7 +236,8 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     const before = await f.readConnection();
     vi.spyOn(f.client, 'exchangeCode').mockImplementation(async () => {
       await context.prisma.authSession.update({
-        where: { id: f.actor.sessionId }, data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
+        where: { id: f.actor.sessionId },
+        data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
       });
       return f.credentials;
     });
@@ -216,7 +253,10 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
     await f.repository.disconnect(f.actor);
     const row = await f.readConnection();
     expect(row).toMatchObject({
-      disconnectedAt: expect.any(Date), expiresAt: null, accessTokenCiphertext: null, refreshTokenCiphertext: null,
+      disconnectedAt: expect.any(Date),
+      expiresAt: null,
+      accessTokenCiphertext: null,
+      refreshTokenCiphertext: null,
     });
     await f.repository.disconnect(f.actor);
     expect(await f.readConnection()).toMatchObject({ disconnectedAt: row.disconnectedAt });
@@ -227,7 +267,8 @@ paymentIntegrationSuite('Mercado Pago OAuth connection (disposable PostgreSQL)',
   it('blocks new OAuth after platform access expires but allows the owner to disconnect', async () => {
     const f = await setup();
     await context.prisma.organizationTrial.update({
-      where: { organizationId: f.actor.organizationId }, data: { revokedAt: new Date() },
+      where: { organizationId: f.actor.organizationId },
+      data: { revokedAt: new Date() },
     });
     expect(await f.repository.read(f.actor)).toMatchObject({ canConnect: false, canDisconnect: true });
     await expect(f.start()).rejects.toThrow('SUBSCRIPTION_REQUIRED');

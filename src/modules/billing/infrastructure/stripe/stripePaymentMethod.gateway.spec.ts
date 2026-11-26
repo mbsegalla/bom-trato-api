@@ -1,8 +1,8 @@
+import Stripe from 'stripe';
 import { describe, expect, it, vi } from 'vitest';
 
-import Stripe from 'stripe';
-
 import type { PaymentMethodUpdateProps } from '../../domain/entities/paymentMethodUpdate.entity.js';
+
 import { StripePaymentMethodGateway } from './stripePaymentMethod.gateway.js';
 
 const actor = { customerId: 'cus_fixture', subscriptionId: 'sub_fixture' };
@@ -56,7 +56,9 @@ function fixture() {
     invoice_settings: { default_payment_method: { id: 'pm_fixture' } },
   });
   const updateCustomer = vi.fn().mockResolvedValue(undefined);
-  const retrieveSchedule = vi.fn().mockResolvedValue({ metadata: { planChangeId: 'change' }, phases: [{ default_payment_method: null }] });
+  const retrieveSchedule = vi
+    .fn()
+    .mockResolvedValue({ metadata: { planChangeId: 'change' }, phases: [{ default_payment_method: null }] });
   const updateSchedule = vi.fn().mockResolvedValue(undefined);
   const gateway = new StripePaymentMethodGateway({
     setupIntents: { create, retrieve: retrieveSetup, cancel: cancelSetup },
@@ -67,8 +69,17 @@ function fixture() {
   } as unknown as Stripe);
 
   return {
-    gateway, list, create, retrieveSetup, cancelSetup, retrievePaymentMethod, updateSubscription,
-    retrieveCustomer, updateCustomer, retrieveSchedule, updateSchedule,
+    gateway,
+    list,
+    create,
+    retrieveSetup,
+    cancelSetup,
+    retrievePaymentMethod,
+    updateSubscription,
+    retrieveCustomer,
+    updateCustomer,
+    retrieveSchedule,
+    updateSchedule,
   };
 }
 
@@ -84,21 +95,30 @@ describe('StripePaymentMethodGateway', () => {
       status: intent.status,
       clientSecret: intent.client_secret,
     });
-    expect(f.create).toHaveBeenCalledWith({
-      customer: actor.customerId,
-      usage: 'off_session',
-      payment_method_types: ['card'],
-      metadata: {
-        paymentMethodUpdateId: update.id,
-        organizationId: update.organizationId,
-        subscriptionId: actor.subscriptionId,
+    expect(f.create).toHaveBeenCalledWith(
+      {
+        customer: actor.customerId,
+        usage: 'off_session',
+        payment_method_types: ['card'],
+        metadata: {
+          paymentMethodUpdateId: update.id,
+          organizationId: update.organizationId,
+          subscriptionId: actor.subscriptionId,
+        },
       },
-    }, { idempotencyKey: 'payment-method-setup:' + update.id });
+      { idempotencyKey: 'payment-method-setup:' + update.id },
+    );
   });
 
   it('returns null identifiers for a setup that has not collected a payment method', async () => {
     const f = fixture();
-    f.retrieveSetup.mockResolvedValueOnce({ ...intent, customer: null, payment_method: null, metadata: {}, client_secret: null });
+    f.retrieveSetup.mockResolvedValueOnce({
+      ...intent,
+      customer: null,
+      payment_method: null,
+      metadata: {},
+      client_secret: null,
+    });
 
     expect(await f.gateway.retrieveSetup(intent.id)).toMatchObject({
       customerId: null,
@@ -182,22 +202,36 @@ describe('StripePaymentMethodGateway', () => {
 
     await f.gateway.apply(input);
 
-    expect(f.updateSubscription).toHaveBeenCalledWith(actor.subscriptionId, {
-      default_payment_method: input.paymentMethodId,
-    }, { idempotencyKey: 'payment-method-subscription:' + input.updateId });
-    expect(f.updateCustomer).toHaveBeenCalledWith(actor.customerId, {
-      invoice_settings: { default_payment_method: input.paymentMethodId },
-    }, { idempotencyKey: 'payment-method-customer:' + input.updateId });
-    expect(f.updateSchedule).toHaveBeenCalledWith('sched_fixture', {
-      default_settings: { default_payment_method: input.paymentMethodId },
-    }, { idempotencyKey: 'payment-method-schedule:' + input.updateId });
+    expect(f.updateSubscription).toHaveBeenCalledWith(
+      actor.subscriptionId,
+      {
+        default_payment_method: input.paymentMethodId,
+      },
+      { idempotencyKey: 'payment-method-subscription:' + input.updateId },
+    );
+    expect(f.updateCustomer).toHaveBeenCalledWith(
+      actor.customerId,
+      {
+        invoice_settings: { default_payment_method: input.paymentMethodId },
+      },
+      { idempotencyKey: 'payment-method-customer:' + input.updateId },
+    );
+    expect(f.updateSchedule).toHaveBeenCalledWith(
+      'sched_fixture',
+      {
+        default_settings: { default_payment_method: input.paymentMethodId },
+      },
+      { idempotencyKey: 'payment-method-schedule:' + input.updateId },
+    );
   });
 
   it('blocks card changes when a subscription schedule has a foreign owner or explicit phase payment method', async () => {
     const f = fixture();
     f.list.mockReturnValue([{ ...subscription, schedule: 'sched_fixture' }]);
-    f.retrieveSchedule.mockResolvedValueOnce({ metadata: {}, phases: [] })
-      .mockResolvedValueOnce({ metadata: { planChangeId: 'change' }, phases: [{ default_payment_method: 'pm_other' }] });
+    f.retrieveSchedule.mockResolvedValueOnce({ metadata: {}, phases: [] }).mockResolvedValueOnce({
+      metadata: { planChangeId: 'change' },
+      phases: [{ default_payment_method: 'pm_other' }],
+    });
 
     await expect(f.gateway.apply(input)).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');
     await expect(f.gateway.apply(input)).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');

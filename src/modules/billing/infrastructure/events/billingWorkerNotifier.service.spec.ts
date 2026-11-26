@@ -36,7 +36,9 @@ describe('BillingWorkerNotifier', () => {
 
   it('contains listener failures so durable work remains eligible for recovery', () => {
     const emitter = new EventEmitter2();
-    const fail = vi.fn(() => { throw new Error('fixture listener failure'); });
+    const fail = vi.fn(() => {
+      throw new Error('fixture listener failure');
+    });
     emitter.on(BILLING_WORK_AVAILABLE_EVENT, fail);
     emitter.on(BILLING_SCHEDULE_CHANGED_EVENT, fail);
 

@@ -1,12 +1,12 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { appConfig } from '../../../src/config/app.config.js';
 import { CreateQuoteShareUseCase } from '../../../src/modules/quotes/application/useCases/createQuoteShare.useCase.js';
 import { RevokeQuoteShareUseCase } from '../../../src/modules/quotes/application/useCases/revokeQuoteShare.useCase.js';
-import { QuoteSharesController } from '../../../src/modules/quotes/presentation/http/controllers/quoteShares.controller.js';
-import { appConfig } from '../../../src/config/app.config.js';
 import { QuoteShareError } from '../../../src/modules/quotes/domain/errors/quoteShare.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { QuoteSharesController } from '../../../src/modules/quotes/presentation/http/controllers/quoteShares.controller.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/quotes/' + itemId + '/share';
 const actor = { organizationId, userId };
@@ -18,11 +18,14 @@ describe('quoteShares HTTP contracts', () => {
   const revoke = vi.fn();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([QuoteSharesController], [
-      { provide: CreateQuoteShareUseCase, useValue: { execute: create } },
-      { provide: RevokeQuoteShareUseCase, useValue: { execute: revoke } },
-      { provide: appConfig.KEY, useValue: { frontendUrl: 'https://app.example.invalid' } },
-    ]);
+    fixture = await createHttpFixture(
+      [QuoteSharesController],
+      [
+        { provide: CreateQuoteShareUseCase, useValue: { execute: create } },
+        { provide: RevokeQuoteShareUseCase, useValue: { execute: revoke } },
+        { provide: appConfig.KEY, useValue: { frontendUrl: 'https://app.example.invalid' } },
+      ],
+    );
   });
 
   beforeEach(() => {
@@ -49,7 +52,11 @@ describe('quoteShares HTTP contracts', () => {
   });
 
   it('places the private share token in the URL fragment rather than a query parameter', async () => {
-    const response = await request(fixture.server).post(route).set('Authorization', 'Bearer fixture').send({ version: 2, expiresAt }).expect(201);
+    const response = await request(fixture.server)
+      .post(route)
+      .set('Authorization', 'Bearer fixture')
+      .send({ version: 2, expiresAt })
+      .expect(201);
     const url = new URL(response.body.data.url);
 
     expect(url.origin).toBe('https://app.example.invalid');
@@ -64,7 +71,11 @@ describe('quoteShares HTTP contracts', () => {
   it('scopes revocation and maps invalid expiration failures', async () => {
     create.mockRejectedValueOnce(new QuoteShareError('INVALID_QUOTE_SHARE_EXPIRATION'));
 
-    await request(fixture.server).post(route).set('Authorization', 'Bearer fixture').send({ version: 2, expiresAt }).expect(400);
+    await request(fixture.server)
+      .post(route)
+      .set('Authorization', 'Bearer fixture')
+      .send({ version: 2, expiresAt })
+      .expect(400);
     await request(fixture.server).delete(route).set('Authorization', 'Bearer fixture').expect(204);
 
     expect(revoke).toHaveBeenCalledWith({ ...actor, quoteId: itemId });

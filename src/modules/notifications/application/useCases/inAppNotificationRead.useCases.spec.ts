@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { InAppNotificationRepository } from '../../domain/repositories/inAppNotification.repository.js';
+
 import { ListInAppNotificationsUseCase } from './listInAppNotifications.useCase.js';
 import { MarkAllInAppNotificationsReadUseCase } from './markAllInAppNotificationsRead.useCase.js';
 import { MarkInAppNotificationReadUseCase } from './markInAppNotificationRead.useCase.js';
@@ -19,7 +20,7 @@ function fixture() {
     repository,
     list: new ListInAppNotificationsUseCase(port),
     one: new MarkInAppNotificationReadUseCase(port),
-    all: new MarkAllInAppNotificationsReadUseCase(port)
+    all: new MarkAllInAppNotificationsReadUseCase(port),
   };
 }
 

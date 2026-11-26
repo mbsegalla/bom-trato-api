@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AddressProvider } from '../ports/addressProvider.port.js';
+
 import { GetAddressByPostalCodeUseCase } from './getAddressByPostalCode.useCase.js';
 import { ListBrazilianCitiesUseCase } from './listBrazilianCities.useCase.js';
 import { ListBrazilianStatesUseCase } from './listBrazilianStates.useCase.js';
@@ -17,10 +18,12 @@ describe('Brazilian address use cases', () => {
   });
 
   it('queries valid normalized states and exposes all 27 unique federation units', async () => {
-    const listCities = vi.fn<AddressProvider['listCities']>().mockResolvedValue([{
-      code: '3170206',
-      name: 'Uberlandia'
-    }]);
+    const listCities = vi.fn<AddressProvider['listCities']>().mockResolvedValue([
+      {
+        code: '3170206',
+        name: 'Uberlandia',
+      },
+    ]);
     const useCase = new ListBrazilianCitiesUseCase({ findByPostalCode: vi.fn(), listCities });
 
     expect(await useCase.execute(' mg ')).toEqual([{ code: '3170206', name: 'Uberlandia' }]);

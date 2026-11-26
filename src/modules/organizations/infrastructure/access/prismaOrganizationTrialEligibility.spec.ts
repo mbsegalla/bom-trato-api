@@ -1,13 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+
 import { readOrganizationTrialEligibility } from './prismaOrganizationTrialEligibility.js';
 
 const now = new Date('2026-01-01');
-const customer = { id: 'billing', stripeCustomerId: null, creationRequestedAt: null, _count: { billingCustomerReferences: 0 } };
+const customer = {
+  id: 'billing',
+  stripeCustomerId: null,
+  creationRequestedAt: null,
+  _count: { billingCustomerReferences: 0 },
+};
 const organization = {
-  id: 'org', ownerId: 'user', creationKey: 'user', setupCompletedAt: null,
-  trial: null, billingCustomer: customer,
+  id: 'org',
+  ownerId: 'user',
+  creationKey: 'user',
+  setupCompletedAt: null,
+  trial: null,
+  billingCustomer: customer,
   _count: { organizationMembers: 1, subscriptions: 0, checkoutAttempts: 0 },
 };
 const member = { role: 'OWNER', user: { disabledAt: null, emailVerifiedAt: now } };
@@ -23,16 +33,24 @@ function fixture() {
     organizationTrial: { findUnique: findTrial },
   } as unknown as Prisma.TransactionClient;
 
-  return { read: () => readOrganizationTrialEligibility(db, 'org', 'user'), findOrganization, findMember, findTrial, findPaid };
+  return {
+    read: () => readOrganizationTrialEligibility(db, 'org', 'user'),
+    findOrganization,
+    findMember,
+    findTrial,
+    findPaid,
+  };
 }
 
 describe('readOrganizationTrialEligibility', () => {
   it('allows an initial verified owner with no billing activity', async () => {
     const f = fixture();
     expect(await f.read()).toEqual({ eligibility: 'AVAILABLE', existingTrial: null, billingCustomerId: 'billing' });
-    expect(f.findMember).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId_userId: { organizationId: 'org', userId: 'user' } },
-    }));
+    expect(f.findMember).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId_userId: { organizationId: 'org', userId: 'user' } },
+      }),
+    );
   });
 
   it.each(['organization', 'member'])('rejects missing %s', async (missing) => {
@@ -50,13 +68,14 @@ describe('readOrganizationTrialEligibility', () => {
     await expect(f.read()).rejects.toThrow('OWNER_REQUIRED');
   });
 
-  it.each([{ disabledAt: now, emailVerifiedAt: now }, { disabledAt: null, emailVerifiedAt: null }])(
-    'rejects ineligible owner identity', async (user) => {
-      const f = fixture();
-      f.findMember.mockResolvedValue({ ...member, user });
-      await expect(f.read()).rejects.toThrow('EMAIL_NOT_VERIFIED');
-    },
-  );
+  it.each([
+    { disabledAt: now, emailVerifiedAt: now },
+    { disabledAt: null, emailVerifiedAt: null },
+  ])('rejects ineligible owner identity', async (user) => {
+    const f = fixture();
+    f.findMember.mockResolvedValue({ ...member, user });
+    await expect(f.read()).rejects.toThrow('EMAIL_NOT_VERIFIED');
+  });
 
   it('requires a billing customer checkpoint', async () => {
     const f = fixture();
@@ -71,7 +90,9 @@ describe('readOrganizationTrialEligibility', () => {
     { billingCustomer: { ...customer, creationRequestedAt: now } },
     { billingCustomer: { ...customer, _count: { billingCustomerReferences: 1 } } },
     { _count: { ...organization._count, organizationMembers: 2 } },
-    { creationKey: 'other' }, { setupCompletedAt: now }, { trial: { id: 'trial' } },
+    { creationKey: 'other' },
+    { setupCompletedAt: now },
+    { trial: { id: 'trial' } },
   ])('blocks trial activation for incompatible organization state %j', async (patch) => {
     const f = fixture();
     f.findOrganization.mockResolvedValue({ ...organization, ...patch });

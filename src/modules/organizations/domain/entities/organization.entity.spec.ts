@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { Organization } from './organization.entity.js';
 import type { OrganizationBusinessDetails } from './organization.entity.js';
+import { Organization } from './organization.entity.js';
 
 const create = () => Organization.create({ id: 'org', name: ' Empresa ', ownerId: 'owner' });
 
@@ -15,7 +15,7 @@ describe('Organization', () => {
       autoQuoteFollowUpEnabled: false,
       autoWorkOrderReminderEnabled: false,
       autoReviewRequestEnabled: false,
-      autoReceivableReminderEnabled: false
+      autoReceivableReminderEnabled: false,
     });
     expect(org.profile()).not.toHaveProperty('ownerId');
     expect(org.isOwnedBy('owner')).toBe(true);
@@ -32,7 +32,7 @@ describe('Organization', () => {
       state: ' mg ',
       postalCode: '38400-000',
       city: ' Uberlandia ',
-      autoReviewRequestEnabled: true
+      autoReviewRequestEnabled: true,
     });
 
     expect(org.profile()).toMatchObject({
@@ -42,7 +42,7 @@ describe('Organization', () => {
       state: 'MG',
       postalCode: '38400000',
       city: 'Uberlandia',
-      autoReviewRequestEnabled: true
+      autoReviewRequestEnabled: true,
     });
 
     org.update({ email: null, documentType: null, document: null });
@@ -62,13 +62,16 @@ describe('Organization', () => {
     [{ defaultReceivableDueDays: 366 }, 'INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS'],
     [{ defaultReceivableDueDays: 0.5 }, 'INVALID_ORGANIZATION_RECEIVABLE_DUE_DAYS'],
     [{}, 'EMPTY_ORGANIZATION_UPDATE'],
-  ] as [Partial<OrganizationBusinessDetails>, string][])('rejects invalid update without changing stored profile %j', (patch, code) => {
-    const org = create();
-    const before = org.snapshot();
+  ] as [Partial<OrganizationBusinessDetails>, string][])(
+    'rejects invalid update without changing stored profile %j',
+    (patch, code) => {
+      const org = create();
+      const before = org.snapshot();
 
-    expect(() => org.update(patch)).toThrow(code);
-    expect(org.snapshot()).toEqual(before);
-  });
+      expect(() => org.update(patch)).toThrow(code);
+      expect(org.snapshot()).toEqual(before);
+    },
+  );
 
   it('sets and removes an isolated logo key', () => {
     const org = create();

@@ -5,6 +5,7 @@ import type { OrganizationInvitationRepository } from '../../domain/repositories
 import type { OrganizationMemberRepository } from '../../domain/repositories/organizationMember.repository.js';
 import type { OrganizationTransaction, OrganizationUnitOfWork } from '../ports/organizationUnitOfWork.port.js';
 import { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
+
 import { AcceptOrganizationInvitationUseCase } from './acceptOrganizationInvitation.useCase.js';
 import { InviteOrganizationMemberUseCase } from './inviteOrganizationMember.useCase.js';
 import { RemoveOrganizationMemberUseCase } from './removeOrganizationMember.useCase.js';
@@ -28,18 +29,20 @@ function fixture(asRecipient = false) {
     userId: 'member',
     role: 'MEMBER' as const,
     createdAt: new Date(),
-    user: { name: 'Member' }
+    user: { name: 'Member' },
   };
   const invitations = {
     findById: vi.fn<OrganizationInvitationRepository['findById']>().mockResolvedValue(invitation.snapshot()),
     findByTokenHash: vi.fn<OrganizationInvitationRepository['findByTokenHash']>().mockResolvedValue({
       id: 'invitation',
-      organizationId: 'org'
+      organizationId: 'org',
     }),
     findPending: vi.fn<OrganizationInvitationRepository['findPending']>().mockResolvedValue(null),
     create: vi.fn<OrganizationInvitationRepository['create']>().mockResolvedValue(undefined),
     save: vi.fn<OrganizationInvitationRepository['save']>().mockResolvedValue(undefined),
-    invalidateAcceptedTokens: vi.fn<OrganizationInvitationRepository['invalidateAcceptedTokens']>().mockResolvedValue(undefined),
+    invalidateAcceptedTokens: vi
+      .fn<OrganizationInvitationRepository['invalidateAcceptedTokens']>()
+      .mockResolvedValue(undefined),
   };
   const members = {
     existsByEmail: vi.fn<OrganizationMemberRepository['existsByEmail']>().mockResolvedValue(false),
@@ -71,10 +74,13 @@ function fixture(asRecipient = false) {
     notifications: { enqueue },
     inAppNotifications: { enqueue: notify },
   } as unknown as OrganizationTransaction;
-  const run = vi.fn(async (_actor: typeof actor, operation: (context: OrganizationTransaction) => Promise<unknown>) => operation(tx));
+  const run = vi.fn(async (_actor: typeof actor, operation: (context: OrganizationTransaction) => Promise<unknown>) =>
+    operation(tx),
+  );
   const tokens = { create: vi.fn().mockReturnValue(token), hash: vi.fn().mockReturnValue('old-hash') };
   const service = new OrganizationTeamApplicationService(
-    invitations as unknown as OrganizationInvitationRepository, { run } as unknown as OrganizationUnitOfWork,
+    invitations as unknown as OrganizationInvitationRepository,
+    { run } as unknown as OrganizationUnitOfWork,
   );
 
   return {
@@ -89,7 +95,7 @@ function fixture(asRecipient = false) {
     read,
     run,
     tokens,
-    service
+    service,
   };
 }
 
@@ -102,22 +108,26 @@ describe('organization invitation and membership lifecycle', () => {
     expect(result.invitation).toMatchObject({
       organizationId: 'org',
       email: 'member@example.invalid',
-      status: 'PENDING'
+      status: 'PENDING',
     });
     expect(result.invitation).not.toHaveProperty('tokenHash');
     expect(f.invitations.create.mock.calls[0]![0].snapshot().tokenHash).toBe(token.hash);
     expect(f.consume).toHaveBeenCalledWith({ organizationId: 'org', now: expect.any(Date) });
-    expect(f.enqueue).toHaveBeenCalledWith(expect.objectContaining({
-      recipient: 'member@example.invalid',
-      content: expect.objectContaining({
-        type: 'ORGANIZATION_INVITATION',
-        token: token.value
-      })
-    }));
+    expect(f.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: 'member@example.invalid',
+        content: expect.objectContaining({
+          type: 'ORGANIZATION_INVITATION',
+          token: token.value,
+        }),
+      }),
+    );
 
     const outsider = fixture(true);
 
-    await expect(new InviteOrganizationMemberUseCase(outsider.tokens, outsider.service).execute(input)).rejects.toThrow('OWNER_REQUIRED');
+    await expect(new InviteOrganizationMemberUseCase(outsider.tokens, outsider.service).execute(input)).rejects.toThrow(
+      'OWNER_REQUIRED',
+    );
     expect(outsider.invitations.create).not.toHaveBeenCalled();
   });
 
@@ -153,11 +163,13 @@ describe('organization invitation and membership lifecycle', () => {
     expect(await useCase.execute(params)).toEqual({ organizationId: 'org' });
     expect(f.run).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' }, expect.any(Function));
     expect(f.members.add).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' });
-    expect(f.notify).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'owner',
-      organizationId: 'org',
-      type: 'ORGANIZATION_MEMBER_JOINED'
-    }));
+    expect(f.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'owner',
+        organizationId: 'org',
+        type: 'ORGANIZATION_MEMBER_JOINED',
+      }),
+    );
 
     const saved = f.invitations.save.mock.calls[0]![0].snapshot();
 
@@ -190,7 +202,9 @@ describe('organization invitation and membership lifecycle', () => {
 
     f.invitations.findById.mockResolvedValueOnce(revoked);
 
-    await expect(new ResendOrganizationInvitationUseCase(f.tokens, f.service).execute(params)).rejects.toThrow('INVITATION_CLOSED');
+    await expect(new ResendOrganizationInvitationUseCase(f.tokens, f.service).execute(params)).rejects.toThrow(
+      'INVITATION_CLOSED',
+    );
     expect(f.enqueue).toHaveBeenCalledTimes(1);
   });
 
@@ -206,6 +220,8 @@ describe('organization invitation and membership lifecycle', () => {
 
     expect(f.invitations.invalidateAcceptedTokens).toHaveBeenCalledWith({ organizationId: 'org', userId: 'member' });
     expect(f.members.remove).toHaveBeenCalledWith({ organizationId: 'org', memberId: 'membership' });
-    expect(f.invitations.invalidateAcceptedTokens.mock.invocationCallOrder[0]).toBeLessThan(f.members.remove.mock.invocationCallOrder[0]!);
+    expect(f.invitations.invalidateAcceptedTokens.mock.invocationCallOrder[0]).toBeLessThan(
+      f.members.remove.mock.invocationCallOrder[0]!,
+    );
   });
 });

@@ -22,7 +22,7 @@ import { UploadWorkOrderPhotoUseCase } from './uploadWorkOrderPhoto.useCase.js';
 const params = {
   organizationId: 'organization',
   workOrderId: 'work-order',
-  userId: 'member'
+  userId: 'member',
 };
 const upload = { buffer: Buffer.from('source'), size: 6, mimeType: 'image/jpeg' };
 const input = { stage: 'BEFORE', caption: '  Antes do serviço  ' } as const;
@@ -137,7 +137,7 @@ function setup() {
     processor,
     storage,
     imageProcessor,
-    unitOfWork
+    unitOfWork,
   };
 }
 
@@ -393,7 +393,7 @@ function setupPublic() {
     share,
     storage,
     useCase,
-    token: 'a'.repeat(64)
+    token: 'a'.repeat(64),
   };
 }
 

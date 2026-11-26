@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { RegisterUserParams } from '../../domain/repositories/auth.repository.js';
+
 import { authFixture, google, now, user } from './support/prismaAuth.fixture.js';
 
 const legalAcceptance = {
@@ -46,7 +47,9 @@ describe('PrismaAuthRepository identity persistence', () => {
     const { repository, db } = authFixture();
     db.planPrice.findFirst.mockResolvedValueOnce(null);
 
-    await expect(repository.register({ ...registration, selectedPlanPriceId: 'missing' })).rejects.toThrow('PLAN_UNAVAILABLE');
+    await expect(repository.register({ ...registration, selectedPlanPriceId: 'missing' })).rejects.toThrow(
+      'PLAN_UNAVAILABLE',
+    );
     expect(db.user.create).not.toHaveBeenCalled();
     expect(db.planPrice.findFirst).toHaveBeenCalledWith({
       where: { id: 'missing', published: true, stripeActive: true, plan: { published: true, stripeActive: true } },
@@ -74,15 +77,19 @@ describe('PrismaAuthRepository identity persistence', () => {
     };
 
     expect((await repository.registerFederated(input)).id).toBe(user.id);
-    expect(db.user.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({
-        id: user.id,
-        passwordHash: null,
-        emailVerifiedAt: now,
-        authIdentities: { create: { id: google.id, provider: google.provider, providerAccountId: google.providerAccountId } },
-        termsAcceptances: { create: input.legalAcceptance },
+    expect(db.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          id: user.id,
+          passwordHash: null,
+          emailVerifiedAt: now,
+          authIdentities: {
+            create: { id: google.id, provider: google.provider, providerAccountId: google.providerAccountId },
+          },
+          termsAcceptances: { create: input.legalAcceptance },
+        }),
       }),
-    }));
+    );
 
     db.user.create.mockRejectedValueOnce({ code: 'P2002' });
     await expect(repository.registerFederated(input)).rejects.toThrow('GOOGLE_IDENTITY_CONFLICT');

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { BillingRepository, CheckoutAttemptState } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
-import type { BillingRepository, CheckoutAttemptState } from '../../domain/repositories/billing.repository.js';
+
 import { StartCheckoutUseCase } from './startCheckout.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner', planPriceId: 'price' };
@@ -43,7 +44,9 @@ function fixture() {
     pendingCheckout: vi.fn<BillingRepository['pendingCheckout']>().mockResolvedValue(attempt),
     attachCheckout: vi.fn<BillingRepository['attachCheckout']>().mockResolvedValue(undefined),
     closeCheckout: vi.fn<BillingRepository['closeCheckout']>().mockResolvedValue(undefined),
-    createCheckout: vi.fn<BillingRepository['createCheckout']>().mockImplementation(async (data) => ({ ...data, stripeSessionId: null })),
+    createCheckout: vi
+      .fn<BillingRepository['createCheckout']>()
+      .mockImplementation(async (data) => ({ ...data, stripeSessionId: null })),
   };
   const gateway = {
     findCustomer: vi.fn<BillingGateway['findCustomer']>().mockResolvedValue(null),
@@ -54,25 +57,29 @@ function fixture() {
     checkout: vi.fn<BillingGateway['checkout']>().mockResolvedValue({
       stripeSessionId: 'cs_fixture',
       status: 'OPEN',
-      clientSecret: 'fixture-secret'
+      clientSecret: 'fixture-secret',
     }),
     validatePrice: vi.fn<BillingGateway['validatePrice']>().mockResolvedValue(undefined),
     createCheckout: vi.fn<BillingGateway['createCheckout']>().mockResolvedValue({
       stripeSessionId: 'cs_new',
       status: 'OPEN',
-      clientSecret: 'new-secret'
+      clientSecret: 'new-secret',
     }),
   };
   const run = vi.fn(async (_key: string, operation: () => Promise<unknown>) => operation());
-  const useCase = new StartCheckoutUseCase(repository as unknown as BillingRepository, gateway as unknown as BillingGateway,
-    { run } as unknown as BillingLock, 'https://web.example.invalid');
+  const useCase = new StartCheckoutUseCase(
+    repository as unknown as BillingRepository,
+    gateway as unknown as BillingGateway,
+    { run } as unknown as BillingLock,
+    'https://web.example.invalid',
+  );
 
   return {
     useCase,
     repository,
     gateway,
     run,
-    attempt
+    attempt,
   };
 }
 
@@ -108,7 +115,7 @@ describe('StartCheckoutUseCase', () => {
     f.gateway.checkout.mockResolvedValueOnce({
       stripeSessionId: 'cs_fixture',
       status: 'COMPLETE',
-      clientSecret: null
+      clientSecret: null,
     });
 
     await expect(f.useCase.execute(actor)).rejects.toThrow('SUBSCRIPTION_EXISTS');
@@ -122,16 +129,20 @@ describe('StartCheckoutUseCase', () => {
 
     const result = await f.useCase.execute(actor);
 
-    expect(f.repository.createCheckout).toHaveBeenCalledWith(expect.objectContaining({
-      id: result.attemptId,
-      organizationId: 'org',
-      planPriceId: 'price',
-      returnUrl: 'https://web.example.invalid/billing/return?organizationId=org',
-    }));
-    expect(f.gateway.createCheckout).toHaveBeenCalledWith(expect.objectContaining({
-      customerId: 'cus_fixture',
-      attempt: expect.objectContaining({ id: result.attemptId }),
-    }));
+    expect(f.repository.createCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: result.attemptId,
+        organizationId: 'org',
+        planPriceId: 'price',
+        returnUrl: 'https://web.example.invalid/billing/return?organizationId=org',
+      }),
+    );
+    expect(f.gateway.createCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: 'cus_fixture',
+        attempt: expect.objectContaining({ id: result.attemptId }),
+      }),
+    );
     expect(f.repository.attachCheckout).toHaveBeenCalledWith(result.attemptId, 'cs_new');
   });
   it('fails before entering the billing lock if the selected price is unavailable', async () => {
@@ -144,9 +155,13 @@ describe('StartCheckoutUseCase', () => {
 
   function unbound(requestedAt: Date | null) {
     return {
-      id: 'customer', organizationId: 'org', stripeCustomerId: null,
-      billingEmail: 'owner@example.invalid', billingName: 'Fixture',
-      creationRequestedAt: requestedAt, invoiceHistorySyncedAt: null,
+      id: 'customer',
+      organizationId: 'org',
+      stripeCustomerId: null,
+      billingEmail: 'owner@example.invalid',
+      billingName: 'Fixture',
+      creationRequestedAt: requestedAt,
+      invoiceHistorySyncedAt: null,
     };
   }
 
@@ -174,55 +189,84 @@ describe('StartCheckoutUseCase', () => {
     expect(f.gateway.customerState).not.toHaveBeenCalled();
     expect(f.gateway.createCustomer).toHaveBeenCalledWith(requested);
     expect(f.repository.setCustomerId).toHaveBeenCalledWith('customer', 'cus_new');
-    expect(f.repository.markCustomerCreation.mock.invocationCallOrder[0]).toBeLessThan(f.gateway.createCustomer.mock.invocationCallOrder[0]!);
-    expect(f.repository.setCustomerId.mock.invocationCallOrder[0]).toBeLessThan(f.gateway.snapshot.mock.invocationCallOrder[0]!);
+    expect(f.repository.markCustomerCreation.mock.invocationCallOrder[0]).toBeLessThan(
+      f.gateway.createCustomer.mock.invocationCallOrder[0]!,
+    );
+    expect(f.repository.setCustomerId.mock.invocationCallOrder[0]).toBeLessThan(
+      f.gateway.snapshot.mock.invocationCallOrder[0]!,
+    );
     expect(f.gateway.snapshot).toHaveBeenCalledWith('cus_new');
   });
 
-  it.each([null, new Date(Date.now() - 24 * 3600000)])('does not create a new remote customer without a safe checkpoint: %s', async (requestedAt) => {
-    const f = fixture();
-    f.repository.customer.mockResolvedValue(unbound(requestedAt));
-    await expect(f.useCase.execute(actor)).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');
-    expect(f.gateway.createCustomer).not.toHaveBeenCalled();
-    expect(f.repository.setCustomerId).not.toHaveBeenCalled();
-    expect(f.gateway.snapshot).not.toHaveBeenCalled();
-  });
+  it.each([null, new Date(Date.now() - 24 * 3600000)])(
+    'does not create a new remote customer without a safe checkpoint: %s',
+    async (requestedAt) => {
+      const f = fixture();
+      f.repository.customer.mockResolvedValue(unbound(requestedAt));
+      await expect(f.useCase.execute(actor)).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');
+      expect(f.gateway.createCustomer).not.toHaveBeenCalled();
+      expect(f.repository.setCustomerId).not.toHaveBeenCalled();
+      expect(f.gateway.snapshot).not.toHaveBeenCalled();
+    },
+  );
 
   it('detaches a deleted customer before recovering its replacement', async () => {
     const f = fixture();
     const requested = unbound(new Date());
-    f.repository.customer.mockResolvedValueOnce({ ...requested, stripeCustomerId: 'cus_deleted' }).mockResolvedValue(requested);
+    f.repository.customer
+      .mockResolvedValueOnce({ ...requested, stripeCustomerId: 'cus_deleted' })
+      .mockResolvedValue(requested);
     f.gateway.customerState.mockResolvedValueOnce('DELETED');
     f.gateway.findCustomer.mockResolvedValueOnce('cus_replacement');
 
     await f.useCase.execute(actor);
 
     expect(f.repository.handleDeletedCustomer).toHaveBeenCalledWith({
-      organizationId: 'org', stripeCustomerId: 'cus_deleted', deletedAt: expect.any(Date),
+      organizationId: 'org',
+      stripeCustomerId: 'cus_deleted',
+      deletedAt: expect.any(Date),
     });
     expect(f.repository.setCustomerId).toHaveBeenCalledWith('customer', 'cus_replacement');
     expect(f.gateway.snapshot).toHaveBeenCalledWith('cus_replacement');
   });
 
-  it.each(['ACTIVE', 'PAST_DUE', 'TRIALING', 'INCOMPLETE'] as const)('blocks duplicate checkout for a remote %s subscription after saving the snapshot', async (status) => {
-    const f = fixture();
-    const now = new Date();
-    const snapshot = { subscriptions: [{
-      stripeSubscriptionId: 'sub_fixture', stripePriceId: 'price_fixture', status,
-      currentPeriodStart: now, currentPeriodEnd: new Date(now.getTime() + 86400000),
-      cancelAtPeriodEnd: false, canceledAt: null, endedAt: null, stripeCreatedAt: now,
-    }], invoices: [] };
-    f.gateway.snapshot.mockResolvedValueOnce(snapshot);
-    await expect(f.useCase.execute(actor)).rejects.toThrow('SUBSCRIPTION_EXISTS');
-    expect(f.repository.saveSnapshot).toHaveBeenCalledWith({ organizationId: 'org', snapshot });
-    expect(f.repository.pendingCheckout).not.toHaveBeenCalled();
-    expect(f.gateway.createCheckout).not.toHaveBeenCalled();
-  });
+  it.each(['ACTIVE', 'PAST_DUE', 'TRIALING', 'INCOMPLETE'] as const)(
+    'blocks duplicate checkout for a remote %s subscription after saving the snapshot',
+    async (status) => {
+      const f = fixture();
+      const now = new Date();
+      const snapshot = {
+        subscriptions: [
+          {
+            stripeSubscriptionId: 'sub_fixture',
+            stripePriceId: 'price_fixture',
+            status,
+            currentPeriodStart: now,
+            currentPeriodEnd: new Date(now.getTime() + 86400000),
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+            endedAt: null,
+            stripeCreatedAt: now,
+          },
+        ],
+        invoices: [],
+      };
+      f.gateway.snapshot.mockResolvedValueOnce(snapshot);
+      await expect(f.useCase.execute(actor)).rejects.toThrow('SUBSCRIPTION_EXISTS');
+      expect(f.repository.saveSnapshot).toHaveBeenCalledWith({ organizationId: 'org', snapshot });
+      expect(f.repository.pendingCheckout).not.toHaveBeenCalled();
+      expect(f.gateway.createCheckout).not.toHaveBeenCalled();
+    },
+  );
 
   it('recovers a pending session by the original attempt identity when no session ID was persisted', async () => {
     const f = fixture();
     f.repository.pendingCheckout.mockResolvedValueOnce({ ...f.attempt, stripeSessionId: null });
-    f.gateway.findCheckout.mockResolvedValueOnce({ stripeSessionId: 'cs_recovered', status: 'OPEN', clientSecret: 'recovered-secret' });
+    f.gateway.findCheckout.mockResolvedValueOnce({
+      stripeSessionId: 'cs_recovered',
+      status: 'OPEN',
+      clientSecret: 'recovered-secret',
+    });
 
     await expect(f.useCase.execute(actor)).resolves.toEqual({ attemptId: 'attempt', clientSecret: 'recovered-secret' });
     expect(f.gateway.findCheckout).toHaveBeenCalledWith('cus_fixture', 'attempt');
@@ -239,12 +283,18 @@ describe('StartCheckoutUseCase', () => {
     expect(f.repository.closeCheckout).toHaveBeenCalledWith('attempt', 'EXPIRED');
     expect(f.gateway.validatePrice).toHaveBeenCalledTimes(1);
     expect(f.repository.createCheckout).toHaveBeenCalledTimes(1);
-    expect(f.repository.closeCheckout.mock.invocationCallOrder[0]).toBeLessThan(f.repository.createCheckout.mock.invocationCallOrder[0]!);
+    expect(f.repository.closeCheckout.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.createCheckout.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('replaces an expired local attempt only after finding no remote checkout', async () => {
     const f = fixture();
-    f.repository.pendingCheckout.mockResolvedValueOnce({ ...f.attempt, stripeSessionId: null, expiresAt: new Date(Date.now() - 1000) });
+    f.repository.pendingCheckout.mockResolvedValueOnce({
+      ...f.attempt,
+      stripeSessionId: null,
+      expiresAt: new Date(Date.now() - 1000),
+    });
     const result = await f.useCase.execute(actor);
     expect(result.attemptId).not.toBe('attempt');
     expect(f.gateway.findCheckout).toHaveBeenCalledWith('cus_fixture', 'attempt');
@@ -271,7 +321,11 @@ describe('StartCheckoutUseCase', () => {
 
   it('does not contact the provider for a reservation with insufficient remaining validity', async () => {
     const f = fixture();
-    f.repository.pendingCheckout.mockResolvedValueOnce({ ...f.attempt, stripeSessionId: null, expiresAt: new Date(Date.now() + 29 * 60000) });
+    f.repository.pendingCheckout.mockResolvedValueOnce({
+      ...f.attempt,
+      stripeSessionId: null,
+      expiresAt: new Date(Date.now() + 29 * 60000),
+    });
     await expect(f.useCase.execute(actor)).rejects.toThrow('CHECKOUT_EXPIRED');
     expect(f.gateway.createCheckout).not.toHaveBeenCalled();
     expect(f.repository.closeCheckout).not.toHaveBeenCalled();

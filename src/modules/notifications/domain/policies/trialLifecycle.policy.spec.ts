@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { OrganizationTrial } from '../../../organizations/domain/entities/organizationTrial.entity.js';
+
 import { TrialLifecyclePolicy } from './trialLifecycle.policy.js';
 
 const start = new Date('2026-01-01T00:00:00Z');
@@ -9,7 +10,7 @@ const trial = OrganizationTrial.create({
   id: 'trial',
   organizationId: 'org',
   ownerId: 'owner',
-  now: start
+  now: start,
 }).snapshot();
 
 describe('TrialLifecyclePolicy', () => {
@@ -19,15 +20,15 @@ describe('TrialLifecyclePolicy', () => {
     [7, 'GETTING_STARTED'],
     [11, 'EXPIRING_IN_THREE_DAYS'],
     [13, 'EXPIRING_TOMORROW'],
-    [14, 'EXPIRED']
-  ] as const)(
-    'selects the correct notification window on day %i', (day, stage) => {
-      expect(TrialLifecyclePolicy.resolve(trial, at(day))?.stage).toBe(stage);
-    },
-  );
+    [14, 'EXPIRED'],
+  ] as const)('selects the correct notification window on day %i', (day, stage) => {
+    expect(TrialLifecyclePolicy.resolve(trial, at(day))?.stage).toBe(stage);
+  });
 
   it('does not send stale, future, revoked or converted trial notifications', () => {
-    for (const day of [-1, 1, 4, 15]) expect(TrialLifecyclePolicy.resolve(trial, at(day))).toBeNull();
+    for (const day of [-1, 1, 4, 15]) {
+      expect(TrialLifecyclePolicy.resolve(trial, at(day))).toBeNull();
+    }
 
     expect(TrialLifecyclePolicy.resolve({ ...trial, convertedAt: start }, start)).toBeNull();
     expect(TrialLifecyclePolicy.resolve({ ...trial, revokedAt: start }, start)).toBeNull();

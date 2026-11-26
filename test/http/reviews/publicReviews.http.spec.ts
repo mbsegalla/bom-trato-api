@@ -15,10 +15,13 @@ describe('public review HTTP routes', () => {
   const submit = vi.fn<SubmitReviewUseCase['execute']>();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([PublicReviewsController], [
-      { provide: ResolveReviewInvitationUseCase, useValue: { execute: resolve } },
-      { provide: SubmitReviewUseCase, useValue: { execute: submit } },
-    ]);
+    fixture = await createHttpFixture(
+      [PublicReviewsController],
+      [
+        { provide: ResolveReviewInvitationUseCase, useValue: { execute: resolve } },
+        { provide: SubmitReviewUseCase, useValue: { execute: submit } },
+      ],
+    );
   });
 
   beforeEach(() => {
@@ -39,8 +42,8 @@ describe('public review HTTP routes', () => {
       {
         token,
         rating: 5,
-        customerId: 'spoofed'
-      }
+        customerId: 'spoofed',
+      },
     ]) {
       await request(fixture.server).post('/api/public/reviews/submit').send(input).expect(400);
     }
@@ -54,14 +57,17 @@ describe('public review HTTP routes', () => {
       comment: 'Fixture',
       createdAt: new Date('2026-01-01T00:00:00Z'),
       verified: true,
-      professionalSlug: 'fixture'
+      professionalSlug: 'fixture',
     });
 
-    const response = await request(fixture.server).post('/api/public/reviews/submit').send({
-      token,
-      rating: 5,
-      comment: ' Fixture '
-    }).expect(201);
+    const response = await request(fixture.server)
+      .post('/api/public/reviews/submit')
+      .send({
+        token,
+        rating: 5,
+        comment: ' Fixture ',
+      })
+      .expect(201);
 
     expect(response.headers['cache-control']).toBe('no-store');
     expect(submit).toHaveBeenCalledWith(token, { rating: 5, comment: 'Fixture' });
@@ -72,7 +78,7 @@ describe('public review HTTP routes', () => {
     for (const [code, status] of [
       ['REVIEW_INVITATION_NOT_FOUND', 404],
       ['REVIEW_INVITATION_EXPIRED', 410],
-      ['REVIEW_ALREADY_SUBMITTED', 409]
+      ['REVIEW_ALREADY_SUBMITTED', 409],
     ] as const) {
       resolve.mockRejectedValueOnce(new ReviewError(code));
 

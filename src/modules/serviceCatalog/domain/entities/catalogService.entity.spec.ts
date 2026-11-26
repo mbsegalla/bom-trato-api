@@ -8,7 +8,7 @@ const input = {
   organizationId: 'org',
   name: ' Revisao ',
   unit: 'SERVICE' as const,
-  amountInCents: 1000
+  amountInCents: 1000,
 };
 
 describe('CatalogService', () => {
@@ -20,12 +20,17 @@ describe('CatalogService', () => {
     expect(CatalogService.create({ ...input, amountInCents: 0 }, now).snapshot()).toMatchObject({
       name: 'Revisao',
       currency: 'brl',
-      amountInCents: 0
+      amountInCents: 0,
     });
-    expect(() => CatalogService.create({
-      ...input,
-      estimatedDurationMinutes: 0
-    }, now)).toThrow('INVALID_CATALOG_SERVICE_DURATION');
+    expect(() =>
+      CatalogService.create(
+        {
+          ...input,
+          estimatedDurationMinutes: 0,
+        },
+        now,
+      ),
+    ).toThrow('INVALID_CATALOG_SERVICE_DURATION');
   });
 
   it('prevents edits while archived and supports restoring the service', () => {

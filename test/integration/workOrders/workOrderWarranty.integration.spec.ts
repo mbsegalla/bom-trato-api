@@ -1,6 +1,9 @@
 import { expect, it } from 'vitest';
 
-import { createWorkOrderAcceptanceSnapshot, hashWorkOrderAcceptanceSnapshot } from '../../../src/modules/workOrders/application/mappers/workOrderAcceptance.mapper.js';
+import {
+  createWorkOrderAcceptanceSnapshot,
+  hashWorkOrderAcceptanceSnapshot,
+} from '../../../src/modules/workOrders/application/mappers/workOrderAcceptance.mapper.js';
 import { AcceptPublicWorkOrderUseCase } from '../../../src/modules/workOrders/application/useCases/acceptPublicWorkOrder.useCase.js';
 import { GetWorkOrderWarrantyUseCase } from '../../../src/modules/workOrders/application/useCases/getWorkOrderWarranty.useCase.js';
 import { UpdateWorkOrderWarrantyUseCase } from '../../../src/modules/workOrders/application/useCases/updateWorkOrderWarranty.useCase.js';
@@ -8,6 +11,7 @@ import { WORK_ORDER_ACCEPTANCE_CONSENT_VERSION } from '../../../src/modules/work
 import { PrismaPublicWorkOrderUnitOfWork } from '../../../src/modules/workOrders/infrastructure/transactions/prismaPublicWorkOrderUnitOfWork.js';
 import { PrismaWorkOrderDocumentRepository } from '../../../src/modules/workOrders/infrastructure/transactions/prismaWorkOrderDocumentRepository.js';
 import { createDisposableDatabaseFixture, databaseSuite } from '../support/disposableDatabase.fixture.js';
+
 import { createWorkOrderFixture } from './support/workOrder.fixture.js';
 
 databaseSuite('work order warranty persistence (disposable PostgreSQL)', () => {
@@ -44,10 +48,12 @@ databaseSuite('work order warranty persistence (disposable PostgreSQL)', () => {
     expect(await f.get.execute(f.params)).toEqual(result);
 
     await expect(f.update.execute(f.params, f.input)).rejects.toThrow('WORK_ORDER_WARRANTY_VERSION_CONFLICT');
-    expect(await f.update.execute(f.params, { ...f.input, durationDays: 30, version: 1 }))
-      .toMatchObject({ warranty: { durationDays: 30, version: 2 } });
-    expect(await db.prisma.workOrder.findUniqueOrThrow({ where: { id: f.order.id } }))
-      .toMatchObject({ version: f.order.version });
+    expect(await f.update.execute(f.params, { ...f.input, durationDays: 30, version: 1 })).toMatchObject({
+      warranty: { durationDays: 30, version: 2 },
+    });
+    expect(await db.prisma.workOrder.findUniqueOrThrow({ where: { id: f.order.id } })).toMatchObject({
+      version: f.order.version,
+    });
   });
 
   it('keeps expiry null until service completion', async () => {
@@ -68,7 +74,9 @@ databaseSuite('work order warranty persistence (disposable PostgreSQL)', () => {
     const snapshotHash = await unit.read(f.tokenHash, async (tx) => {
       const order = await tx.findWorkOrder();
 
-      if (!order) throw new Error('Missing fixture order');
+      if (!order) {
+        throw new Error('Missing fixture order');
+      }
 
       return hashWorkOrderAcceptanceSnapshot(createWorkOrderAcceptanceSnapshot(order));
     });
@@ -81,8 +89,9 @@ databaseSuite('work order warranty persistence (disposable PostgreSQL)', () => {
     });
 
     expect(await f.get.execute(f.params)).toEqual({ ...original, locked: true });
-    await expect(f.update.execute(f.params, { ...f.input, version: 1, durationDays: 1 }))
-      .rejects.toThrow('WORK_ORDER_WARRANTY_LOCKED');
+    await expect(f.update.execute(f.params, { ...f.input, version: 1, durationDays: 1 })).rejects.toThrow(
+      'WORK_ORDER_WARRANTY_LOCKED',
+    );
     expect(await f.get.execute(f.params)).toEqual({ ...original, locked: true });
   });
 
@@ -92,8 +101,9 @@ databaseSuite('work order warranty persistence (disposable PostgreSQL)', () => {
     const original = await f.update.execute(f.params, f.input);
 
     await expect(f.get.execute({ ...f.params, userId: other.userId })).rejects.toThrow('MEMBER_REQUIRED');
-    await expect(f.update.execute({ ...f.params, userId: other.userId }, { ...f.input, version: 1 }))
-      .rejects.toThrow('MEMBER_REQUIRED');
+    await expect(f.update.execute({ ...f.params, userId: other.userId }, { ...f.input, version: 1 })).rejects.toThrow(
+      'MEMBER_REQUIRED',
+    );
 
     await db.prisma.organizationTrial.update({
       where: { organizationId: f.actor.organizationId },

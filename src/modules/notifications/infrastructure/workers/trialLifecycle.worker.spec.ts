@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { readTrialLifecycleNotification } from '../policies/prismaTrialLifecycle.policy.js';
+
 import { TrialLifecycleWorker } from './trialLifecycle.worker.js';
 
 vi.mock('../policies/prismaTrialLifecycle.policy.js', () => ({ readTrialLifecycleNotification: vi.fn() }));
 
 const read = vi.mocked(readTrialLifecycleNotification);
-const notification = { key: 'fixture-key', recipient: 'fixture@example.invalid' } as unknown as NonNullable<Awaited<ReturnType<typeof readTrialLifecycleNotification>>>;
+const notification = { key: 'fixture-key', recipient: 'fixture@example.invalid' } as unknown as NonNullable<
+  Awaited<ReturnType<typeof readTrialLifecycleNotification>>
+>;
 
 function fixture(workerEnabled = true, trialLifecycleEnabled = true) {
   const findMany = vi.fn().mockResolvedValue([]);
@@ -16,7 +19,9 @@ function fixture(workerEnabled = true, trialLifecycleEnabled = true) {
   const transaction = vi.fn(async (operation: (client: typeof db) => Promise<unknown>) => operation(db));
   const enqueue = vi.fn().mockResolvedValue(undefined);
   const args = [
-    { workerEnabled, trialLifecycleEnabled }, { ...db, $transaction: transaction }, { enqueue },
+    { workerEnabled, trialLifecycleEnabled },
+    { ...db, $transaction: transaction },
+    { enqueue },
   ] as unknown as ConstructorParameters<typeof TrialLifecycleWorker>;
   const worker = new TrialLifecycleWorker(...args);
 
@@ -29,7 +34,11 @@ describe('TrialLifecycleWorker', () => {
     read.mockResolvedValue(notification);
   });
 
-  it.each([[false, true], [true, false], [false, false]])('does not query when workers are disabled', async (enabled, lifecycle) => {
+  it.each([
+    [false, true],
+    [true, false],
+    [false, false],
+  ])('does not query when workers are disabled', async (enabled, lifecycle) => {
     const f = fixture(enabled, lifecycle);
     await f.worker.run();
     expect(f.findMany).not.toHaveBeenCalled();
@@ -39,14 +48,20 @@ describe('TrialLifecycleWorker', () => {
     const f = fixture();
     await f.worker.run();
 
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        convertedAt: null, revokedAt: null, organizationId: { not: null },
-        startsAt: { lte: expect.any(Date) }, expiresAt: { gt: expect.any(Date) },
-        owner: { disabledAt: null, emailVerifiedAt: { not: null } },
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          convertedAt: null,
+          revokedAt: null,
+          organizationId: { not: null },
+          startsAt: { lte: expect.any(Date) },
+          expiresAt: { gt: expect.any(Date) },
+          owner: { disabledAt: null, emailVerifiedAt: { not: null } },
+        }),
+        take: 100,
+        orderBy: { id: 'asc' },
       }),
-      take: 100, orderBy: { id: 'asc' },
-    }));
+    );
     expect(f.enqueue).not.toHaveBeenCalled();
   });
 
@@ -91,7 +106,8 @@ describe('TrialLifecycleWorker', () => {
 
   it('paginates full batches using the final trial identifier', async () => {
     const f = fixture();
-    f.findMany.mockResolvedValueOnce(Array.from({ length: 100 }, (_, i) => ({ id: 'trial-' + i })))
+    f.findMany
+      .mockResolvedValueOnce(Array.from({ length: 100 }, (_, i) => ({ id: 'trial-' + i })))
       .mockResolvedValueOnce([{ id: 'last' }]);
     read.mockResolvedValue(null);
     await f.worker.run();

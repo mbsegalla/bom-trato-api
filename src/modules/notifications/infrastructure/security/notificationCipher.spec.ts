@@ -11,9 +11,9 @@ const message = {
     id: 'template',
     variables: {
       token: 'fixture-private-token',
-      amount: 100
-    }
-  }
+      amount: 100,
+    },
+  },
 };
 
 describe('NotificationCipher', () => {
@@ -38,7 +38,7 @@ describe('NotificationCipher', () => {
     const invalidVariables: Record<string, string | number>[] = [
       { 'bad key': 'value' },
       { token: 'x'.repeat(2001) },
-      { amount: Number.MAX_SAFE_INTEGER + 1 }
+      { amount: Number.MAX_SAFE_INTEGER + 1 },
     ];
     for (const variables of invalidVariables) {
       const payload = cipher.encrypt('id', { ...message, template: { id: 'template', variables } });

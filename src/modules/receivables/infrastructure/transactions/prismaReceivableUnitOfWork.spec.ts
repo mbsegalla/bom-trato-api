@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaReceivableUnitOfWork } from './prismaReceivableUnitOfWork.js';
 
 const params = { organizationId: 'org', userId: 'owner' };
@@ -15,7 +16,8 @@ function fixture() {
     organization: { findUnique: organization },
     organizationMember: { findUnique: member },
     workOrder: { findFirst: workOrder },
-    $queryRaw: query, $executeRaw: execute,
+    $queryRaw: query,
+    $executeRaw: execute,
   };
   const transaction = vi.fn(async (operation: (client: typeof db) => Promise<unknown>) => operation(db));
   const unit = new PrismaReceivableUnitOfWork({ $transaction: transaction } as unknown as PrismaService);
@@ -28,10 +30,15 @@ describe('PrismaReceivableUnitOfWork', () => {
     const f = fixture();
 
     expect(await f.unit.read(params, async (context) => context.access)).toMatchObject({
-      isMember: false, verified: false, hasPlatformAccess: false,
+      isMember: false,
+      verified: false,
+      hasPlatformAccess: false,
     });
     expect(f.member).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId_userId: params } }));
-    expect(f.transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'RepeatableRead' }));
+    expect(f.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ isolationLevel: 'RepeatableRead' }),
+    );
   });
 
   it('scopes work order lookup to the tenant and selects only required fields', async () => {
@@ -40,7 +47,16 @@ describe('PrismaReceivableUnitOfWork', () => {
     expect(await f.unit.run(params, (tx) => tx.findWorkOrder('order'))).toBeNull();
     expect(f.workOrder).toHaveBeenCalledWith({
       where: { id: 'order', organizationId: 'org' },
-      select: { id: true, organizationId: true, customerId: true, customerName: true, title: true, currency: true, totalInCents: true, status: true },
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        customerName: true,
+        title: true,
+        currency: true,
+        totalInCents: true,
+        status: true,
+      },
     });
     expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
   });

@@ -1,18 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { PaymentMethodUpdate } from '../../domain/entities/paymentMethodUpdate.entity.js';
 import { BillingWork } from '../events/billing.events.js';
 import type { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
-import { PaymentMethodUpdate } from '../../domain/entities/paymentMethodUpdate.entity.js';
+
 import { PrismaPaymentMethodUpdateRepository } from './prismaPaymentMethodUpdate.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 
 function fixture() {
   const update = PaymentMethodUpdate.create({
-    id: 'update', organizationId: 'org', requestedById: 'owner',
-    stripeCustomerId: 'cus_fixture', stripeSubscriptionId: 'sub_fixture',
-    consentVersion: 'v1', consentAcceptedAt: now, expiresAt: new Date(now.getTime() + 600000),
+    id: 'update',
+    organizationId: 'org',
+    requestedById: 'owner',
+    stripeCustomerId: 'cus_fixture',
+    stripeSubscriptionId: 'sub_fixture',
+    consentVersion: 'v1',
+    consentAcceptedAt: now,
+    expiresAt: new Date(now.getTime() + 600000),
   });
   const create = vi.fn().mockResolvedValue(update.snapshot());
   const findUnique = vi.fn().mockResolvedValue(null);
@@ -21,9 +27,12 @@ function fixture() {
   const findMany = vi.fn().mockResolvedValue([]);
   const notify = vi.fn();
   const scheduleChanged = vi.fn();
-  const repository = new PrismaPaymentMethodUpdateRepository({
-    paymentMethodUpdate: { create, findUnique, update: save, updateMany, findMany },
-  } as unknown as PrismaService, { notify, scheduleChanged } as unknown as BillingWorkerNotifier);
+  const repository = new PrismaPaymentMethodUpdateRepository(
+    {
+      paymentMethodUpdate: { create, findUnique, update: save, updateMany, findMany },
+    } as unknown as PrismaService,
+    { notify, scheduleChanged } as unknown as BillingWorkerNotifier,
+  );
 
   return { repository, update, create, findUnique, save, updateMany, findMany, notify, scheduleChanged };
 }
@@ -58,7 +67,12 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
 
     expect(f.save).toHaveBeenLastCalledWith({
       where: { id: 'update' },
-      data: { status: 'APPLIED', stripeSetupIntentId: 'seti_fixture', activeOrganizationId: null, completedAt: expect.any(Date) },
+      data: {
+        status: 'APPLIED',
+        stripeSetupIntentId: 'seti_fixture',
+        activeOrganizationId: null,
+        completedAt: expect.any(Date),
+      },
     });
     expect(f.scheduleChanged).toHaveBeenCalledTimes(2);
   });
@@ -83,7 +97,8 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
     await f.repository.postpone('update', 30);
     expect(f.scheduleChanged).toHaveBeenCalledWith(BillingWork.PAYMENT_METHOD_UPDATES);
     expect(f.updateMany).toHaveBeenCalledWith({
-      where: { id: 'update', status: 'PENDING' }, data: { nextCheckAt: expect.any(Date) },
+      where: { id: 'update', status: 'PENDING' },
+      data: { nextCheckAt: expect.any(Date) },
     });
   });
 
@@ -93,7 +108,8 @@ describe('PrismaPaymentMethodUpdateRepository', () => {
     expect(await f.repository.due()).toEqual([]);
     expect(f.findMany).toHaveBeenCalledWith({
       where: { status: 'PENDING', nextCheckAt: { lte: expect.any(Date) } },
-      orderBy: [{ nextCheckAt: 'asc' }, { id: 'asc' }], take: 5,
+      orderBy: [{ nextCheckAt: 'asc' }, { id: 'asc' }],
+      take: 5,
     });
   });
 });

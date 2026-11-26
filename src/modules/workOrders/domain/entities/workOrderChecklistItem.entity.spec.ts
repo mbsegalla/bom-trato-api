@@ -9,7 +9,7 @@ const input = {
   workOrderId: 'order',
   title: ' Verify ',
   position: 0,
-  createdById: 'owner'
+  createdById: 'owner',
 };
 const create = () => WorkOrderChecklistItem.create(input, now);
 
@@ -21,7 +21,7 @@ describe('WorkOrderChecklistItem', () => {
       title: 'Verify',
       visibleInPortal: false,
       completed: false,
-      version: 1
+      version: 1,
     });
 
     item.update(1, { completed: true }, 'worker', now);
@@ -31,7 +31,7 @@ describe('WorkOrderChecklistItem', () => {
       completedAt: now,
       completedById: 'worker',
       visibleInPortal: true,
-      version: 3
+      version: 3,
     });
 
     item.update(3, { title: 'New task' }, 'owner', now);
@@ -41,7 +41,7 @@ describe('WorkOrderChecklistItem', () => {
       completed: false,
       completedAt: null,
       completedById: null,
-      version: 4
+      version: 4,
     });
   });
 
@@ -49,11 +49,15 @@ describe('WorkOrderChecklistItem', () => {
     const item = create();
 
     expect(() => item.update(0, { completed: true }, 'worker', now)).toThrow('WORK_ORDER_CHECKLIST_VERSION_CONFLICT');
-    expect(() => item.update(1, { title: 'New', completed: true }, 'worker', now)).toThrow('INVALID_WORK_ORDER_CHECKLIST_INPUT');
+    expect(() => item.update(1, { title: 'New', completed: true }, 'worker', now)).toThrow(
+      'INVALID_WORK_ORDER_CHECKLIST_INPUT',
+    );
 
     const max = WorkOrderChecklistItem.restore({ ...item.snapshot(), version: 2147483647 });
 
-    expect(() => max.update(2147483647, { completed: true }, 'worker', now)).toThrow('WORK_ORDER_CHECKLIST_VERSION_CONFLICT');
+    expect(() => max.update(2147483647, { completed: true }, 'worker', now)).toThrow(
+      'WORK_ORDER_CHECKLIST_VERSION_CONFLICT',
+    );
     expect(item.snapshot().version).toBe(1);
   });
 

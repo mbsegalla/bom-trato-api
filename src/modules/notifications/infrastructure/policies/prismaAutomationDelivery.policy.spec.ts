@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldSkipAutomation } from './prismaAutomationDelivery.policy.js';
 import { automationFixture, future, job, now, past, trial } from './support/automationPolicy.fixture.js';
+import { shouldSkipAutomation } from './prismaAutomationDelivery.policy.js';
 
 describe('automation delivery eligibility', () => {
   it('bypasses ordinary notifications but rejects missing or inaccessible organizations', async () => {
@@ -21,12 +21,19 @@ describe('automation delivery eligibility', () => {
     const { db, tx } = automationFixture();
 
     expect(await shouldSkipAutomation(tx, job(), now)).toBe(false);
-    expect(db.quoteShare.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        id: 'context', quoteId: 'entity', organizationId: trial.organizationId,
-        revokedAt: null, decision: null, changeRequestedAt: null, expiresAt: { gt: now },
-      },
-    }));
+    expect(db.quoteShare.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'context',
+          quoteId: 'entity',
+          organizationId: trial.organizationId,
+          revokedAt: null,
+          decision: null,
+          changeRequestedAt: null,
+          expiresAt: { gt: now },
+        },
+      }),
+    );
 
     for (const quote of [
       { version: 3, status: 'SENT', validUntil: future },
@@ -45,9 +52,11 @@ describe('automation delivery eligibility', () => {
     const reminder = job({ automationType: 'WORK_ORDER_REMINDER' });
 
     expect(await shouldSkipAutomation(tx, reminder, now)).toBe(false);
-    expect(db.workOrder.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'entity', organizationId: trial.organizationId },
-    }));
+    expect(db.workOrder.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'entity', organizationId: trial.organizationId },
+      }),
+    );
 
     for (const order of [
       { status: 'IN_PROGRESS', scheduledStartAt: future },
@@ -66,12 +75,18 @@ describe('automation delivery eligibility', () => {
     const review = job({ automationType: 'REVIEW_REQUEST' });
 
     expect(await shouldSkipAutomation(tx, review, now)).toBe(false);
-    expect(db.professionalReviewInvitation.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        id: 'context', workOrderId: 'entity', revokedAt: null, usedAt: null,
-        expiresAt: { gt: now }, workOrder: { organizationId: trial.organizationId },
-      },
-    }));
+    expect(db.professionalReviewInvitation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 'context',
+          workOrderId: 'entity',
+          revokedAt: null,
+          usedAt: null,
+          expiresAt: { gt: now },
+          workOrder: { organizationId: trial.organizationId },
+        },
+      }),
+    );
 
     db.professionalReviewInvitation.findFirst.mockResolvedValueOnce({
       workOrder: { status: 'COMPLETED', professionalReview: { id: 'review' } },
@@ -97,6 +112,8 @@ describe('automation delivery eligibility', () => {
 
     expect(await shouldSkipAutomation(tx, overdue, now)).toBe(true);
     expect(await shouldSkipAutomation(tx, dueSoon, future)).toBe(true);
-    expect(await shouldSkipAutomation(tx, job({ automationType: 'RECEIVABLE_DUE_SOON', automationReferenceAt: null }), now)).toBe(true);
+    expect(
+      await shouldSkipAutomation(tx, job({ automationType: 'RECEIVABLE_DUE_SOON', automationReferenceAt: null }), now),
+    ).toBe(true);
   });
 });

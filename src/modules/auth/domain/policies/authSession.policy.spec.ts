@@ -4,7 +4,9 @@ import { AuthSessionPolicy } from './authSession.policy.js';
 
 describe('AuthSessionPolicy', () => {
   it.each([0, 1, 9])('retains all %i existing sessions below the limit', (count) => {
-    expect(AuthSessionPolicy.sessionsToRevoke(Array.from({ length: count }, (_, i) => ({ id: String(i) })))).toEqual([]);
+    expect(AuthSessionPolicy.sessionsToRevoke(Array.from({ length: count }, (_, i) => ({ id: String(i) })))).toEqual(
+      [],
+    );
   });
 
   it('revokes only the oldest excess sessions to make room for a new login', () => {

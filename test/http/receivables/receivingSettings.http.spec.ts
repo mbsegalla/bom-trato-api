@@ -2,9 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ManageReceivingSettingsUseCase } from '../../../src/modules/receivables/application/useCases/manageReceivingSettings.useCase.js';
-import { ReceivingSettingsController } from '../../../src/modules/receivables/presentation/http/controllers/receivingSettings.controller.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { ReceivingSettingsController } from '../../../src/modules/receivables/presentation/http/controllers/receivingSettings.controller.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receiving-settings';
 const actor = { organizationId, userId };
@@ -23,10 +23,10 @@ describe('receivingSettings HTTP contracts', () => {
   const save = vi.fn();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([ReceivingSettingsController], [
-      { provide: ManageReceivingSettingsUseCase, useValue: { read: read, save: save } },
-
-    ]);
+    fixture = await createHttpFixture(
+      [ReceivingSettingsController],
+      [{ provide: ManageReceivingSettingsUseCase, useValue: { read, save } }],
+    );
   });
 
   beforeEach(() => {

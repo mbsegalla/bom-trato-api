@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { SubscriptionProps } from '../../../billing/domain/entities/subscription.entity.js';
+
 import { readOrganizationAccess } from './prismaOrganizationAccess.js';
 import { readOrganizationPlatformAccess } from './prismaOrganizationPlatformAccess.js';
 import { PrismaOrganizationPlatformAccessReader } from './prismaOrganizationPlatformAccessReader.js';
@@ -10,12 +11,28 @@ import { PrismaOrganizationPlatformAccessReader } from './prismaOrganizationPlat
 const now = new Date('2026-01-01T00:00:00Z');
 const future = new Date(now.getTime() + 86400000);
 const params = { organizationId: 'org', userId: 'owner' };
-const trial = { id: 'trial', organizationId: 'org', ownerId: 'owner', startsAt: now, expiresAt: future, convertedAt: null, revokedAt: null };
+const trial = {
+  id: 'trial',
+  organizationId: 'org',
+  ownerId: 'owner',
+  startsAt: now,
+  expiresAt: future,
+  convertedAt: null,
+  revokedAt: null,
+};
 const subscription: SubscriptionProps = {
-  id: 'subscription', organizationId: 'org', planPriceId: 'price',
-  stripeSubscriptionId: 'sub_fixture', status: 'ACTIVE', currentPeriodStart: now,
-  currentPeriodEnd: future, paidThrough: future, cancelAtPeriodEnd: false,
-  canceledAt: null, endedAt: null, stripeCreatedAt: now,
+  id: 'subscription',
+  organizationId: 'org',
+  planPriceId: 'price',
+  stripeSubscriptionId: 'sub_fixture',
+  status: 'ACTIVE',
+  currentPeriodStart: now,
+  currentPeriodEnd: future,
+  paidThrough: future,
+  cancelAtPeriodEnd: false,
+  canceledAt: null,
+  endedAt: null,
+  stripeCreatedAt: now,
 };
 
 function fixture() {
@@ -43,7 +60,9 @@ describe('organization platform access persistence', () => {
     f.organization.mockResolvedValue(null);
     expect(await readOrganizationPlatformAccess(f.db, 'org', now)).toEqual({
       access: { hasAccess: false, source: 'NONE', billingNeedsReconciliation: false },
-      currentSubscription: null, trial: null, hasPaidSubscriptionHistory: false,
+      currentSubscription: null,
+      trial: null,
+      hasPaidSubscriptionHistory: false,
     });
     expect(f.paidSubscription).not.toHaveBeenCalled();
     expect(f.paidInvoice).not.toHaveBeenCalled();
@@ -62,7 +81,8 @@ describe('organization platform access persistence', () => {
         trial: true,
         subscriptions: {
           where: { status: { notIn: ['CANCELED', 'INCOMPLETE_EXPIRED'] } },
-          orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }], take: 2,
+          orderBy: [{ stripeCreatedAt: 'desc' }, { id: 'desc' }],
+          take: 2,
         },
       },
     });
@@ -71,14 +91,19 @@ describe('organization platform access persistence', () => {
   it('grants trial access only without paid history', async () => {
     const f = fixture();
     expect(await readOrganizationPlatformAccess(f.db, 'org', now)).toMatchObject({
-      access: { hasAccess: true, source: 'TRIAL' }, hasPaidSubscriptionHistory: false,
+      access: { hasAccess: true, source: 'TRIAL' },
+      hasPaidSubscriptionHistory: false,
     });
-    expect(f.paidSubscription).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId: 'org', paidThrough: { not: null } },
-    }));
-    expect(f.paidInvoice).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId: 'org', OR: [{ paidAt: { not: null } }, { status: 'paid' }] },
-    }));
+    expect(f.paidSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: 'org', paidThrough: { not: null } },
+      }),
+    );
+    expect(f.paidInvoice).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId: 'org', OR: [{ paidAt: { not: null } }, { status: 'paid' }] },
+      }),
+    );
   });
 
   it.each(['subscription', 'invoice'])('prevents trial reactivation when %s has paid history', async (source) => {
@@ -86,7 +111,8 @@ describe('organization platform access persistence', () => {
     (source === 'subscription' ? f.paidSubscription : f.paidInvoice).mockResolvedValue({ id: 'paid' });
 
     expect(await readOrganizationPlatformAccess(f.db, 'org', now)).toMatchObject({
-      access: { hasAccess: false, source: 'NONE' }, hasPaidSubscriptionHistory: true,
+      access: { hasAccess: false, source: 'NONE' },
+      hasPaidSubscriptionHistory: true,
     });
   });
 
@@ -102,7 +128,11 @@ describe('organization platform access persistence', () => {
     const f = fixture();
     f.member.mockResolvedValue(null);
     expect(await readOrganizationAccess(f.db, params)).toEqual({
-      isMember: false, verified: false, hasPlatformAccess: false, source: 'NONE', billingNeedsReconciliation: false,
+      isMember: false,
+      verified: false,
+      hasPlatformAccess: false,
+      source: 'NONE',
+      billingNeedsReconciliation: false,
     });
     expect(f.organization).not.toHaveBeenCalled();
   });
@@ -117,17 +147,24 @@ describe('organization platform access persistence', () => {
     f.organization.mockResolvedValue({ subscriptions: [], trial: null });
 
     expect(await readOrganizationAccess(f.db, params)).toMatchObject({
-      isMember: true, verified, hasPlatformAccess: false,
+      isMember: true,
+      verified,
+      hasPlatformAccess: false,
     });
-    expect(f.member).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId_userId: { organizationId: 'org', userId: 'owner' } },
-    }));
+    expect(f.member).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId_userId: { organizationId: 'org', userId: 'owner' } },
+      }),
+    );
   });
 
   it('reads access through a repeatable read transaction', async () => {
     const f = fixture();
     f.member.mockResolvedValue(null);
     expect(await f.reader.read(params)).toMatchObject({ isMember: false });
-    expect(f.transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'RepeatableRead' }));
+    expect(f.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ isolationLevel: 'RepeatableRead' }),
+    );
   });
 });

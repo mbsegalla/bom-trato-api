@@ -2,6 +2,7 @@ import type { ConfigType } from '@nestjs/config';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { databaseConfig } from '../../../../config/database.config.js';
+
 import { IN_APP_NOTIFICATION_CHANNEL } from './notificationRealtime.constants.js';
 import { NotificationRealtimeService } from './notificationRealtime.service.js';
 
@@ -82,10 +83,7 @@ describe('NotificationRealtimeService', () => {
     try {
       await vi.advanceTimersByTimeAsync(25000);
 
-      expect(events.mock.calls.map(([event]) => event)).toEqual([
-        { comment: 'connected' },
-        { comment: 'keep-alive' },
-      ]);
+      expect(events.mock.calls.map(([event]) => event)).toEqual([{ comment: 'connected' }, { comment: 'keep-alive' }]);
 
       subscription.unsubscribe();
       await vi.advanceTimersByTimeAsync(25000);

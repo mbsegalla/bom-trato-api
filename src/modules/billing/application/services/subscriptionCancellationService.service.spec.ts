@@ -7,6 +7,7 @@ import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import { CancelSubscriptionUseCase } from '../useCases/cancelSubscription.useCase.js';
 import { ResumeSubscriptionUseCase } from '../useCases/resumeSubscription.useCase.js';
+
 import { SubscriptionCancellationService } from './subscriptionCancellationService.service.js';
 
 const params = { organizationId: 'org', userId: 'owner' };
@@ -36,7 +37,7 @@ function fixture() {
       billingEmail: 'owner@example.invalid',
       billingName: 'Fixture',
       creationRequestedAt: null,
-      invoiceHistorySyncedAt: null
+      invoiceHistorySyncedAt: null,
     }),
     currentSubscription: vi.fn<BillingRepository['currentSubscription']>().mockResolvedValue(state),
     saveSnapshot: vi.fn<BillingRepository['saveSnapshot']>().mockResolvedValue(undefined),
@@ -51,7 +52,7 @@ function fixture() {
     repository as unknown as BillingRepository,
     gateway as unknown as BillingGateway,
     { run } as unknown as BillingLock,
-    { active } as unknown as PlanChangeRepository
+    { active } as unknown as PlanChangeRepository,
   );
 
   return {
@@ -59,7 +60,7 @@ function fixture() {
     gateway,
     active,
     run,
-    service
+    service,
   };
 }
 
@@ -72,7 +73,9 @@ describe('subscription cancellation and resumption', () => {
     await expect(useCase.execute(params)).rejects.toThrow('OWNER_REQUIRED');
     expect(f.run).not.toHaveBeenCalled();
 
-    f.active.mockResolvedValueOnce({ id: 'pending' } as NonNullable<Awaited<ReturnType<PlanChangeRepository['active']>>>);
+    f.active.mockResolvedValueOnce({ id: 'pending' } as NonNullable<
+      Awaited<ReturnType<PlanChangeRepository['active']>>
+    >);
 
     await expect(useCase.execute(params)).rejects.toThrow('PLAN_CHANGE_CONFLICT');
     expect(f.gateway.snapshot).not.toHaveBeenCalled();
@@ -87,8 +90,12 @@ describe('subscription cancellation and resumption', () => {
     expect(f.run).toHaveBeenCalledWith('organization:org', expect.any(Function));
     expect(f.gateway.setCancellation).toHaveBeenCalledWith('sub_fixture', true);
     expect(f.repository.saveSnapshot).toHaveBeenCalledTimes(2);
-    expect(f.repository.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(f.gateway.setCancellation.mock.invocationCallOrder[0]!);
-    expect(f.gateway.setCancellation.mock.invocationCallOrder[0]).toBeLessThan(f.repository.saveSnapshot.mock.invocationCallOrder[1]!);
+    expect(f.repository.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
+      f.gateway.setCancellation.mock.invocationCallOrder[0]!,
+    );
+    expect(f.gateway.setCancellation.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.saveSnapshot.mock.invocationCallOrder[1]!,
+    );
   });
 
   it('does not repeat an already requested cancellation and resumes the original subscription', async () => {
@@ -107,7 +114,9 @@ describe('subscription cancellation and resumption', () => {
 
   it('does not attempt cancellation for a missing or terminal subscription', async () => {
     const f = fixture();
-    f.repository.currentSubscription.mockResolvedValueOnce(null).mockResolvedValueOnce({ ...state, status: 'CANCELED' });
+    f.repository.currentSubscription
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...state, status: 'CANCELED' });
     const useCase = new CancelSubscriptionUseCase(f.service);
 
     await expect(useCase.execute(params)).rejects.toThrow('SUBSCRIPTION_NOT_FOUND');

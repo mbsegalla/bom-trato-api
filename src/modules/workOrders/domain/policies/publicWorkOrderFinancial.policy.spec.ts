@@ -11,15 +11,15 @@ const input = {
       currency: 'brl',
       amountInCents: 5001,
       receivedInCents: 3000,
-      status: 'PARTIALLY_PAID' as const
+      status: 'PARTIALLY_PAID' as const,
     },
     {
       currency: 'brl',
       amountInCents: 9999,
       receivedInCents: 0,
-      status: 'CANCELED' as const
+      status: 'CANCELED' as const,
     },
-  ]
+  ],
 };
 
 describe('PublicWorkOrderFinancialPolicy', () => {
@@ -29,7 +29,9 @@ describe('PublicWorkOrderFinancialPolicy', () => {
       remainingContractInCents: 7001,
       outstandingReceivablesInCents: 2001,
     });
-    expect(PublicWorkOrderFinancialPolicy.resolve({ ...input, status: 'CANCELED' })).toMatchObject({ remainingContractInCents: null });
+    expect(PublicWorkOrderFinancialPolicy.resolve({ ...input, status: 'CANCELED' })).toMatchObject({
+      remainingContractInCents: null,
+    });
   });
 
   it('fails closed on mismatched currency, over-allocation, overpayment and invalid cents', () => {
@@ -39,7 +41,7 @@ describe('PublicWorkOrderFinancialPolicy', () => {
       { amountInCents: 10002 },
       { receivedInCents: 5002 },
       { amountInCents: 1.5 },
-      { receivedInCents: -1 }
+      { receivedInCents: -1 },
     ]) {
       expect(PublicWorkOrderFinancialPolicy.resolve({ ...input, receivables: [{ ...first, ...patch }] })).toBeNull();
     }

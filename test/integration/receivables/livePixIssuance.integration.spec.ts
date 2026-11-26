@@ -6,19 +6,10 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
   const context = createPaymentFixture();
 
   it('reserves exactly once and atomically binds a live Pix without recording a ledger payment', async () => {
-    const {
-      prisma,
-      useCase,
-      fixtureQr,
-      liveFixture,
-      ledger
-    } = context;
+    const { prisma, useCase, fixtureQr, liveFixture, ledger } = context;
 
     const f = await liveFixture();
-    const results = await Promise.all([
-      f.repository.issue(f.actor, f.input),
-      f.repository.issue(f.actor, f.input),
-    ]);
+    const results = await Promise.all([f.repository.issue(f.actor, f.input), f.repository.issue(f.actor, f.input)]);
 
     expect(f.create).toHaveBeenCalledTimes(1);
     expect(results[0].issuanceId).toBe(results[1].issuanceId);
@@ -72,19 +63,15 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
 
     const outdated = await liveFixture();
 
-    await expect(outdated.repository.issue(outdated.actor, { ...outdated.input, version: 2 }))
-      .rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
+    await expect(outdated.repository.issue(outdated.actor, { ...outdated.input, version: 2 })).rejects.toThrow(
+      'MERCADO_PAGO_PIX_CONFLICT',
+    );
     expect(outdated.create).not.toHaveBeenCalled();
     expect(await prisma.mercadoPagoLivePix.count({ where: { receivableId: outdated.receivable.id } })).toBe(0);
   });
 
   it('enforces the pilot organization, seller and amount limit before provider creation', async () => {
-    const {
-      prisma,
-      fixture,
-      liveFixture,
-      liveReview
-    } = context;
+    const { prisma, fixture, liveFixture, liveReview } = context;
 
     const f = await liveFixture();
     const other = await liveFixture();
@@ -111,12 +98,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
   });
 
   it('permits only one unresolved reservation per pilot organization', async () => {
-    const {
-      prisma,
-      fixture,
-      liveFixture,
-      liveReview
-    } = context;
+    const { prisma, fixture, liveFixture, liveReview } = context;
 
     const f = await liveFixture();
     const now = new Date();
@@ -137,7 +119,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
         ...totals,
         status: 'APPROVED',
         sentAt: now,
-        decidedAt: now
+        decidedAt: now,
       },
     });
     const order = await prisma.workOrder.create({ data: { ...snapshot, ...totals, quoteId: quote.id } });
@@ -146,7 +128,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
         ...snapshot,
         workOrderId: order.id,
         amountInCents: 10_000,
-        dueAt: now
+        dueAt: now,
       },
     });
     const actor = { ...f.actor, receivableId: second.id };
@@ -154,20 +136,17 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
     await f.repository.issue(f.actor, f.input);
 
     expect(await liveReview(f).read(actor)).toMatchObject({ canIssue: false, issuanceId: null });
-    await expect(f.repository.issue(actor, {
-      ...f.input,
-      version: second.version
-    })).rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
+    await expect(
+      f.repository.issue(actor, {
+        ...f.input,
+        version: second.version,
+      }),
+    ).rejects.toThrow('MERCADO_PAGO_PIX_CONFLICT');
     expect(f.create).toHaveBeenCalledTimes(1);
   });
 
   it('preserves uncertain live creation and never sends a second POST', async () => {
-    const {
-      prisma,
-      fixture,
-      liveFixture,
-      ledger
-    } = context;
+    const { prisma, fixture, liveFixture, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));
@@ -191,13 +170,7 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
   });
 
   it('retains verified identity but hides the QR when the receivable changed during provider I/O', async () => {
-    const {
-      prisma,
-      useCase,
-      fixtureQr,
-      liveFixture,
-      ledger
-    } = context;
+    const { prisma, useCase, fixtureQr, liveFixture, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockImplementationOnce(async (input) => {
@@ -232,12 +205,14 @@ paymentIntegrationSuite('livePixIssuance (disposable PostgreSQL)', () => {
       copyAndPasteCiphertext: null,
       expiresAt: null,
     });
-    expect(await useCase.execute({
-      ...f.payment,
-      provider: 'mercado-pago',
-      externalAccountId: f.accountId,
-      externalPaymentId: f.paymentId,
-    })).toBe('REVIEW_REQUIRED');
+    expect(
+      await useCase.execute({
+        ...f.payment,
+        provider: 'mercado-pago',
+        externalAccountId: f.accountId,
+        externalPaymentId: f.paymentId,
+      }),
+    ).toBe('REVIEW_REQUIRED');
     expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
   });
 

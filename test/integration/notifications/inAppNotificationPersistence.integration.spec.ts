@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+
 import { expect, it } from 'vitest';
 
 import { PrismaInAppNotificationRepository } from '../../../src/modules/notifications/infrastructure/repositories/prismaInAppNotification.repository.js';
@@ -38,7 +39,9 @@ databaseSuite('in-app notification persistence (disposable PostgreSQL)', () => {
 
     expect(page.items).toHaveLength(1);
     expect(page.unreadCount).toBe(2);
-    expect(await db.prisma.inAppNotification.count({ where: { organizationId: actor.organizationId, key: first.key } })).toBe(1);
+    expect(
+      await db.prisma.inAppNotification.count({ where: { organizationId: actor.organizationId, key: first.key } }),
+    ).toBe(1);
   });
 
   it('isolates reads and acknowledgements by both user and organization', async () => {

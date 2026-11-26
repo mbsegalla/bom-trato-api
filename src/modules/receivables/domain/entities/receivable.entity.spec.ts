@@ -19,7 +19,7 @@ const input = {
     title: 'Servico',
     currency: 'brl',
     totalInCents: 10000,
-    status: 'COMPLETED' as const
+    status: 'COMPLETED' as const,
   },
 };
 const payment = (amountInCents: number, id = 'payment', receivableId = 'receivable') =>
@@ -31,9 +31,9 @@ const payment = (amountInCents: number, id = 'payment', receivableId = 'receivab
       amountInCents,
       method: 'PIX',
       receivedAt: now,
-      recordedById: 'owner'
+      recordedById: 'owner',
     },
-    now
+    now,
   );
 
 describe('Receivable', () => {
@@ -57,7 +57,9 @@ describe('Receivable', () => {
     receivable.reversePayment(second, 'owner', 'Refund requested', now);
 
     expect(receivable.view(now)).toMatchObject({ status: 'PARTIALLY_PAID', balanceInCents: 6999 });
-    expect(() => receivable.reversePayment(second, 'owner', 'Duplicate refund', now)).toThrow('PAYMENT_ALREADY_REVERSED');
+    expect(() => receivable.reversePayment(second, 'owner', 'Duplicate refund', now)).toThrow(
+      'PAYMENT_ALREADY_REVERSED',
+    );
 
     receivable.reversePayment(first, 'owner', 'Refund requested', now);
 
@@ -87,7 +89,7 @@ describe('Receivable', () => {
     expect(receivable.view(new Date(now.getTime() + 1000))).toMatchObject({
       status: 'CANCELED',
       balanceInCents: 0,
-      overdue: false
+      overdue: false,
     });
     expect(() => receivable.receive(payment(100))).toThrow('RECEIVABLE_NOT_EDITABLE');
   });

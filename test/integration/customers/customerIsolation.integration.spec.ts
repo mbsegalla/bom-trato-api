@@ -18,11 +18,17 @@ const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
 const suite = url === undefined ? describe.skip : describe;
 
 function disposableUrl(): string {
-  if (!url) throw new Error('Missing disposable integration database URL');
+  if (!url) {
+    throw new Error('Missing disposable integration database URL');
+  }
   const parsed = new URL(url);
-  if (parsed.protocol !== 'postgresql:' || !['localhost', '127.0.0.1'].includes(parsed.hostname) ||
-      parsed.pathname !== '/bom_trato_ci' || parsed.username !== 'bom_trato_ci' ||
-      parsed.searchParams.get('schema') !== 'public') {
+  if (
+    parsed.protocol !== 'postgresql:' ||
+    !['localhost', '127.0.0.1'].includes(parsed.hostname) ||
+    parsed.pathname !== '/bom_trato_ci' ||
+    parsed.username !== 'bom_trato_ci' ||
+    parsed.searchParams.get('schema') !== 'public'
+  ) {
     throw new Error('Customer tests require disposable local bom_trato_ci database');
   }
   return url;
@@ -42,7 +48,9 @@ suite('customer persistence and tenant isolation (disposable PostgreSQL)', () =>
   });
 
   afterEach(async () => {
-    if (!prisma) return;
+    if (!prisma) {
+      return;
+    }
     for (const organizationId of organizations.splice(0)) {
       await prisma.customer.deleteMany({ where: { organizationId } });
       await prisma.organizationTrial.deleteMany({ where: { organizationId } });
@@ -59,34 +67,40 @@ suite('customer persistence and tenant isolation (disposable PostgreSQL)', () =>
   async function organization() {
     const now = new Date();
 
-    const owner = await prisma.user.create({ data: {
-      name: 'Fixture owner',
-      email: randomUUID() + '@example.invalid',
-      emailVerifiedAt: now,
-    } });
+    const owner = await prisma.user.create({
+      data: {
+        name: 'Fixture owner',
+        email: randomUUID() + '@example.invalid',
+        emailVerifiedAt: now,
+      },
+    });
     users.push(owner.id);
 
-    const org = await prisma.organization.create({ data: {
-      name: 'Fixture organization',
-      ownerId: owner.id,
-      setupCompletedAt: now
-    } });
+    const org = await prisma.organization.create({
+      data: {
+        name: 'Fixture organization',
+        ownerId: owner.id,
+        setupCompletedAt: now,
+      },
+    });
     organizations.push(org.id);
 
     await prisma.organizationMember.create({ data: { organizationId: org.id, userId: owner.id, role: 'OWNER' } });
-    await prisma.organizationTrial.create({ data: {
-      organizationId: org.id,
-      ownerId: owner.id,
-      startsAt: new Date(now.getTime() - 60000),
-      expiresAt: new Date(now.getTime() + 86400000),
-    } });
+    await prisma.organizationTrial.create({
+      data: {
+        organizationId: org.id,
+        ownerId: owner.id,
+        startsAt: new Date(now.getTime() - 60000),
+        expiresAt: new Date(now.getTime() + 86400000),
+      },
+    });
 
     return { organizationId: org.id, userId: owner.id };
   }
   const data = {
     name: 'Fixture customer',
     email: 'fixture@example.invalid',
-    phone: '34999991234'
+    phone: '34999991234',
   };
 
   it('allows the same normalized email in different organizations but never cross-tenant reads or edits', async () => {
@@ -103,7 +117,9 @@ suite('customer persistence and tenant isolation (disposable PostgreSQL)', () =>
     const update = new UpdateCustomerUseCase(service);
 
     await expect(get.execute({ ...second, customerId: a.id })).rejects.toThrow('CUSTOMER_NOT_FOUND');
-    await expect(update.execute({ ...second, customerId: a.id }, { name: 'Other customer' })).rejects.toThrow('CUSTOMER_NOT_FOUND');
+    await expect(update.execute({ ...second, customerId: a.id }, { name: 'Other customer' })).rejects.toThrow(
+      'CUSTOMER_NOT_FOUND',
+    );
     await expect(get.execute({ ...first, userId: second.userId, customerId: a.id })).rejects.toThrow('MEMBER_REQUIRED');
 
     const page = await new ListCustomersUseCase(service).execute(second, { page: 1, limit: 10, status: 'ACTIVE' });
@@ -136,22 +152,28 @@ suite('customer persistence and tenant isolation (disposable PostgreSQL)', () =>
 
     await new ArchiveCustomerUseCase(service).execute(params);
 
-    await expect(new UpdateCustomerUseCase(service).execute(params, { name: 'Updated customer' })).rejects.toThrow('CUSTOMER_ARCHIVED');
+    await expect(new UpdateCustomerUseCase(service).execute(params, { name: 'Updated customer' })).rejects.toThrow(
+      'CUSTOMER_ARCHIVED',
+    );
 
     const list = new ListCustomersUseCase(service);
 
     expect((await list.execute(actor, { page: 1, limit: 10, status: 'ACTIVE' })).items).toHaveLength(0);
-    expect((await list.execute(actor, {
-      page: 1,
-      limit: 10,
-      status: 'ARCHIVED'
-    })).items.map((item) => item.id)).toEqual([item.id]);
+    expect(
+      (
+        await list.execute(actor, {
+          page: 1,
+          limit: 10,
+          status: 'ARCHIVED',
+        })
+      ).items.map((item) => item.id),
+    ).toEqual([item.id]);
 
     await new RestoreCustomerUseCase(service).execute(params);
 
     expect(await new UpdateCustomerUseCase(service).execute(params, { name: 'Updated customer' })).toMatchObject({
       name: 'Updated customer',
-      archivedAt: null
+      archivedAt: null,
     });
   });
 });

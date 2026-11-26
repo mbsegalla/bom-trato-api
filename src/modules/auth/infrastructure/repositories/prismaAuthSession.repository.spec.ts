@@ -26,15 +26,19 @@ describe('PrismaAuthRepository session persistence', () => {
 
     await repository.startFederatedSession({ session, refreshHash });
 
-    expect(db.authSession.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { userId: user.id, revokedAt: null, idleExpiresAt: { gt: now }, absoluteExpiresAt: { gt: now } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    }));
+    expect(db.authSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: user.id, revokedAt: null, idleExpiresAt: { gt: now }, absoluteExpiresAt: { gt: now } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      }),
+    );
     expect(db.authSession.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['old-0', 'old-1'] } },
       data: { revokedAt: now, revocationReason: 'SESSION_LIMIT' },
     });
-    expect(db.authSession.updateMany.mock.invocationCallOrder[0]).toBeLessThan(db.authSession.create.mock.invocationCallOrder[0]!);
+    expect(db.authSession.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      db.authSession.create.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('rejects disabled or unverified federated accounts', async () => {
@@ -68,8 +72,9 @@ describe('PrismaAuthRepository session persistence', () => {
       .mockResolvedValueOnce({ sessionId: session.id })
       .mockResolvedValueOnce({ id: 'refresh', sessionId: session.id, expiresAt: session.idleExpiresAt, usedAt: null });
 
-    expect(await repository.rotate({ tokenHash: refreshHash, nextHash: 'next-hash', now: refreshedAt, idleSeconds: 7200 }))
-      .toEqual({ identity, expiresAt: session.absoluteExpiresAt });
+    expect(
+      await repository.rotate({ tokenHash: refreshHash, nextHash: 'next-hash', now: refreshedAt, idleSeconds: 7200 }),
+    ).toEqual({ identity, expiresAt: session.absoluteExpiresAt });
     expect(db.refreshToken.update).toHaveBeenCalledWith({ where: { id: 'refresh' }, data: { usedAt: refreshedAt } });
     expect(db.authSession.update).toHaveBeenCalledWith({
       where: { id: session.id },
@@ -86,9 +91,12 @@ describe('PrismaAuthRepository session persistence', () => {
       .mockResolvedValueOnce({ sessionId: session.id })
       .mockResolvedValueOnce({ id: 'refresh', sessionId: session.id, expiresAt: session.idleExpiresAt, usedAt: now });
 
-    await expect(repository.rotate({ tokenHash: refreshHash, nextHash: 'next', now, idleSeconds: 600 })).rejects.toThrow('TOKEN_REUSED');
+    await expect(
+      repository.rotate({ tokenHash: refreshHash, nextHash: 'next', now, idleSeconds: 600 }),
+    ).rejects.toThrow('TOKEN_REUSED');
     expect(db.authSession.update).toHaveBeenCalledWith({
-      where: { id: session.id }, data: { revokedAt: now, revocationReason: 'REFRESH_REUSE' },
+      where: { id: session.id },
+      data: { revokedAt: now, revocationReason: 'REFRESH_REUSE' },
     });
     expect(db.refreshToken.create).not.toHaveBeenCalled();
   });
@@ -103,12 +111,14 @@ describe('PrismaAuthRepository session persistence', () => {
     await repository.revoke({ identity, now, reason: 'SESSION_REVOKED' });
     expect(db.authSession.findFirst).toHaveBeenLastCalledWith({ where: { id: session.id, userId: user.id } });
     expect(db.authSession.update).toHaveBeenCalledWith({
-      where: { id: session.id }, data: { revokedAt: now, revocationReason: 'SESSION_REVOKED' },
+      where: { id: session.id },
+      data: { revokedAt: now, revocationReason: 'SESSION_REVOKED' },
     });
 
     await repository.revokeAll(user.id, now);
     expect(db.authSession.updateMany).toHaveBeenCalledWith({
-      where: { userId: user.id, revokedAt: null }, data: { revokedAt: now, revocationReason: 'LOGOUT_ALL' },
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: now, revocationReason: 'LOGOUT_ALL' },
     });
 
     await repository.listSessions(user.id, now);

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+
 import { PrismaCustomerRepository } from './prismaCustomer.repository.js';
 
 const row = {

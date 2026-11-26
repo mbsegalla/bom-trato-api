@@ -12,7 +12,7 @@ import { UpdateWorkOrderWarrantyUseCase } from '../../application/useCases/updat
 const params = {
   organizationId: 'organization',
   workOrderId: 'work-order',
-  userId: 'member'
+  userId: 'member',
 };
 
 function setup() {
@@ -73,7 +73,7 @@ function setup() {
     saveWarranty,
     generate,
     repository,
-    generator
+    generator,
   };
 }
 

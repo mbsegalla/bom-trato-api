@@ -30,8 +30,9 @@ describe('sandbox recovery admission and audit status', () => {
   it('requires a cooldown even for an empty or failed search', () => {
     const completedAt = new Date(createdAt.getTime() + 20_000);
 
-    expect(sandboxRecoveryNextAt(issuance, { ...attempt, status: 'NOT_FOUND', completedAt }))
-      .toEqual(new Date(completedAt.getTime() + 60_000));
+    expect(sandboxRecoveryNextAt(issuance, { ...attempt, status: 'NOT_FOUND', completedAt })).toEqual(
+      new Date(completedAt.getTime() + 60_000),
+    );
   });
 
   it('only recognizes verified provider evidence', () => {

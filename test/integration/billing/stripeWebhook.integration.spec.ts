@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
+
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { PrismaService } from '../../../src/infrastructure/database/prisma.service.js';
@@ -11,10 +12,17 @@ import { PrismaBillingWebhookRepository } from '../../../src/modules/billing/inf
 const url = process.env.PAYMENT_INTEGRATION_DATABASE_URL;
 const suite = url === undefined ? describe.skip : describe;
 function disposableUrl(): string {
-  if (!url) throw new Error('Missing disposable integration database URL');
+  if (!url) {
+    throw new Error('Missing disposable integration database URL');
+  }
   const parsed = new URL(url);
-  if (parsed.protocol !== 'postgresql:' || !['127.0.0.1', 'localhost'].includes(parsed.hostname) ||
-    parsed.pathname !== '/bom_trato_ci' || parsed.username !== 'bom_trato_ci' || parsed.searchParams.get('schema') !== 'public') {
+  if (
+    parsed.protocol !== 'postgresql:' ||
+    !['127.0.0.1', 'localhost'].includes(parsed.hostname) ||
+    parsed.pathname !== '/bom_trato_ci' ||
+    parsed.username !== 'bom_trato_ci' ||
+    parsed.searchParams.get('schema') !== 'public'
+  ) {
     throw new Error('Stripe inbox tests require the disposable local bom_trato_ci database');
   }
   return url;
@@ -33,7 +41,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
   });
 
   afterEach(async () => {
-    if (prisma) await prisma.stripeWebhookEvent.deleteMany({ where: { id: { in: ids.splice(0) } } });
+    if (prisma) {
+      await prisma.stripeWebhookEvent.deleteMany({ where: { id: { in: ids.splice(0) } } });
+    }
     notify.mockClear();
   });
 
@@ -48,7 +58,7 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
       id,
       type: 'invoice.paid',
       stripeCustomerId: 'cus_fixture',
-      stripeObjectId: 'in_fixture'
+      stripeObjectId: 'in_fixture',
     };
   }
 
@@ -62,7 +72,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
 
     const claims = await Promise.all([repository.claimEvent(randomUUID()), repository.claimEvent(randomUUID())]);
     const claimed = claims.find((claim) => claim !== null);
-    if (!claimed) throw new Error('Fixture claim missing');
+    if (!claimed) {
+      throw new Error('Fixture claim missing');
+    }
 
     expect(claimed.id).toBe(event.id);
     expect(claims.filter(Boolean)).toHaveLength(1);
@@ -81,7 +93,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
 
     await repository.enqueue(event);
     const first = await repository.claimEvent(randomUUID());
-    if (!first) throw new Error('Fixture claim missing');
+    if (!first) {
+      throw new Error('Fixture claim missing');
+    }
 
     expect(first.id).toBe(event.id);
 
@@ -89,11 +103,13 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
       where: { id: event.id },
       data: {
         receivedAt: new Date(Date.now() - 180000),
-        leaseExpiresAt: new Date(Date.now() - 1000)
-      }
+        leaseExpiresAt: new Date(Date.now() - 1000),
+      },
     });
     const second = await repository.claimEvent(randomUUID());
-    if (!second) throw new Error('Fixture reclaim missing');
+    if (!second) {
+      throw new Error('Fixture reclaim missing');
+    }
 
     expect(second.id).toBe(event.id);
     expect(await repository.renewEventLease(first)).toBe(false);
@@ -107,7 +123,7 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
       lastErrorCode: 'FIXTURE_RETRY',
       failedAt: null,
       processedAt: null,
-      leaseToken: null
+      leaseToken: null,
     });
     expect(row.nextAttemptAt.getTime()).toBeGreaterThan(Date.now());
   });
@@ -118,7 +134,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
     await repository.enqueue(event);
     await prisma.stripeWebhookEvent.update({ where: { id: event.id }, data: { attempts: 24 } });
     const job = await repository.claimEvent(randomUUID());
-    if (!job) throw new Error('Fixture claim missing');
+    if (!job) {
+      throw new Error('Fixture claim missing');
+    }
 
     expect(job.id).toBe(event.id);
     expect(await repository.settleEvent(job, 'RETRY', 'FIXTURE_EXHAUSTED')).toBe(true);
@@ -135,7 +153,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
 
     await repository.enqueue(event);
     const first = await repository.claimEvent(randomUUID());
-    if (!first) throw new Error('Fixture claim missing');
+    if (!first) {
+      throw new Error('Fixture claim missing');
+    }
 
     expect(first.id).toBe(event.id);
     expect(await repository.settleEvent(first, 'DEFER')).toBe(true);
@@ -151,7 +171,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
       data: { nextAttemptAt: new Date(Date.now() - 1000) },
     });
     const second = await repository.claimEvent(randomUUID());
-    if (!second) throw new Error('Fixture reclaim missing');
+    if (!second) {
+      throw new Error('Fixture reclaim missing');
+    }
 
     expect(second.id).toBe(event.id);
     expect(second.leaseToken).not.toBe(first.leaseToken);
@@ -164,7 +186,9 @@ suite('Stripe durable webhook inbox (disposable PostgreSQL)', () => {
 
     await repository.enqueue(event);
     const job = await repository.claimEvent(randomUUID());
-    if (!job) throw new Error('Fixture claim missing');
+    if (!job) {
+      throw new Error('Fixture claim missing');
+    }
 
     expect(job.id).toBe(event.id);
     await prisma.stripeWebhookEvent.update({

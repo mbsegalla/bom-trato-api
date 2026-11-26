@@ -7,16 +7,18 @@ const targets = {
   Application: 90,
   Infrastructure: 80,
   Presentation: 80,
-  Other: null
+  Other: null,
 };
-const totals = Object.fromEntries(Object.keys(targets).map((layer) => [
-  layer,
-  {
-    lines: { total: 0, covered: 0 },
-    branches: { total: 0, covered: 0 },
-    functions: { total: 0, covered: 0 }
-  },
-]));
+const totals = Object.fromEntries(
+  Object.keys(targets).map((layer) => [
+    layer,
+    {
+      lines: { total: 0, covered: 0 },
+      branches: { total: 0, covered: 0 },
+      functions: { total: 0, covered: 0 },
+    },
+  ]),
+);
 const missing = [];
 
 for (const [file, metrics] of Object.entries(summary)) {
@@ -31,20 +33,25 @@ for (const [file, metrics] of Object.entries(summary)) {
   if (metrics.lines.total > 0 && metrics.lines.covered === 0) missing.push(path);
 }
 function percent(value) {
-  return value.total === 0 ? 'n/a' : (100 * value.covered / value.total).toFixed(1) + '%';
+  return value.total === 0 ? 'n/a' : ((100 * value.covered) / value.total).toFixed(1) + '%';
 }
 const report = [
   '# API coverage by architectural layer',
   '',
   '| Layer | Lines | Branches | Functions | Line coverage goal (non-blocking) |',
   '|---|---:|---:|---:|---:|',
-  ...Object.entries(totals).map(([layer, metrics]) => '| ' + [
-    layer,
-    percent(metrics.lines),
-    percent(metrics.branches),
-    percent(metrics.functions),
-    targets[layer] === null ? '-' : targets[layer] + '%'
-  ].join(' | ') + ' |'),
+  ...Object.entries(totals).map(
+    ([layer, metrics]) =>
+      '| ' +
+      [
+        layer,
+        percent(metrics.lines),
+        percent(metrics.branches),
+        percent(metrics.functions),
+        targets[layer] === null ? '-' : targets[layer] + '%',
+      ].join(' | ') +
+      ' |',
+  ),
   '',
   '## Files with zero covered lines (' + missing.length + ')',
   '',
@@ -53,7 +60,11 @@ const report = [
 ].join('\n');
 writeFileSync('coverage/layers.md', report);
 console.log(report.split('## Files')[0]);
-if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(
-  process.env.GITHUB_STEP_SUMMARY,
-  report.split('## Files')[0] + '\nZero-coverage files: ' + missing.length + '. See coverage/layers.md for the list.\n'
-);
+if (process.env.GITHUB_STEP_SUMMARY)
+  appendFileSync(
+    process.env.GITHUB_STEP_SUMMARY,
+    report.split('## Files')[0] +
+      '\nZero-coverage files: ' +
+      missing.length +
+      '. See coverage/layers.md for the list.\n',
+  );

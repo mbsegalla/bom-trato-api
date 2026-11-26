@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
+
 import { PostgresBillingLock } from './postgresBillingLock.js';
 
 const key = 'organization:11111111-1111-4111-8111-111111111111';

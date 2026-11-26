@@ -53,7 +53,9 @@ databaseSuite('organization membership persistence (disposable PostgreSQL)', () 
 
     expect(page1).toMatchObject({ page: 1, hasMore: true });
     expect(page2).toMatchObject({ page: 2, hasMore: false });
-    expect([...page1.items, ...page2.items].map((item) => item.userId).sort()).toEqual([first.userId, member.id].sort());
+    expect([...page1.items, ...page2.items].map((item) => item.userId).sort()).toEqual(
+      [first.userId, member.id].sort(),
+    );
     expect(joined.items.map((item) => item.id)).toEqual([first.organizationId]);
     expect(joined.items[0]?.role).toBe('MEMBER');
     expect(joined.items.some((item) => item.id === other.organizationId)).toBe(false);
@@ -66,7 +68,12 @@ databaseSuite('organization membership persistence (disposable PostgreSQL)', () 
 
     const trial = await repository.findByOrganizationId(actor.organizationId);
 
-    expect(trial).toMatchObject({ organizationId: actor.organizationId, ownerId: actor.userId, convertedAt: null, revokedAt: null });
+    expect(trial).toMatchObject({
+      organizationId: actor.organizationId,
+      ownerId: actor.userId,
+      convertedAt: null,
+      revokedAt: null,
+    });
     expect(await repository.findByOwnerId(actor.userId)).toEqual(trial);
     expect(await repository.findByOwnerId(user.id)).toBeNull();
   });

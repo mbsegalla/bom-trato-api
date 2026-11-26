@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
+
 import { ListSessionsUseCase } from './listSessions.useCase.js';
 import { LogoutAllUseCase } from './logoutAll.useCase.js';
 import { RevokeSessionUseCase } from './revokeSession.useCase.js';
@@ -14,10 +15,10 @@ describe('session management use cases', () => {
     expect(revoke).toHaveBeenCalledWith({
       identity: {
         userId: 'user',
-        sessionId: 'session'
+        sessionId: 'session',
       },
       reason: 'SESSION_REVOKED',
-      now: expect.any(Date)
+      now: expect.any(Date),
     });
   });
 
@@ -35,13 +36,19 @@ describe('session management use cases', () => {
       createdAt: new Date(),
       lastRefreshedAt: new Date(),
       absoluteExpiresAt: new Date(),
-      userAgent: null
+      userAgent: null,
     };
     const listSessions = vi.fn<AuthRepository['listSessions']>().mockResolvedValue([row, { ...row, id: 'second' }]);
 
-    const result = await new ListSessionsUseCase({ listSessions } as unknown as AuthRepository).execute('user', 'second');
+    const result = await new ListSessionsUseCase({ listSessions } as unknown as AuthRepository).execute(
+      'user',
+      'second',
+    );
 
     expect(listSessions).toHaveBeenCalledWith('user', expect.any(Date));
-    expect(result).toEqual([{ ...row, current: false }, { ...row, id: 'second', current: true }]);
+    expect(result).toEqual([
+      { ...row, current: false },
+      { ...row, id: 'second', current: true },
+    ]);
   });
 });

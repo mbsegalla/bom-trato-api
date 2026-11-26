@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+
 import { PrismaOrganizationTrialRepository } from './prismaOrganizationTrial.repository.js';
 
 const state = {
@@ -22,7 +23,10 @@ describe('PrismaOrganizationTrialRepository', () => {
 
     expect(await repository.findByOrganizationId(state.organizationId)).toEqual(state);
     expect(await repository.findByOwnerId(state.ownerId)).toBeNull();
-    expect(findUnique).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { organizationId: state.organizationId } }));
+    expect(findUnique).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ where: { organizationId: state.organizationId } }),
+    );
     expect(findUnique).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { ownerId: state.ownerId } }));
   });
 

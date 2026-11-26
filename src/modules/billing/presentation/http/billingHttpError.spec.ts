@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { BillingError } from '../../domain/errors/billing.error.js';
+
 import { billingOperation } from './billingHttpError.js';
 
 describe('billingOperation', () => {

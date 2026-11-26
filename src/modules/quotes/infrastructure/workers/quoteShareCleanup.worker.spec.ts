@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { quoteShareConfig } from '../../../../config/quoteShare.config.js';
 import type { PrismaQuoteShareRateLimit } from '../rateLimits/prismaQuoteShareRateLimit.js';
+
 import { QuoteShareCleanupWorker } from './quoteShareCleanup.worker.js';
 
 function fixture(enabled = true) {
@@ -48,7 +49,11 @@ describe('QuoteShareCleanupWorker', () => {
   it('prevents overlap and waits for in-flight work on shutdown', async () => {
     const f = fixture();
     let finish!: (count: number) => void;
-    f.cleanup.mockReturnValueOnce(new Promise<number>((resolve) => { finish = resolve; }));
+    f.cleanup.mockReturnValueOnce(
+      new Promise<number>((resolve) => {
+        finish = resolve;
+      }),
+    );
 
     const running = f.worker.handleInitialCleanup();
     await f.worker.handleScheduledCleanup();

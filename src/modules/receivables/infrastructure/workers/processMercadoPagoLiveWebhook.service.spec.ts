@@ -5,6 +5,7 @@ import type { LiveWebhookPreparation } from '../../domain/types/mercadoPagoLiveW
 import type { ClaimedMercadoPagoWebhook } from '../../domain/types/mercadoPagoWebhook.types.js';
 import { MercadoPagoError } from '../providers/mercadoPago/mercadoPagoClient.js';
 import type { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
+
 import { ProcessMercadoPagoLiveWebhookService } from './processMercadoPagoLiveWebhook.service.js';
 
 const job: ClaimedMercadoPagoWebhook = {
@@ -103,13 +104,19 @@ describe('ProcessMercadoPagoLiveWebhookService', () => {
 
   it('distinguishes invalid provider identity from temporary network errors', async () => {
     const f = fixture();
-    f.readLivePix.mockRejectedValueOnce(new MercadoPagoError('ACCOUNT_MISMATCH'))
+    f.readLivePix
+      .mockRejectedValueOnce(new MercadoPagoError('ACCOUNT_MISMATCH'))
       .mockRejectedValueOnce(new MercadoPagoError('REQUEST_FAILED'));
 
     await f.service.execute(job);
     await f.service.execute(job);
 
-    expect(f.settle).toHaveBeenNthCalledWith(1, job, { kind: 'CHECKED', binding, stamp, observation: { status: 'INVALID_PROVIDER_PAYMENT' } });
+    expect(f.settle).toHaveBeenNthCalledWith(1, job, {
+      kind: 'CHECKED',
+      binding,
+      stamp,
+      observation: { status: 'INVALID_PROVIDER_PAYMENT' },
+    });
     expect(f.settle).toHaveBeenNthCalledWith(2, job, { kind: 'RETRY', code: 'PROVIDER_UNAVAILABLE' });
   });
 

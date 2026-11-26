@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
+
 import { ListBillingInvoicesUseCase } from './listBillingInvoices.useCase.js';
 
 const params = { organizationId: 'org', userId: 'owner', cursor: 'cursor', limit: 12 };

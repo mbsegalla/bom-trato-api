@@ -4,6 +4,7 @@ import type { AuthRepository } from '../../domain/repositories/auth.repository.j
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthTransaction, AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
 import type { GoogleIdentityProvider } from '../ports/googleIdentityProvider.port.js';
+
 import { LinkGoogleIdentityUseCase } from './linkGoogleIdentity.useCase.js';
 
 const profile = {
@@ -11,21 +12,24 @@ const profile = {
   name: 'Fixture',
   email: ' USER@example.invalid ',
   emailVerified: true,
-  hostedDomain: null
+  hostedDomain: null,
 };
 function fixture() {
   const linkIdentity = vi.fn<AuthRepository['linkIdentity']>().mockResolvedValue(undefined);
   const google = { verifyCredential: vi.fn<GoogleIdentityProvider['verifyCredential']>().mockResolvedValue(profile) };
   const run = vi.fn(async (operation: (tx: AuthTransaction) => Promise<unknown>) =>
-    operation({ auth: { linkIdentity } } as unknown as AuthTransaction));
+    operation({ auth: { linkIdentity } } as unknown as AuthTransaction),
+  );
 
   return {
     google,
     linkIdentity,
     run,
     useCase: new LinkGoogleIdentityUseCase(
-      { run } as unknown as AuthUnitOfWork, { newId: () => 'identity' } as unknown as AuthSecurity, google,
-    )
+      { run } as unknown as AuthUnitOfWork,
+      { newId: () => 'identity' } as unknown as AuthSecurity,
+      google,
+    ),
   };
 }
 
@@ -33,7 +37,7 @@ describe('LinkGoogleIdentityUseCase', () => {
   const input = {
     userId: 'owner',
     email: 'user@example.invalid',
-    credential: 'fixture'
+    credential: 'fixture',
   };
 
   it('links only the verified provider subject to the authenticated user', async () => {
@@ -45,7 +49,7 @@ describe('LinkGoogleIdentityUseCase', () => {
       id: 'identity',
       userId: 'owner',
       provider: 'GOOGLE',
-      providerAccountId: 'google-subject'
+      providerAccountId: 'google-subject',
     });
   });
 

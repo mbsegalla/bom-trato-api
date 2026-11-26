@@ -20,11 +20,7 @@ describe('receiving settings policy', () => {
     ['CNPJ', '12.ab3.456/0001-99', '12AB3456000199'],
     ['PHONE', '+55 (34) 99999-9999', '+5534999999999'],
     ['EMAIL', ' PIX@Example.com ', 'pix@example.com'],
-    [
-      'EVP',
-      '123E4567-E89B-12D3-A456-426655440000',
-      '123e4567-e89b-12d3-a456-426655440000'
-    ],
+    ['EVP', '123E4567-E89B-12D3-A456-426655440000', '123e4567-e89b-12d3-a456-426655440000'],
   ] as const)('normalizes %s', (type, raw, normalized) => {
     expect(normalizePixKey(type, raw)).toBe(normalized);
   });
@@ -71,7 +67,7 @@ describe('receiving settings policy', () => {
       pixKeyType: null,
       pixKey: null,
       merchantName: null,
-      merchantCity: null
+      merchantCity: null,
     };
 
     expect(ReceivingSettingsPolicy.configure({ ...disabled, confirmed: false, version: 1 }, 1)).toEqual(disabled);

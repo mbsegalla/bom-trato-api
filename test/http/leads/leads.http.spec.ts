@@ -1,16 +1,16 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ListLeadsUseCase } from '../../../src/modules/leads/application/useCases/listLeads.useCase.js';
-import { GetLeadUseCase } from '../../../src/modules/leads/application/useCases/getLead.useCase.js';
-import { MarkLeadContactedUseCase } from '../../../src/modules/leads/application/useCases/markLeadContacted.useCase.js';
-import { ConvertLeadUseCase } from '../../../src/modules/leads/application/useCases/convertLead.useCase.js';
 import { ArchiveLeadUseCase } from '../../../src/modules/leads/application/useCases/archiveLead.useCase.js';
+import { ConvertLeadUseCase } from '../../../src/modules/leads/application/useCases/convertLead.useCase.js';
 import { CreatePublicLeadUseCase } from '../../../src/modules/leads/application/useCases/createPublicLead.useCase.js';
+import { GetLeadUseCase } from '../../../src/modules/leads/application/useCases/getLead.useCase.js';
+import { ListLeadsUseCase } from '../../../src/modules/leads/application/useCases/listLeads.useCase.js';
+import { MarkLeadContactedUseCase } from '../../../src/modules/leads/application/useCases/markLeadContacted.useCase.js';
+import { LeadError } from '../../../src/modules/leads/domain/errors/lead.error.js';
 import { LeadsController } from '../../../src/modules/leads/presentation/http/controllers/leads.controller.js';
 import { PublicLeadsController } from '../../../src/modules/leads/presentation/http/controllers/publicLeads.controller.js';
-import { LeadError } from '../../../src/modules/leads/domain/errors/lead.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 describe('leads HTTP contracts', () => {
   let fixture: Awaited<ReturnType<typeof createHttpFixture>>;
@@ -24,14 +24,17 @@ describe('leads HTTP contracts', () => {
   const actor = { organizationId, userId };
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([LeadsController, PublicLeadsController], [
-      { provide: ListLeadsUseCase, useValue: { execute: list } },
-      { provide: GetLeadUseCase, useValue: { execute: get } },
-      { provide: MarkLeadContactedUseCase, useValue: { execute: contacted } },
-      { provide: ConvertLeadUseCase, useValue: { execute: convert } },
-      { provide: ArchiveLeadUseCase, useValue: { execute: archive } },
-      { provide: CreatePublicLeadUseCase, useValue: { execute: create } },
-    ]);
+    fixture = await createHttpFixture(
+      [LeadsController, PublicLeadsController],
+      [
+        { provide: ListLeadsUseCase, useValue: { execute: list } },
+        { provide: GetLeadUseCase, useValue: { execute: get } },
+        { provide: MarkLeadContactedUseCase, useValue: { execute: contacted } },
+        { provide: ConvertLeadUseCase, useValue: { execute: convert } },
+        { provide: ArchiveLeadUseCase, useValue: { execute: archive } },
+        { provide: CreatePublicLeadUseCase, useValue: { execute: create } },
+      ],
+    );
   });
 
   beforeEach(() => {
@@ -44,25 +47,37 @@ describe('leads HTTP contracts', () => {
     await fixture?.app.close();
   });
 
-
   const route = '/api/organizations/' + organizationId + '/leads';
   const publicRoute = '/api/public/professionals/Fixture-Professional/leads';
-  const lead = { requestKey: itemId, name: 'Fixture customer', email: 'customer@example.invalid', message: 'Fixture request for service' };
+  const lead = {
+    requestKey: itemId,
+    name: 'Fixture customer',
+    email: 'customer@example.invalid',
+    message: 'Fixture request for service',
+  };
 
   it('requires authentication for private reads and actions and scopes identity to the authenticated user', async () => {
     await request(fixture.server).get(route).expect(401);
-    await request(fixture.server).post(route + '/' + itemId + '/convert').expect(401);
+    await request(fixture.server)
+      .post(route + '/' + itemId + '/convert')
+      .expect(401);
     expect(list).not.toHaveBeenCalled();
     expect(convert).not.toHaveBeenCalled();
 
-    await request(fixture.server).get(route).set('Authorization', auth)
-      .query({ page: 2, limit: 5, search: '  Fixture  ' }).expect(200);
+    await request(fixture.server)
+      .get(route)
+      .set('Authorization', auth)
+      .query({ page: 2, limit: 5, search: '  Fixture  ' })
+      .expect(200);
 
     expect(list).toHaveBeenCalledWith(actor, expect.objectContaining({ page: 2, limit: 5, search: 'Fixture' }));
   });
 
   it('rejects malformed identifiers and invalid filters before invoking private use cases', async () => {
-    await request(fixture.server).get(route + '/invalid').set('Authorization', auth).expect(400);
+    await request(fixture.server)
+      .get(route + '/invalid')
+      .set('Authorization', auth)
+      .expect(400);
     await request(fixture.server).get(route).set('Authorization', auth).query({ page: 0 }).expect(400);
     await request(fixture.server).get(route).set('Authorization', auth).query({ status: 'UNKNOWN' }).expect(400);
 
@@ -74,9 +89,18 @@ describe('leads HTTP contracts', () => {
     const path = route + '/' + itemId;
 
     await request(fixture.server).get(path).set('Authorization', auth).expect(200);
-    await request(fixture.server).post(path + '/contacted').set('Authorization', auth).expect(200);
-    await request(fixture.server).post(path + '/convert').set('Authorization', auth).expect(200);
-    await request(fixture.server).post(path + '/archive').set('Authorization', auth).expect(200);
+    await request(fixture.server)
+      .post(path + '/contacted')
+      .set('Authorization', auth)
+      .expect(200);
+    await request(fixture.server)
+      .post(path + '/convert')
+      .set('Authorization', auth)
+      .expect(200);
+    await request(fixture.server)
+      .post(path + '/archive')
+      .set('Authorization', auth)
+      .expect(200);
 
     for (const mock of [get, contacted, convert, archive]) {
       expect(mock).toHaveBeenCalledExactlyOnceWith({ ...actor, leadId: itemId });
@@ -84,9 +108,15 @@ describe('leads HTTP contracts', () => {
   });
 
   it('accepts a public lead without authentication and trims the permitted customer fields', async () => {
-    await request(fixture.server).post(publicRoute).send({
-      ...lead, name: '  Fixture customer  ', message: '  Fixture request for service  ', phone: ' ',
-    }).expect(201);
+    await request(fixture.server)
+      .post(publicRoute)
+      .send({
+        ...lead,
+        name: '  Fixture customer  ',
+        message: '  Fixture request for service  ',
+        phone: ' ',
+      })
+      .expect(201);
 
     expect(create).toHaveBeenCalledWith('fixture-professional', expect.objectContaining({ ...lead, phone: null }));
   });
@@ -99,7 +129,10 @@ describe('leads HTTP contracts', () => {
     { catalogServiceId: 'invalid' },
     { organizationId },
   ])('rejects malformed or injected public lead input: %j', async (override) => {
-    await request(fixture.server).post(publicRoute).send({ ...lead, ...override }).expect(400);
+    await request(fixture.server)
+      .post(publicRoute)
+      .send({ ...lead, ...override })
+      .expect(400);
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -125,7 +158,10 @@ describe('leads HTTP contracts', () => {
   ] as const)('maps conversion denial: %s', async (code, status) => {
     convert.mockRejectedValueOnce(new LeadError(code));
 
-    const response = await request(fixture.server).post(route + '/' + itemId + '/convert').set('Authorization', auth).expect(status);
+    const response = await request(fixture.server)
+      .post(route + '/' + itemId + '/convert')
+      .set('Authorization', auth)
+      .expect(status);
 
     expect(response.body.error.code).toBe(code);
   });

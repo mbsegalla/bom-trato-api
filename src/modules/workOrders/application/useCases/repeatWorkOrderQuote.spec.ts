@@ -16,7 +16,7 @@ import { WorkOrder } from '../../domain/entities/workOrder.entity.js';
 const params = {
   organizationId: 'organization',
   userId: 'operator',
-  quoteId: 'source-quote'
+  quoteId: 'source-quote',
 };
 const originalTime = new Date('2026-01-01T12:00:00.000Z');
 
@@ -112,7 +112,7 @@ function setup() {
   const currentCustomer = {
     ...customer,
     name: 'Cliente atualizado',
-    email: 'updated@example.com'
+    email: 'updated@example.com',
   };
   const create = vi.fn<QuoteTransaction['quotes']['create']>().mockResolvedValue(undefined);
   const findById = vi.fn<QuoteTransaction['quotes']['findById']>().mockResolvedValue(source);

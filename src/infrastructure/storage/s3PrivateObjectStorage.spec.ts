@@ -1,8 +1,9 @@
-import { DeleteObjectCommand, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import type { ConfigType } from '@nestjs/config';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { storageConfig } from '../../config/storage.config.js';
+
 import { S3PrivateObjectStorage } from './s3PrivateObjectStorage.js';
 
 const mocks = vi.hoisted(() => ({
@@ -45,7 +46,12 @@ describe('S3PrivateObjectStorage', () => {
   it('forces private non-cacheable writes even when a caller supplies a public cache policy', async () => {
     const storage = new S3PrivateObjectStorage(config);
 
-    await storage.put({ key: 'photos/fixture.webp', body, contentType: 'image/webp', cacheControl: 'public, max-age=3600' });
+    await storage.put({
+      key: 'photos/fixture.webp',
+      body,
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=3600',
+    });
 
     const command = mocks.send.mock.calls[0]![0];
 
@@ -62,7 +68,9 @@ describe('S3PrivateObjectStorage', () => {
   it.each([null, config.bucket])('rejects unsafe private bucket configuration: %s', async (privateBucket) => {
     const storage = new S3PrivateObjectStorage({ ...config, privateBucket });
 
-    await expect(storage.put({ key: 'photo', body, contentType: 'image/webp' })).rejects.toThrow('Private object storage is not configured');
+    await expect(storage.put({ key: 'photo', body, contentType: 'image/webp' })).rejects.toThrow(
+      'Private object storage is not configured',
+    );
     await expect(storage.get('photo')).rejects.toThrow('Private object storage is not configured');
     await expect(storage.delete('photo')).rejects.toThrow('Private object storage is not configured');
 

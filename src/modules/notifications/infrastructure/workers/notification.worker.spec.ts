@@ -6,6 +6,7 @@ import type { PrismaService } from '../../../../infrastructure/database/prisma.s
 import type { NotificationJob, NotificationMessage } from '../../application/types/notification.types.js';
 import { NotificationDeliveryError, type ResendEmailGateway } from '../resend/resendEmail.gateway.js';
 import type { NotificationCipher } from '../security/notificationCipher.js';
+
 import { NotificationWorker } from './notification.worker.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -135,7 +136,11 @@ describe('NotificationWorker', () => {
     expect(f.send).not.toHaveBeenCalled();
     expect(f.updateMany).toHaveBeenCalledWith({
       where: lease,
-      data: expect.objectContaining({ status: 'FAILED', lastErrorCode: 'INVALID_ENCRYPTED_PAYLOAD', encryptedPayload: null }),
+      data: expect.objectContaining({
+        status: 'FAILED',
+        lastErrorCode: 'INVALID_ENCRYPTED_PAYLOAD',
+        encryptedPayload: null,
+      }),
     });
   });
 
@@ -161,24 +166,35 @@ describe('NotificationWorker', () => {
   it.each([
     [job, new NotificationDeliveryError('RESEND_IDEMPOTENCY_CONFLICT', false), 'RESEND_IDEMPOTENCY_CONFLICT'],
     [{ ...job, attempts: 16 }, new Error('private provider detail'), 'PROVIDER_UNAVAILABLE'],
-    [{ ...job, expiresAt: new Date(now.getTime() + 30000) }, new Error('private provider detail'), 'PROVIDER_UNAVAILABLE'],
-  ] as const)('ends permanent failures, exhausted retries and retries beyond expiry: %s', async (candidate, failure, code) => {
-    const f = fixture(true, candidate);
-    worker = f.worker;
-    f.send.mockRejectedValueOnce(failure);
+    [
+      { ...job, expiresAt: new Date(now.getTime() + 30000) },
+      new Error('private provider detail'),
+      'PROVIDER_UNAVAILABLE',
+    ],
+  ] as const)(
+    'ends permanent failures, exhausted retries and retries beyond expiry: %s',
+    async (candidate, failure, code) => {
+      const f = fixture(true, candidate);
+      worker = f.worker;
+      f.send.mockRejectedValueOnce(failure);
 
-    await processOnce(worker);
+      await processOnce(worker);
 
-    expect(f.updateMany).toHaveBeenCalledWith({
-      where: lease,
-      data: expect.objectContaining({ status: 'FAILED', lastErrorCode: code, encryptedPayload: null }),
-    });
-  });
+      expect(f.updateMany).toHaveBeenCalledWith({
+        where: lease,
+        data: expect.objectContaining({ status: 'FAILED', lastErrorCode: code, encryptedPayload: null }),
+      });
+    },
+  );
 
   it('recovers a failed claim only on a new wake and stops scheduling after shutdown', async () => {
     const f = fixture();
     worker = f.worker;
-    f.query.mockReset().mockRejectedValueOnce(new Error('Fixture database failure')).mockResolvedValueOnce([job]).mockResolvedValue([]);
+    f.query
+      .mockReset()
+      .mockRejectedValueOnce(new Error('Fixture database failure'))
+      .mockResolvedValueOnce([job])
+      .mockResolvedValue([]);
 
     await processOnce(worker);
     await vi.advanceTimersByTimeAsync(5000);

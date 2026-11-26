@@ -9,6 +9,7 @@ import type { PrismaService } from '../../../../infrastructure/database/prisma.s
 import type { EnqueueNotification } from '../../application/types/notification.types.js';
 import { NOTIFICATIONS_AVAILABLE_EVENT } from '../events/notification.events.js';
 import { NotificationCipher } from '../security/notificationCipher.js';
+
 import { PrismaNotificationOutbox } from './prismaNotificationOutbox.repository.js';
 
 const input: EnqueueNotification = {
@@ -67,7 +68,9 @@ describe('PrismaNotificationOutbox', () => {
 
     expect(message.to).toBe(input.recipient);
     expect(message.template.id).toBe('fixture-template');
-    expect(message.template.variables.ACTION_URL).toBe('https://app.example.invalid/verify-email#token=private-fixture-token');
+    expect(message.template.variables.ACTION_URL).toBe(
+      'https://app.example.invalid/verify-email#token=private-fixture-token',
+    );
     expect(f.notify).toHaveBeenCalledTimes(1);
     expect(f.createMany.mock.invocationCallOrder[0]).toBeLessThan(f.notify.mock.invocationCallOrder[0]!);
   });
@@ -86,7 +89,10 @@ describe('PrismaNotificationOutbox', () => {
     const f = fixture();
     const createMany = vi.fn().mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
     const inserted = vi.fn();
-    const transactional = f.outbox.using({ notificationOutbox: { createMany } } as unknown as Prisma.TransactionClient, inserted);
+    const transactional = f.outbox.using(
+      { notificationOutbox: { createMany } } as unknown as Prisma.TransactionClient,
+      inserted,
+    );
 
     await transactional.enqueue(input);
     await transactional.enqueue(input);
@@ -100,8 +106,9 @@ describe('PrismaNotificationOutbox', () => {
   it('fails without persisting when a required template is missing', async () => {
     const f = fixture();
 
-    await expect(f.outbox.enqueue({ ...input, content: { type: 'PASSWORD_CHANGED' } }))
-      .rejects.toThrow('NOTIFICATION_TEMPLATE_NOT_CONFIGURED');
+    await expect(f.outbox.enqueue({ ...input, content: { type: 'PASSWORD_CHANGED' } })).rejects.toThrow(
+      'NOTIFICATION_TEMPLATE_NOT_CONFIGURED',
+    );
 
     expect(f.createMany).not.toHaveBeenCalled();
     expect(f.notify).not.toHaveBeenCalled();
@@ -109,7 +116,9 @@ describe('PrismaNotificationOutbox', () => {
 
   it('contains worker notification failures after the durable insert', async () => {
     const f = fixture();
-    f.emitter.on(NOTIFICATIONS_AVAILABLE_EVENT, () => { throw new Error('Fixture listener failure'); });
+    f.emitter.on(NOTIFICATIONS_AVAILABLE_EVENT, () => {
+      throw new Error('Fixture listener failure');
+    });
 
     await expect(f.outbox.enqueue(input)).resolves.toBeUndefined();
 

@@ -8,7 +8,7 @@ const input = {
   organizationId: 'org',
   name: ' Cliente ',
   email: ' USER@EXAMPLE.INVALID ',
-  notes: ' note '
+  notes: ' note ',
 };
 
 describe('Customer', () => {

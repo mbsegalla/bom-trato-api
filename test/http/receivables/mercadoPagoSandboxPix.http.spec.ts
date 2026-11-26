@@ -2,9 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ManageMercadoPagoSandboxPixUseCase } from '../../../src/modules/receivables/application/useCases/manageMercadoPagoSandboxPix.useCase.js';
-import { MercadoPagoSandboxPixController } from '../../../src/modules/receivables/presentation/http/controllers/mercadoPagoSandboxPix.controller.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { MercadoPagoSandboxPixController } from '../../../src/modules/receivables/presentation/http/controllers/mercadoPagoSandboxPix.controller.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receivables/' + itemId + '/mercado-pago/sandbox-pix';
 const actor = { organizationId, receivableId: itemId, userId, sessionId: 'session' };
@@ -22,9 +22,10 @@ describe('Mercado Pago sandbox Pix HTTP contracts', () => {
   const issue = vi.fn();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([MercadoPagoSandboxPixController], [
-      { provide: ManageMercadoPagoSandboxPixUseCase, useValue: { read, issue } },
-    ]);
+    fixture = await createHttpFixture(
+      [MercadoPagoSandboxPixController],
+      [{ provide: ManageMercadoPagoSandboxPixUseCase, useValue: { read, issue } }],
+    );
   });
 
   beforeEach(() => {
@@ -53,7 +54,11 @@ describe('Mercado Pago sandbox Pix HTTP contracts', () => {
 
     expect(issue).not.toHaveBeenCalled();
 
-    const response = await request(fixture.server).post(route).set('Authorization', 'Bearer fixture').send(input).expect(200);
+    const response = await request(fixture.server)
+      .post(route)
+      .set('Authorization', 'Bearer fixture')
+      .send(input)
+      .expect(200);
 
     expect(issue).toHaveBeenCalledWith(actor, expect.objectContaining(input));
     expect(response.headers['cache-control']).toContain('no-store');

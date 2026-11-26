@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
+
 import { PrismaBillingSuccessNotificationUnitOfWork } from './prismaBillingSuccessNotificationUnitOfWork.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
@@ -44,7 +45,19 @@ function fixture() {
     { using, notifyWorker } as unknown as PrismaNotificationOutbox,
   );
 
-  return { unit, query, invoiceRead, changeRead, invoiceUpdate, changeUpdate, transaction, notifyWorker, using, invoice, change };
+  return {
+    unit,
+    query,
+    invoiceRead,
+    changeRead,
+    invoiceUpdate,
+    changeUpdate,
+    transaction,
+    notifyWorker,
+    using,
+    invoice,
+    change,
+  };
 }
 
 describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
@@ -68,14 +81,16 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     expect(await f.unit.run(operation)).toBe(true);
     expect(f.query).toHaveBeenCalledTimes(1);
     expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE SKIP LOCKED');
-    expect(operation).toHaveBeenCalledWith(expect.objectContaining({
-      billingSuccessNotification: expect.objectContaining({
-        kind: 'INVOICE',
-        id: 'invoice',
-        organizationId: 'organization',
-        recipient: { userId: 'user', email: 'owner@example.com', enabled: true },
+    expect(operation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingSuccessNotification: expect.objectContaining({
+          kind: 'INVOICE',
+          id: 'invoice',
+          organizationId: 'organization',
+          recipient: { userId: 'user', email: 'owner@example.com', enabled: true },
+        }),
       }),
-    }));
+    );
     expect(f.invoiceUpdate).toHaveBeenCalledExactlyOnceWith({
       where: { id: 'invoice' },
       data: { paymentNotificationHandledAt: expect.any(Date) },
@@ -90,9 +105,11 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     const operation = vi.fn();
 
     expect(await f.unit.run(operation)).toBe(true);
-    expect(operation).toHaveBeenCalledWith(expect.objectContaining({
-      billingSuccessNotification: expect.objectContaining({ kind: 'PLAN_CHANGE', id: 'change', planName: 'Pro' }),
-    }));
+    expect(operation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingSuccessNotification: expect.objectContaining({ kind: 'PLAN_CHANGE', id: 'change', planName: 'Pro' }),
+      }),
+    );
     expect(f.changeUpdate).toHaveBeenCalledExactlyOnceWith({
       where: { id: 'change' },
       data: { appliedNotificationHandledAt: expect.any(Date) },
@@ -113,11 +130,13 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     const operation = vi.fn();
 
     await f.unit.run(operation);
-    expect(operation).toHaveBeenCalledWith(expect.objectContaining({
-      billingSuccessNotification: expect.objectContaining({
-        recipient: expect.objectContaining({ enabled: false }),
+    expect(operation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        billingSuccessNotification: expect.objectContaining({
+          recipient: expect.objectContaining({ enabled: false }),
+        }),
       }),
-    }));
+    );
   });
 
   it('does not checkpoint or wake the worker after a failed operation', async () => {
@@ -125,10 +144,12 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     f.query.mockResolvedValueOnce([{ id: 'invoice' }]);
     const error = new Error('notification failed');
 
-    await expect(f.unit.run(async () => {
-      f.using.mock.calls[0]![1]();
-      throw error;
-    })).rejects.toBe(error);
+    await expect(
+      f.unit.run(async () => {
+        f.using.mock.calls[0]![1]();
+        throw error;
+      }),
+    ).rejects.toBe(error);
     expect(f.invoiceUpdate).not.toHaveBeenCalled();
     expect(f.notifyWorker).not.toHaveBeenCalled();
   });
@@ -152,9 +173,11 @@ describe('PrismaBillingSuccessNotificationUnitOfWork', () => {
     const error = new Error('checkpoint failed');
     f.invoiceUpdate.mockRejectedValue(error);
 
-    await expect(f.unit.run(async () => {
-      f.using.mock.calls[0]![1]();
-    })).rejects.toBe(error);
+    await expect(
+      f.unit.run(async () => {
+        f.using.mock.calls[0]![1]();
+      }),
+    ).rejects.toBe(error);
     expect(f.notifyWorker).not.toHaveBeenCalled();
   });
 });

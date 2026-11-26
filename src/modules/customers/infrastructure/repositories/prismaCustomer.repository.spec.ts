@@ -2,16 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '../../../../generated/prisma/client.js';
 import { Customer } from '../../domain/entities/customer.entity.js';
+
 import { PrismaCustomerRepository } from './prismaCustomer.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const organizationId = 'organization';
-const customer = Customer.create({
-  id: 'customer',
-  organizationId,
-  name: 'Fixture customer',
-  email: 'fixture@example.invalid',
-}, now);
+const customer = Customer.create(
+  {
+    id: 'customer',
+    organizationId,
+    name: 'Fixture customer',
+    email: 'fixture@example.invalid',
+  },
+  now,
+);
 const state = customer.snapshot();
 
 function fixture() {
@@ -19,9 +23,12 @@ function fixture() {
   const findFirst = vi.fn().mockResolvedValue(null);
   const findMany = vi.fn().mockResolvedValue([]);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaCustomerRepository({
-    customer: { create, findFirst, findMany, updateMany },
-  } as unknown as Prisma.TransactionClient, organizationId);
+  const repository = new PrismaCustomerRepository(
+    {
+      customer: { create, findFirst, findMany, updateMany },
+    } as unknown as Prisma.TransactionClient,
+    organizationId,
+  );
 
   return { repository, create, findFirst, findMany, updateMany };
 }
@@ -105,8 +112,9 @@ describe('PrismaCustomerRepository', () => {
     const contains = String.raw`100\%\_\\test`;
     const filter = { contains, mode: 'insensitive' };
 
-    expect(await f.repository.list({ page: 2, limit: 1, status: 'ACTIVE', search: String.raw`  100%_\test  ` }))
-      .toEqual({ items: [state], page: 2, hasMore: true });
+    expect(
+      await f.repository.list({ page: 2, limit: 1, status: 'ACTIVE', search: String.raw`  100%_\test  ` }),
+    ).toEqual({ items: [state], page: 2, hasMore: true });
 
     expect(f.findMany).toHaveBeenCalledWith({
       where: {
@@ -126,11 +134,17 @@ describe('PrismaCustomerRepository', () => {
     await f.repository.list({ page: 1, limit: 10, status: 'ARCHIVED' });
     await f.repository.list({ page: 1, limit: 10, status: 'ALL' });
 
-    expect(f.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: { organizationId, archivedAt: { not: null } },
-    }));
-    expect(f.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: { organizationId },
-    }));
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { organizationId, archivedAt: { not: null } },
+      }),
+    );
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { organizationId },
+      }),
+    );
   });
 });

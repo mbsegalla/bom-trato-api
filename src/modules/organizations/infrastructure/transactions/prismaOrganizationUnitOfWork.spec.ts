@@ -2,18 +2,39 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
+
 import { PrismaOrganizationUnitOfWork } from './prismaOrganizationUnitOfWork.js';
 
 const params = { organizationId: 'org', userId: 'user' };
 const organization = {
-  id: 'org', name: 'Fixture', email: null, phone: null, logoKey: null, documentType: null,
-  document: null, addressLine1: null, addressLine2: null, city: null, state: null, postalCode: null,
-  ownerId: 'user', defaultReceivableDueDays: 7, autoQuoteFollowUpEnabled: false,
-  autoWorkOrderReminderEnabled: false, autoReviewRequestEnabled: false, autoReceivableReminderEnabled: false,
+  id: 'org',
+  name: 'Fixture',
+  email: null,
+  phone: null,
+  logoKey: null,
+  documentType: null,
+  document: null,
+  addressLine1: null,
+  addressLine2: null,
+  city: null,
+  state: null,
+  postalCode: null,
+  ownerId: 'user',
+  defaultReceivableDueDays: 7,
+  autoQuoteFollowUpEnabled: false,
+  autoWorkOrderReminderEnabled: false,
+  autoReviewRequestEnabled: false,
+  autoReceivableReminderEnabled: false,
 };
 
 function fixture() {
-  const findUser = vi.fn().mockResolvedValue({ id: 'user', name: 'User', email: 'fixture@example.invalid', disabledAt: null, emailVerifiedAt: new Date() });
+  const findUser = vi.fn().mockResolvedValue({
+    id: 'user',
+    name: 'User',
+    email: 'fixture@example.invalid',
+    disabledAt: null,
+    emailVerifiedAt: new Date(),
+  });
   const findOrganization = vi.fn().mockResolvedValue({ id: 'org' });
   const readOrganization = vi.fn().mockResolvedValue(organization);
   const findMember = vi.fn().mockResolvedValue({ role: 'OWNER' });
@@ -24,7 +45,8 @@ function fixture() {
     user: { findUnique: findUser },
     organization: { findUnique: findOrganization, findUniqueOrThrow: readOrganization, updateMany: update },
     organizationMember: { findUnique: findMember },
-    $queryRaw: query, $executeRaw: execute,
+    $queryRaw: query,
+    $executeRaw: execute,
   };
   const transaction = vi.fn(async (operation: (client: typeof db) => Promise<unknown>) => operation(db));
   const using = vi.fn((_client: unknown, _inserted: () => void) => ({}));
@@ -34,32 +56,57 @@ function fixture() {
     { using, notifyWorker } as unknown as PrismaNotificationOutbox,
   );
 
-  return { unit, findUser, findOrganization, readOrganization, findMember, update, query, execute, transaction, using, notifyWorker };
+  return {
+    unit,
+    findUser,
+    findOrganization,
+    readOrganization,
+    findMember,
+    update,
+    query,
+    execute,
+    transaction,
+    using,
+    notifyWorker,
+  };
 }
 
 describe('PrismaOrganizationUnitOfWork', () => {
   it('reads actor and membership within the requested organization', async () => {
     const f = fixture();
     const result = await f.unit.read(params, async (context) => ({
-      organization: context.organization, actor: context.actor, actorRole: context.actorRole,
+      organization: context.organization,
+      actor: context.actor,
+      actorRole: context.actorRole,
     }));
 
     expect(result).toMatchObject({
-      organization, actor: { id: 'user', disabled: false, emailVerified: true }, actorRole: 'OWNER',
+      organization,
+      actor: { id: 'user', disabled: false, emailVerified: true },
+      actorRole: 'OWNER',
     });
-    expect(f.findMember).toHaveBeenCalledWith(expect.objectContaining({
-      where: { organizationId_userId: { organizationId: 'org', userId: 'user' } },
-    }));
+    expect(f.findMember).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId_userId: { organizationId: 'org', userId: 'user' } },
+      }),
+    );
     expect(f.using).not.toHaveBeenCalled();
   });
 
   it('retains absent membership and disabled actor facts for the authorization policy', async () => {
     const f = fixture();
     f.findMember.mockResolvedValue(null);
-    f.findUser.mockResolvedValue({ id: 'user', name: 'User', email: 'fixture@example.invalid', disabledAt: new Date(), emailVerifiedAt: null });
+    f.findUser.mockResolvedValue({
+      id: 'user',
+      name: 'User',
+      email: 'fixture@example.invalid',
+      disabledAt: new Date(),
+      emailVerifiedAt: null,
+    });
 
     expect(await f.unit.read(params, async (context) => context)).toMatchObject({
-      actorRole: null, actor: { disabled: true, emailVerified: false },
+      actorRole: null,
+      actor: { disabled: true, emailVerified: false },
     });
   });
 
@@ -103,8 +150,9 @@ describe('PrismaOrganizationUnitOfWork', () => {
   it('rejects cross-organization updates before writing', async () => {
     const f = fixture();
 
-    await expect(f.unit.run(params, (tx) => tx.saveOrganization({ ...tx.organization, id: 'foreign' })))
-      .rejects.toThrow('ORGANIZATION_NOT_FOUND');
+    await expect(
+      f.unit.run(params, (tx) => tx.saveOrganization({ ...tx.organization, id: 'foreign' })),
+    ).rejects.toThrow('ORGANIZATION_NOT_FOUND');
     expect(f.update).not.toHaveBeenCalled();
   });
 
@@ -112,8 +160,9 @@ describe('PrismaOrganizationUnitOfWork', () => {
     const f = fixture();
     f.update.mockResolvedValue({ count: 0 });
 
-    await expect(f.unit.run(params, (tx) => tx.saveOrganization(tx.organization)))
-      .rejects.toThrow('ORGANIZATION_NOT_FOUND');
+    await expect(f.unit.run(params, (tx) => tx.saveOrganization(tx.organization))).rejects.toThrow(
+      'ORGANIZATION_NOT_FOUND',
+    );
   });
 
   it('wakes notifications only after a successful transaction', async () => {
@@ -129,10 +178,12 @@ describe('PrismaOrganizationUnitOfWork', () => {
     const f = fixture();
     const failure = new Error('fixture failure');
 
-    await expect(f.unit.run(params, async () => {
-      f.using.mock.calls[0]![1]();
-      throw failure;
-    })).rejects.toBe(failure);
+    await expect(
+      f.unit.run(params, async () => {
+        f.using.mock.calls[0]![1]();
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
     expect(f.notifyWorker).not.toHaveBeenCalled();
   });
 });

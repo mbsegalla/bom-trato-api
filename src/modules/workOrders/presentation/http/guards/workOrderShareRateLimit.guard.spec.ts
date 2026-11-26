@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import type { ExecutionContext } from '@nestjs/common';
 import { HttpException } from '@nestjs/common';
+import { describe, expect, it, vi } from 'vitest';
+
 import type { PostgresPublicShareRateLimit } from '../../../../../infrastructure/http/rateLimits/postgresPublicShareRateLimit.js';
+
 import { WorkOrderShareRateLimitGuard } from './workOrderShareRateLimit.guard.js';
 
 describe('WorkOrderShareRateLimitGuard', () => {
@@ -10,14 +11,16 @@ describe('WorkOrderShareRateLimitGuard', () => {
     const check = vi.fn().mockRejectedValue(new HttpException('rate limited', 429));
     const setHeader = vi.fn();
     const response = { setHeader };
-    const context = { switchToHttp: () => ({
-      getRequest: () => ({
-        ip: '192.0.2.1',
-        socket: { remoteAddress: '192.0.2.2' },
-        headers: { 'x-forwarded-for': '192.0.2.3' }
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          ip: '192.0.2.1',
+          socket: { remoteAddress: '192.0.2.2' },
+          headers: { 'x-forwarded-for': '192.0.2.3' },
+        }),
+        getResponse: () => response,
       }),
-      getResponse: () => response,
-    }) } as unknown as ExecutionContext;
+    } as unknown as ExecutionContext;
     const guard = new WorkOrderShareRateLimitGuard({ check } as unknown as PostgresPublicShareRateLimit);
 
     await expect(guard.canActivate(context)).rejects.toMatchObject({ status: 429 });

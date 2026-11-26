@@ -1,13 +1,13 @@
+import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
 
-import { SignJWT } from 'jose';
 import { NodeAuthSecurity } from './nodeAuthSecurity.js';
 
 const config = {
   jwtSecret: 'a'.repeat(64),
   issuer: 'fixture-issuer',
   audience: 'fixture-audience',
-  accessTtlSeconds: 60
+  accessTtlSeconds: 60,
 } as ConstructorParameters<typeof NodeAuthSecurity>[0];
 const claims = { sub: '11111111-1111-4111-8111-111111111111', sid: '22222222-2222-4222-8222-222222222222' };
 const security = new NodeAuthSecurity(config);
@@ -35,25 +35,22 @@ describe('NodeAuthSecurity', () => {
     segments[2] = (segments[2]!.startsWith('a') ? 'b' : 'a') + segments[2]!.slice(1);
 
     await expect(security.verifyAccess(segments.join('.'))).rejects.toThrow('INVALID_SESSION');
-    await expect(security.verifyAccess(await security.signAccess({ ...claims, sid: 'invalid' }))).rejects.toThrow('INVALID_SESSION');
+    await expect(security.verifyAccess(await security.signAccess({ ...claims, sid: 'invalid' }))).rejects.toThrow(
+      'INVALID_SESSION',
+    );
   });
 
   it('rejects wrong audience, issuer, expired and missing claims even with a valid signing key', async () => {
     const key = Buffer.from(config.jwtSecret, 'hex');
     const time = Math.floor(Date.now() / 1000);
-    for (const patch of [
-      { iss: 'other' },
-      { aud: 'other' },
-      { exp: time - 1 },
-      { sid: undefined }
-    ]) {
+    for (const patch of [{ iss: 'other' }, { aud: 'other' }, { exp: time - 1 }, { sid: undefined }]) {
       const payload = {
         ...claims,
         iss: config.issuer,
         aud: config.audience,
         iat: time,
         exp: time + 60,
-        ...patch
+        ...patch,
       };
 
       const token = await new SignJWT(payload).setProtectedHeader({ alg: 'HS256', typ: 'JWT' }).sign(key);

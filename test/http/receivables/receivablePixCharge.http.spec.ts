@@ -2,9 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GetReceivablePixChargeUseCase } from '../../../src/modules/receivables/application/useCases/getReceivablePixCharge.useCase.js';
-import { ReceivablePixChargeController } from '../../../src/modules/receivables/presentation/http/controllers/receivablePixCharge.controller.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { ReceivablePixChargeController } from '../../../src/modules/receivables/presentation/http/controllers/receivablePixCharge.controller.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receivables/' + itemId + '/pix-charge';
 
@@ -13,9 +13,10 @@ describe('static Pix charge HTTP contracts', () => {
   const execute = vi.fn();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([ReceivablePixChargeController], [
-      { provide: GetReceivablePixChargeUseCase, useValue: { execute } },
-    ]);
+    fixture = await createHttpFixture(
+      [ReceivablePixChargeController],
+      [{ provide: GetReceivablePixChargeUseCase, useValue: { execute } }],
+    );
   });
 
   beforeEach(() => {
@@ -28,7 +29,10 @@ describe('static Pix charge HTTP contracts', () => {
 
   it('requires authentication and valid route identities before reading private payment data', async () => {
     await request(fixture.server).get(route).expect(401);
-    await request(fixture.server).get(route.replace(itemId, 'invalid')).set('Authorization', 'Bearer fixture').expect(400);
+    await request(fixture.server)
+      .get(route.replace(itemId, 'invalid'))
+      .set('Authorization', 'Bearer fixture')
+      .expect(400);
 
     expect(execute).not.toHaveBeenCalled();
 

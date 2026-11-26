@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SubscriptionProps } from '../../domain/entities/subscription.entity.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
+
 import { GetSubscriptionUseCase } from './getSubscription.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner' };

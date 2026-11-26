@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { IN_APP_NOTIFICATION_CHANNEL } from '../realtime/notificationRealtime.constants.js';
+
 import { PrismaInAppNotificationRepository } from './prismaInAppNotification.repository.js';
 
 const scope = { userId: 'user', organizationId: 'org' };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AuthError } from '../../domain/errors/auth.error.js';
+
 import { authOperation, toAuthHttpError } from './authHttpError.js';
 
 describe('auth HTTP error contracts', () => {

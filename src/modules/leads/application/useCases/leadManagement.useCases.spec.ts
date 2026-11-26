@@ -4,6 +4,7 @@ import { Lead } from '../../domain/entities/lead.entity.js';
 import type { LeadRepository } from '../../domain/repositories/lead.repository.js';
 import type { LeadReadContext, LeadTransaction, LeadUnitOfWork } from '../ports/leadUnitOfWork.port.js';
 import { LeadApplicationService } from '../services/leadApplicationService.service.js';
+
 import { ArchiveLeadUseCase } from './archiveLead.useCase.js';
 import { GetLeadUseCase } from './getLead.useCase.js';
 import { ListLeadsUseCase } from './listLeads.useCase.js';
@@ -11,17 +12,20 @@ import { MarkLeadContactedUseCase } from './markLeadContacted.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner', leadId: 'lead' };
 const now = new Date('2026-01-01T00:00:00Z');
-const state = Lead.create({
-  id: actor.leadId,
-  organizationId: actor.organizationId,
-  publicBusinessProfileId: 'profile',
-  requestKey: 'request',
-  catalogServiceId: null,
-  requestedServiceName: null,
-  name: 'Fixture customer',
-  email: 'client@example.invalid',
-  message: 'Fixture request for service',
-}, now).snapshot();
+const state = Lead.create(
+  {
+    id: actor.leadId,
+    organizationId: actor.organizationId,
+    publicBusinessProfileId: 'profile',
+    requestKey: 'request',
+    catalogServiceId: null,
+    requestedServiceName: null,
+    name: 'Fixture customer',
+    email: 'client@example.invalid',
+    message: 'Fixture request for service',
+  },
+  now,
+).snapshot();
 const access: LeadReadContext['access'] = {
   isMember: true,
   verified: true,
@@ -37,8 +41,12 @@ function fixture(permissions = access) {
     save: vi.fn<LeadRepository['save']>().mockResolvedValue(undefined),
   };
   const context = { leads, access: permissions } as unknown as LeadTransaction;
-  const run = vi.fn(async (_actor: typeof actor, operation: (tx: LeadTransaction) => Promise<unknown>) => operation(context));
-  const read = vi.fn(async (_actor: typeof actor, operation: (tx: LeadReadContext) => Promise<unknown>) => operation(context));
+  const run = vi.fn(async (_actor: typeof actor, operation: (tx: LeadTransaction) => Promise<unknown>) =>
+    operation(context),
+  );
+  const read = vi.fn(async (_actor: typeof actor, operation: (tx: LeadReadContext) => Promise<unknown>) =>
+    operation(context),
+  );
   const service = new LeadApplicationService({ run, read } as unknown as LeadUnitOfWork);
 
   return { leads, service };
@@ -52,7 +60,9 @@ describe('lead management use cases', () => {
 
     expect(await new GetLeadUseCase(f.service).execute(actor)).toEqual(state);
     expect(await new ListLeadsUseCase(f.service).execute(actor, filters)).toEqual({
-      items: [state], page: 2, hasMore: true,
+      items: [state],
+      page: 2,
+      hasMore: true,
     });
     expect(f.leads.findById).toHaveBeenCalledWith(actor.leadId);
     expect(f.leads.list).toHaveBeenCalledWith(filters);
@@ -70,14 +80,21 @@ describe('lead management use cases', () => {
 
     const archived = await new ArchiveLeadUseCase(f.service).execute(actor);
 
-    expect(archived).toMatchObject({ status: 'ARCHIVED', archivedAt: expect.any(Date), contactedAt: contacted.contactedAt });
+    expect(archived).toMatchObject({
+      status: 'ARCHIVED',
+      archivedAt: expect.any(Date),
+      contactedAt: contacted.contactedAt,
+    });
     expect(f.leads.save.mock.calls[1]![0].snapshot()).toEqual(archived);
   });
 
   it('preserves original contact and archive dates on repeated transitions', async () => {
     const f = fixture();
     f.leads.findById.mockResolvedValueOnce({ ...state, status: 'CONTACTED', contactedAt: now, updatedAt: now });
-    expect(await new MarkLeadContactedUseCase(f.service).execute(actor)).toMatchObject({ contactedAt: now, updatedAt: now });
+    expect(await new MarkLeadContactedUseCase(f.service).execute(actor)).toMatchObject({
+      contactedAt: now,
+      updatedAt: now,
+    });
 
     f.leads.findById.mockResolvedValueOnce({ ...state, status: 'ARCHIVED', archivedAt: now, updatedAt: now });
     expect(await new ArchiveLeadUseCase(f.service).execute(actor)).toMatchObject({ archivedAt: now, updatedAt: now });

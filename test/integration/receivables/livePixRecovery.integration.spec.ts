@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest';
+
 import { PrismaReceivableRepository } from '../../../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
@@ -7,12 +8,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   const context = createPaymentFixture();
 
   it('only presents a pending live QR when the release switches and exact snapshot are valid', async () => {
-    const {
-      prisma,
-      fixtureQr,
-      liveFixture,
-      liveReview
-    } = context;
+    const { prisma, fixtureQr, liveFixture, liveReview } = context;
 
     const f = await liveFixture();
     const review = liveReview(f);
@@ -37,13 +33,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   });
 
   it('recovers an uncertain live creation by its immutable reference and settles once with a distinct audit record', async () => {
-    const {
-      prisma,
-      fixture,
-      liveFixture,
-      liveReview,
-      ledger
-    } = context;
+    const { prisma, fixture, liveFixture, liveReview, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));
@@ -60,9 +50,11 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
         amountInCents: 10_000,
         accessToken: 'fixture-access',
       });
-      expect(await prisma.mercadoPagoLivePixRecovery.count({
-        where: { issuanceId: issued.issuanceId, resultCode: 'IN_PROGRESS' },
-      })).toBe(1);
+      expect(
+        await prisma.mercadoPagoLivePixRecovery.count({
+          where: { issuanceId: issued.issuanceId, resultCode: 'IN_PROGRESS' },
+        }),
+      ).toBe(1);
 
       return {
         kind: 'FOUND',
@@ -75,7 +67,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
             externalAccountId: f.accountId,
             externalPaymentId: f.paymentId,
             eventId: input.eventId,
-          }
+          },
         },
       };
     });
@@ -95,7 +87,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
     expect(row).toMatchObject({
       resultCode: 'UNCERTAIN_CREATION',
       providerChargeId: row.id,
-      status: 'SETTLED'
+      status: 'SETTLED',
     });
     expect(row.recoveredAt).toBeInstanceOf(Date);
 
@@ -110,12 +102,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   });
 
   it('never treats an empty live search as permission to create another payment', async () => {
-    const {
-      fixture,
-      liveFixture,
-      liveReview,
-      ledger
-    } = context;
+    const { fixture, liveFixture, liveReview, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));
@@ -129,7 +116,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
       status: 'REVIEW_REQUIRED',
       paymentId: null,
       canIssue: false,
-      lastRecoveryCode: 'NOT_FOUND'
+      lastRecoveryCode: 'NOT_FOUND',
     });
     expect(await f.repository.issue(f.actor, f.input)).toEqual(issued);
     expect(f.create).toHaveBeenCalledTimes(1);
@@ -137,13 +124,7 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
   });
 
   it('rolls back recovery binding and audit completion when the ledger write fails', async () => {
-    const {
-      prisma,
-      fixture,
-      liveFixture,
-      liveReview,
-      ledger
-    } = context;
+    const { prisma, fixture, liveFixture, liveReview, ledger } = context;
 
     const f = await liveFixture();
     f.create.mockRejectedValueOnce(new Error('fixture timeout'));
@@ -160,19 +141,27 @@ paymentIntegrationSuite('livePixRecovery (disposable PostgreSQL)', () => {
           externalAccountId: f.accountId,
           externalPaymentId: f.paymentId,
           eventId: input.eventId,
-        }
+        },
       },
     }));
-    const failure = vi.spyOn(PrismaReceivableRepository.prototype, 'createPayment').mockRejectedValueOnce(new Error('recovery rollback'));
+    const failure = vi
+      .spyOn(PrismaReceivableRepository.prototype, 'createPayment')
+      .mockRejectedValueOnce(new Error('recovery rollback'));
 
-    await expect(liveReview(f).recover(f.actor, { issuanceId: issued.issuanceId })).rejects.toThrow('recovery rollback');
+    await expect(liveReview(f).recover(f.actor, { issuanceId: issued.issuanceId })).rejects.toThrow(
+      'recovery rollback',
+    );
 
     failure.mockRestore();
 
-    expect(await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: issued.issuanceId } }))
-      .toMatchObject({ externalPaymentId: null, providerChargeId: null, recoveredAt: null });
-    expect(await prisma.mercadoPagoLivePixRecovery.findFirstOrThrow({ where: { issuanceId: issued.issuanceId } }))
-      .toMatchObject({ resultCode: 'IN_PROGRESS', completedAt: null });
+    expect(await prisma.mercadoPagoLivePix.findUniqueOrThrow({ where: { id: issued.issuanceId } })).toMatchObject({
+      externalPaymentId: null,
+      providerChargeId: null,
+      recoveredAt: null,
+    });
+    expect(
+      await prisma.mercadoPagoLivePixRecovery.findFirstOrThrow({ where: { issuanceId: issued.issuanceId } }),
+    ).toMatchObject({ resultCode: 'IN_PROGRESS', completedAt: null });
     expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
   });
 });

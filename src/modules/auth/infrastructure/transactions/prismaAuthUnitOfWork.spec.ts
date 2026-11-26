@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import type { PrismaNotificationOutbox } from '../../../notifications/infrastructure/repositories/prismaNotificationOutbox.repository.js';
 import { PrismaAuthRepository } from '../repositories/prismaAuth.repository.js';
+
 import { PrismaAuthUnitOfWork } from './prismaAuthUnitOfWork.js';
 
 function fixture() {
@@ -23,11 +24,13 @@ describe('PrismaAuthUnitOfWork', () => {
   it('runs the operation with transaction-scoped repositories and preserves its return value', async () => {
     const f = fixture();
 
-    await expect(f.unit.run(async (tx) => {
-      expect(tx.auth).toBeInstanceOf(PrismaAuthRepository);
-      expect(tx.notifications).toBe(f.notifications);
-      return 'result';
-    })).resolves.toBe('result');
+    await expect(
+      f.unit.run(async (tx) => {
+        expect(tx.auth).toBeInstanceOf(PrismaAuthRepository);
+        expect(tx.notifications).toBe(f.notifications);
+        return 'result';
+      }),
+    ).resolves.toBe('result');
 
     expect(f.transaction).toHaveBeenCalledWith(expect.any(Function), { maxWait: 5000, timeout: 10000 });
     expect(f.using).toHaveBeenCalledWith(f.db, expect.any(Function));
@@ -51,10 +54,12 @@ describe('PrismaAuthUnitOfWork', () => {
     const f = fixture();
     const error = new Error('transaction failure');
 
-    await expect(f.unit.run(async () => {
-      f.using.mock.calls[0]![1]();
-      throw error;
-    })).rejects.toBe(error);
+    await expect(
+      f.unit.run(async () => {
+        f.using.mock.calls[0]![1]();
+        throw error;
+      }),
+    ).rejects.toBe(error);
     expect(f.notifyWorker).not.toHaveBeenCalled();
   });
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { ReceivableRepository } from '../../domain/repositories/receivable.repository.js';
+
 import { ensureFinalReceivableFromQuote, ensureInitialReceivableFromQuote } from './receivableAutomation.service.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
@@ -13,13 +14,13 @@ const source = {
   title: 'Fixture service',
   totalInCents: 10001,
   currency: 'brl',
-  status: 'COMPLETED' as const
+  status: 'COMPLETED' as const,
 };
 const base = {
   organizationId: 'org',
   userId: 'owner',
   source,
-  now
+  now,
 };
 function fixture() {
   const receivables = {
@@ -36,7 +37,7 @@ describe('receivable automation', () => {
     const quote = {
       paymentCondition: 'DOWN_PAYMENT_AND_BALANCE' as const,
       downPaymentPercentage: 50,
-      totalInCents: 10001
+      totalInCents: 10001,
     };
 
     const initial = await ensureInitialReceivableFromQuote({ ...f.params, quote });
@@ -47,30 +48,31 @@ describe('receivable automation', () => {
     expect(initial!.amountInCents + final!.amountInCents).toBe(quote.totalInCents);
   });
 
-  it.each([['UPFRONT', 'initial'], ['AFTER_COMPLETION', 'final']] as const)(
-    'issues only one full receivable at the correct stage for %s', async (paymentCondition, stage) => {
-      const f = fixture();
-      const quote = {
-        paymentCondition,
-        downPaymentPercentage: null,
-        totalInCents: source.totalInCents
-      };
+  it.each([
+    ['UPFRONT', 'initial'],
+    ['AFTER_COMPLETION', 'final'],
+  ] as const)('issues only one full receivable at the correct stage for %s', async (paymentCondition, stage) => {
+    const f = fixture();
+    const quote = {
+      paymentCondition,
+      downPaymentPercentage: null,
+      totalInCents: source.totalInCents,
+    };
 
-      const initial = await ensureInitialReceivableFromQuote({ ...f.params, quote });
-      const final = await ensureFinalReceivableFromQuote({ ...f.params, quote, dueAt });
+    const initial = await ensureInitialReceivableFromQuote({ ...f.params, quote });
+    const final = await ensureFinalReceivableFromQuote({ ...f.params, quote, dueAt });
 
-      expect(stage === 'initial' ? initial : final).toMatchObject({ kind: 'FULL', amountInCents: 10001 });
-      expect(stage === 'initial' ? final : initial).toBeNull();
-      expect(f.receivables.create).toHaveBeenCalledTimes(1);
-    },
-  );
+    expect(stage === 'initial' ? initial : final).toMatchObject({ kind: 'FULL', amountInCents: 10001 });
+    expect(stage === 'initial' ? final : initial).toBeNull();
+    expect(f.receivables.create).toHaveBeenCalledTimes(1);
+  });
 
   it('reuses the original receivable when the same order and kind are already registered', async () => {
     const f = fixture();
     const quote = {
       paymentCondition: 'UPFRONT' as const,
       downPaymentPercentage: null,
-      totalInCents: 10001
+      totalInCents: 10001,
     };
 
     const first = await ensureInitialReceivableFromQuote({ ...f.params, quote });
@@ -80,39 +82,50 @@ describe('receivable automation', () => {
     expect(f.receivables.create).toHaveBeenCalledTimes(1);
   });
 
-  it.each([null, 0, 100, 50.5])('rejects invalid split percentage %s without writing', async (downPaymentPercentage) => {
-    const f = fixture();
-    const quote = {
-      paymentCondition: 'DOWN_PAYMENT_AND_BALANCE' as const,
-      downPaymentPercentage,
-      totalInCents: 10001
-    };
+  it.each([null, 0, 100, 50.5])(
+    'rejects invalid split percentage %s without writing',
+    async (downPaymentPercentage) => {
+      const f = fixture();
+      const quote = {
+        paymentCondition: 'DOWN_PAYMENT_AND_BALANCE' as const,
+        downPaymentPercentage,
+        totalInCents: 10001,
+      };
 
-    await expect(ensureInitialReceivableFromQuote({ ...f.params, quote })).rejects.toThrow('INVALID_RECEIVABLE_INPUT');
-    await expect(ensureFinalReceivableFromQuote({ ...f.params, quote, dueAt })).rejects.toThrow('INVALID_RECEIVABLE_INPUT');
-    expect(f.receivables.create).not.toHaveBeenCalled();
-  });
+      await expect(ensureInitialReceivableFromQuote({ ...f.params, quote })).rejects.toThrow(
+        'INVALID_RECEIVABLE_INPUT',
+      );
+      await expect(ensureFinalReceivableFromQuote({ ...f.params, quote, dueAt })).rejects.toThrow(
+        'INVALID_RECEIVABLE_INPUT',
+      );
+      expect(f.receivables.create).not.toHaveBeenCalled();
+    },
+  );
 
   it('refuses mismatched financial snapshots and skips zero-total quotes', async () => {
     const f = fixture();
     const quote = {
       paymentCondition: 'UPFRONT' as const,
       downPaymentPercentage: null,
-      totalInCents: 0
+      totalInCents: 0,
     };
 
     await expect(ensureInitialReceivableFromQuote({ ...f.params, quote })).rejects.toThrow('INVALID_RECEIVABLE_INPUT');
-    expect(await ensureInitialReceivableFromQuote({
-      ...f.params,
-      quote,
-      source: { ...source, totalInCents: 0 }
-    })).toBeNull();
-    expect(await ensureFinalReceivableFromQuote({
-      ...f.params,
-      quote,
-      dueAt,
-      source: { ...source, totalInCents: 0 }
-    })).toBeNull();
+    expect(
+      await ensureInitialReceivableFromQuote({
+        ...f.params,
+        quote,
+        source: { ...source, totalInCents: 0 },
+      }),
+    ).toBeNull();
+    expect(
+      await ensureFinalReceivableFromQuote({
+        ...f.params,
+        quote,
+        dueAt,
+        source: { ...source, totalInCents: 0 },
+      }),
+    ).toBeNull();
     expect(f.receivables.create).not.toHaveBeenCalled();
   });
 });

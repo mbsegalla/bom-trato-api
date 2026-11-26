@@ -3,22 +3,38 @@ import { describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingWork } from '../events/billing.events.js';
 import type { BillingWorkerNotifier } from '../events/billingWorkerNotifier.service.js';
+
 import { PrismaBillingWebhookRepository } from './prismaBillingWebhook.repository.js';
 
 const event = {
-  id: 'evt_fixture', type: 'invoice.paid', stripeCustomerId: 'cus_fixture', stripeObjectId: 'in_fixture',
-  attempts: 0, receivedAt: new Date('2026-01-01T00:00:00Z'), leaseToken: 'fixture-lease',
+  id: 'evt_fixture',
+  type: 'invoice.paid',
+  stripeCustomerId: 'cus_fixture',
+  stripeObjectId: 'in_fixture',
+  attempts: 0,
+  receivedAt: new Date('2026-01-01T00:00:00Z'),
+  leaseToken: 'fixture-lease',
 };
-const notice = { id: event.id, type: event.type, stripeCustomerId: event.stripeCustomerId, stripeObjectId: event.stripeObjectId };
+const notice = {
+  id: event.id,
+  type: event.type,
+  stripeCustomerId: event.stripeCustomerId,
+  stripeObjectId: event.stripeObjectId,
+};
 
 function fixture() {
   const createMany = vi.fn().mockResolvedValue({ count: 1 });
   const query = vi.fn().mockResolvedValue([]);
   const execute = vi.fn().mockResolvedValue(1);
   const notify = vi.fn();
-  const repository = new PrismaBillingWebhookRepository({
-    stripeWebhookEvent: { createMany }, $queryRaw: query, $executeRaw: execute,
-  } as unknown as PrismaService, { notify } as unknown as BillingWorkerNotifier);
+  const repository = new PrismaBillingWebhookRepository(
+    {
+      stripeWebhookEvent: { createMany },
+      $queryRaw: query,
+      $executeRaw: execute,
+    } as unknown as PrismaService,
+    { notify } as unknown as BillingWorkerNotifier,
+  );
 
   return { repository, createMany, query, execute, notify };
 }
@@ -79,9 +95,15 @@ describe('PrismaBillingWebhookRepository', () => {
     expect(parts.join('?')).toContain('"leaseExpiresAt" > CURRENT_TIMESTAMP');
     expect(id).toBe(event.id);
     expect(token).toBe(event.leaseToken);
-    if (outcome === 'COMPLETE') expect(changes.sql).toContain('"processedAt" = CURRENT_TIMESTAMP');
-    if (outcome === 'DEFER') expect(changes.sql).toContain("INTERVAL '15 seconds'");
-    if (outcome === 'RETRY') expect(changes.sql).toContain('"attempts" = "attempts" + 1');
+    if (outcome === 'COMPLETE') {
+      expect(changes.sql).toContain('"processedAt" = CURRENT_TIMESTAMP');
+    }
+    if (outcome === 'DEFER') {
+      expect(changes.sql).toContain("INTERVAL '15 seconds'");
+    }
+    if (outcome === 'RETRY') {
+      expect(changes.sql).toContain('"attempts" = "attempts" + 1');
+    }
   });
 
   it('caps retry delay and error length while retaining the terminal retry threshold', async () => {

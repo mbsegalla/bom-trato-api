@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AutomationEventRepository, AutomationEventProps } from '../../domain/repositories/automationEvent.repository.js';
+import type {
+  AutomationEventProps,
+  AutomationEventRepository,
+} from '../../domain/repositories/automationEvent.repository.js';
+
 import { ListAutomationEventsUseCase } from './listAutomationEvents.useCase.js';
 
 const params = { organizationId: 'org', userId: 'user', limit: 5 };

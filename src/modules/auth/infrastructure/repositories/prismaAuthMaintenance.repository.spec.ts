@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaAuthMaintenanceRepository } from './prismaAuthMaintenance.repository.js';
 
 const params = {
@@ -12,7 +13,12 @@ const params = {
 
 describe('PrismaAuthMaintenanceRepository', () => {
   it('executes bounded cleanup operations in a single transaction in dependency order', async () => {
-    const executeRaw = vi.fn().mockResolvedValueOnce(3).mockResolvedValueOnce(2).mockResolvedValueOnce(4).mockResolvedValueOnce(5);
+    const executeRaw = vi
+      .fn()
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(4)
+      .mockResolvedValueOnce(5);
     const transaction = vi.fn(async (operation: (tx: { $executeRaw: typeof executeRaw }) => Promise<unknown>) =>
       operation({ $executeRaw: executeRaw }),
     );

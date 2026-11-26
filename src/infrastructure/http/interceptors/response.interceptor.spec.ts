@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
-
-import { StreamableFile } from '@nestjs/common';
 import type { ExecutionContext } from '@nestjs/common';
+import { StreamableFile } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { firstValueFrom, of } from 'rxjs';
+import { describe, expect, it, vi } from 'vitest';
+
 import { ResponseInterceptor } from './response.interceptor.js';
 
 function fixture(statusCode: number, method = 'GET', headersSent = false, bypass = false) {
@@ -34,11 +34,7 @@ describe('ResponseInterceptor', () => {
 
     expect(await fixture(200)(stream)).toBe(stream);
     expect(await fixture(200, 'HEAD')('body')).toBeUndefined();
-    for (const transform of [
-      fixture(302),
-      fixture(200, 'GET', true),
-      fixture(200, 'GET', false, true)
-    ]) {
+    for (const transform of [fixture(302), fixture(200, 'GET', true), fixture(200, 'GET', false, true)]) {
       expect(await transform('raw')).toBe('raw');
     }
   });
