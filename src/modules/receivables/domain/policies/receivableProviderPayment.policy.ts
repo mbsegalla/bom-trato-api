@@ -17,8 +17,7 @@ interface RegisteredCharge {
 }
 
 type PaymentDecision =
-  | { kind: 'APPLY' | 'DUPLICATE' }
-  | { kind: 'REVIEW_REQUIRED'; reason: ProviderPaymentReviewReason };
+  { kind: 'APPLY' | 'DUPLICATE' } | { kind: 'REVIEW_REQUIRED'; reason: ProviderPaymentReviewReason };
 
 function validIdentifier(value: string, limit: number): boolean {
   return typeof value === 'string' && value.length <= limit && /^[\x21-\x7E]+$/.test(value);
