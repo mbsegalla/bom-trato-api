@@ -77,3 +77,26 @@ describe('sandbox Pix recovery search', () => {
     expect(transport).not.toHaveBeenCalled();
   });
 });
+
+describe('live Pix recovery search (mock provider only)', () => {
+  const liveInput = { ...input, eventId: 'recovery-fixture' };
+
+  it('requires live mode and verifies the unique result via individual lookup', async () => {
+    const found = fixture([candidate], 1, { ...payment, live_mode: true }, true);
+    await expect(found.client.searchLivePix(liveInput)).resolves.toEqual({
+      kind: 'FOUND', paymentId: '456789', observation: { status: 'PENDING' },
+    });
+    expect(found.transport).toHaveBeenCalledTimes(2);
+    const mismatch = fixture([candidate], 1, payment, true);
+    await expect(mismatch.client.searchLivePix(liveInput)).rejects.toThrow('MODE_MISMATCH');
+    const sandbox = fixture([candidate]);
+    await expect(sandbox.client.searchLivePix(liveInput)).rejects.toThrow('MODE_MISMATCH');
+    expect(sandbox.transport).not.toHaveBeenCalled();
+  });
+
+  it('never uses an ambiguous search result to confirm a live charge', async () => {
+    const ambiguous = fixture([candidate, { ...candidate, id: 456790 }], 2, payment, true);
+    await expect(ambiguous.client.searchLivePix(liveInput)).resolves.toEqual({ kind: 'AMBIGUOUS' });
+    expect(ambiguous.transport).toHaveBeenCalledTimes(1);
+  });
+});

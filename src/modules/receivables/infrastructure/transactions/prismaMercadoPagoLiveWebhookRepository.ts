@@ -10,7 +10,6 @@ import {
   MERCADO_PAGO_WEBHOOK_MAX_ATTEMPTS,
   mercadoPagoWebhookRetryDelaySeconds,
 } from '../../domain/policies/mercadoPagoWebhookRetry.policy.js';
-import { assertVerifiedProviderPayment } from '../../domain/policies/receivableProviderPayment.policy.js';
 import type {
   LivePixWebhookBinding,
   LiveWebhookOutcome,
@@ -20,92 +19,14 @@ import type {
   ClaimedMercadoPagoWebhook,
   MercadoPagoWebhookNotice,
 } from '../../domain/types/mercadoPagoWebhook.types.js';
-import type { VerifiedProviderPayment } from '../../domain/types/receivableProviderPayment.types.js';
 import { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
 
-import { confirmRegisteredProviderPayment } from './prismaReceivableProviderPaymentRepository.js';
+import { applyLivePixObservation, bindingFrom, markLivePixReview, matchesBinding, retry, review } from './mercadoPagoLiveSettlement.js';
+import type { Disposition } from './mercadoPagoLiveSettlement.js';
 
-type BoundIssuance = Prisma.MercadoPagoLivePixGetPayload<{ include: { providerCharge: true } }>;
 type Db = Prisma.TransactionClient | PrismaService;
 
-interface Disposition {
-  kind: 'COMPLETE' | 'REVIEW' | 'RETRY';
-  code: string;
-  matchedIssuanceId: string | null;
-}
-
 class LeaseLost extends Error {}
-
-function retry(code: string): Disposition {
-  return { kind: 'RETRY', code, matchedIssuanceId: null };
-}
-
-function review(code: string, issuanceId: string | null = null): Disposition {
-  return { kind: 'REVIEW', code, matchedIssuanceId: issuanceId };
-}
-
-function complete(code: string, issuanceId: string): Disposition {
-  return { kind: 'COMPLETE', code, matchedIssuanceId: issuanceId };
-}
-
-function bindingFrom(row: BoundIssuance, job: ClaimedMercadoPagoWebhook): LivePixWebhookBinding {
-  return {
-    issuanceId: row.id,
-    organizationId: row.organizationId,
-    receivableId: row.receivableId,
-    receivableVersion: row.receivableVersion,
-    ownerId: row.issuedById,
-    clientId: job.clientId,
-    accountId: row.accountId,
-    paymentId: job.paymentId,
-    amountInCents: row.amountInCents,
-  };
-}
-
-function matchesBinding(row: BoundIssuance | null, binding: LivePixWebhookBinding): row is BoundIssuance {
-  if (row === null || row.providerCharge === null) return false;
-  const charge = row.providerCharge;
-
-  return row.id === binding.issuanceId &&
-    row.organizationId === binding.organizationId &&
-    row.receivableId === binding.receivableId &&
-    row.receivableVersion === binding.receivableVersion &&
-    row.issuedById === binding.ownerId &&
-    row.clientId === binding.clientId &&
-    row.accountId === binding.accountId &&
-    row.externalPaymentId === binding.paymentId &&
-    row.amountInCents === binding.amountInCents &&
-    row.providerChargeId === row.id &&
-    charge.id === row.id &&
-    charge.organizationId === binding.organizationId &&
-    charge.receivableId === binding.receivableId &&
-    charge.receivableVersion === binding.receivableVersion &&
-    charge.registeredById === binding.ownerId &&
-    charge.provider === 'mercado-pago' &&
-    charge.externalAccountId === binding.accountId &&
-    charge.externalPaymentId === binding.paymentId &&
-    charge.expectedAmountInCents === binding.amountInCents;
-}
-
-function verifiedForJob(
-  payment: VerifiedProviderPayment,
-  binding: LivePixWebhookBinding,
-  job: ClaimedMercadoPagoWebhook,
-): boolean {
-  try {
-    assertVerifiedProviderPayment(payment, new Date());
-  } catch {
-    return false;
-  }
-
-  return payment.provider === 'mercado-pago' &&
-    payment.liveMode === true &&
-    payment.eventId === job.deliveryKey &&
-    payment.externalAccountId === binding.accountId &&
-    payment.externalPaymentId === binding.paymentId &&
-    payment.amountInCents === binding.amountInCents &&
-    payment.currency === 'brl';
-}
 
 @Injectable()
 export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebhookRepository {
@@ -228,7 +149,7 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
           if (!matchesBinding(row, binding)) {
             disposition = review('INVALID_BINDING');
           } else if (!(await this.originalOwner(db, binding))) {
-            disposition = await this.markReview(db, row, 'OWNER_CHANGED');
+            disposition = await markLivePixReview(db, row, 'OWNER_CHANGED');
           } else if (outcome.kind === 'OWNER_CHANGED') {
             disposition = retry('CONNECTION_CHANGED');
           } else {
@@ -240,7 +161,7 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
             ) {
               disposition = retry('CONNECTION_CHANGED');
             } else {
-              disposition = await this.applyObservation(db, row, binding, job, outcome.observation);
+              disposition = await applyLivePixObservation(db, row, binding, job.deliveryKey, outcome.observation);
             }
           }
 
@@ -255,86 +176,6 @@ export class PrismaMercadoPagoLiveWebhookRepository extends MercadoPagoLiveWebho
       if (error instanceof LeaseLost) return false;
       throw error;
     }
-  }
-
-  private async applyObservation(
-    db: Prisma.TransactionClient,
-    row: BoundIssuance,
-    binding: LivePixWebhookBinding,
-    job: ClaimedMercadoPagoWebhook,
-    observation: Extract<LiveWebhookOutcome, { kind: 'CHECKED' }>['observation'],
-  ): Promise<Disposition> {
-    if (observation.status === 'REFUNDED') return this.markReview(db, row, 'VERIFIED_REFUNDED');
-    if (observation.status === 'INVALID_PROVIDER_PAYMENT') return this.markReview(db, row, 'INVALID_PROVIDER_PAYMENT');
-    if (observation.status === 'REVIEW_REQUIRED') return this.markReview(db, row, 'VERIFIED_REVIEW_REQUIRED');
-
-    // Review is sticky. In particular, an older approved lookup must never
-    // apply after a refund, mismatch or authorization change was observed.
-    if (
-      row.settlementReviewCode !== null ||
-      row.resultCode === 'SNAPSHOT_CHANGED' ||
-      row.resultCode === 'BINDING_CONFLICT' ||
-      row.resultCode === 'UNCERTAIN_CREATION' ||
-      row.status === 'RESERVED'
-    ) {
-      return this.markReview(db, row, 'ISSUANCE_REVIEW_REQUIRED');
-    }
-
-    if (observation.status === 'PENDING') {
-      // Out-of-order pending events never reopen a terminal issuance.
-      return complete('VERIFIED_PENDING', row.id);
-    }
-
-    if (observation.status === 'CLOSED') {
-      if (row.providerCharge?.paymentId !== null || row.status === 'SETTLED') {
-        return this.markReview(db, row, 'CLOSED_AFTER_SETTLEMENT');
-      }
-
-      await db.mercadoPagoLivePix.update({
-        where: { id: row.id },
-        data: { status: 'CLOSED', copyAndPasteCiphertext: null, expiresAt: null },
-      });
-      return complete('VERIFIED_CLOSED', row.id);
-    }
-
-    if (observation.status !== 'APPROVED' || !verifiedForJob(observation.payment, binding, job)) {
-      return this.markReview(db, row, 'INVALID_PROVIDER_PAYMENT');
-    }
-
-    if (row.status === 'CLOSED') return this.markReview(db, row, 'APPROVAL_AFTER_CLOSURE');
-
-    const result = await confirmRegisteredProviderPayment(
-      db,
-      { id: row.id, organizationId: binding.organizationId },
-      observation.payment,
-    );
-
-    if (result !== 'APPLIED' && result !== 'DUPLICATE') {
-      return this.markReview(db, row, 'LEDGER_' + result);
-    }
-
-    await db.mercadoPagoLivePix.update({
-      where: { id: row.id },
-      data: { status: 'SETTLED', copyAndPasteCiphertext: null, expiresAt: null },
-    });
-
-    return complete('LEDGER_' + result, row.id);
-  }
-
-  private async markReview(db: Prisma.TransactionClient, row: BoundIssuance, code: string): Promise<Disposition> {
-    await db.mercadoPagoLivePix.update({
-      where: { id: row.id },
-      data: {
-        status: 'REVIEW_REQUIRED',
-        resultCode: row.resultCode ?? 'VERIFIED_REVIEW_REQUIRED',
-        settlementReviewCode: row.settlementReviewCode ?? code,
-        copyAndPasteCiphertext: null,
-        expiresAt: null,
-      },
-    });
-    // Existing ledger entries, including manually reversed entries, are not
-    // mutated on refund/chargeback; retain evidence for operational review.
-    return review(code, row.id);
   }
 
   private find(db: Db, job: ClaimedMercadoPagoWebhook) {

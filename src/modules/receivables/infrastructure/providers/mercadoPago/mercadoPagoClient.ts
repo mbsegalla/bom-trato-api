@@ -12,6 +12,8 @@ import type {
   MercadoPagoLivePaymentObservation,
   SearchMercadoPagoSandboxPixInput,
   SearchMercadoPagoSandboxPixResult,
+  SearchMercadoPagoLivePixInput,
+  SearchMercadoPagoLivePixResult,
 } from './mercadoPagoPix.types.js';
 
 const API_ORIGIN = 'https://api.mercadopago.com';
@@ -321,7 +323,22 @@ export class MercadoPagoClient {
   // Search only the immutable external reference of an existing reservation.
   // An empty or ambiguous result is not evidence that another Pix can be issued.
   async searchSandboxPix(input: SearchMercadoPagoSandboxPixInput): Promise<SearchMercadoPagoSandboxPixResult> {
-    if (this.config.liveMode) {
+    const candidate = await this.findBoundPixCandidate(input, false);
+    if (candidate.kind !== 'FOUND') return candidate;
+    const status = await this.readSandboxPix({ ...input, paymentId: candidate.paymentId });
+    return { ...candidate, status };
+  }
+
+  async searchLivePix(input: SearchMercadoPagoLivePixInput): Promise<SearchMercadoPagoLivePixResult> {
+    const candidate = await this.findBoundPixCandidate(input, true);
+    if (candidate.kind !== 'FOUND') return candidate;
+    const observation = await this.readLivePix({ ...input, paymentId: candidate.paymentId });
+    return { ...candidate, observation };
+  }
+
+  private async findBoundPixCandidate(input: SearchMercadoPagoSandboxPixInput, liveMode: boolean):
+    Promise<{ kind: 'NOT_FOUND' } | { kind: 'AMBIGUOUS' } | { kind: 'FOUND'; paymentId: string }> {
+    if (this.config.liveMode !== liveMode) {
       throw new MercadoPagoError('MODE_MISMATCH');
     }
 
@@ -376,11 +393,8 @@ export class MercadoPagoClient {
       return invalidResponse();
     }
 
-    const paymentId = normalizeId(candidate.id);
     // Search results alone cannot establish identity or settlement.
-    const status = await this.readSandboxPix({ ...input, paymentId });
-
-    return { kind: 'FOUND', paymentId, status };
+    return { kind: 'FOUND', paymentId: normalizeId(candidate.id) };
   }
 
   // Both paths require a durable reservation, never caller-controlled webhook fields.

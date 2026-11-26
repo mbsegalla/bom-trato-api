@@ -57,17 +57,18 @@ operator approval are not implemented in this increment.
 
 Inspect the scoped live inbox resultCode, reviewRequiredAt, matchedIssuanceId
 and the reservation's settlementReviewCode using restricted database access.
-No automatic replay/reset, live uncertain-create recovery, owner-facing
-live QR/status UI or resolution workflow exists yet. A missing provider ID
+Phase 4.5.9 adds owner-initiated live recovery and gated QR/status UI; see
+[Live Pix review](mercado-pago-live-pix-review.md). No automatic replay/reset
+or manual review override is provided. A missing provider ID
 can only be recovered with authoritative reference/account verification;
 never generate another charge or guess a binding. Expired/disconnected
 credentials defer processing; no synthetic user session or autonomous token
 refresh is performed. Restore the seller connection through the authorized
 OAuth workflow. Unprocessed events remain durable.
 
-Keep new collection blocked until recovery, safe presentation, operational
-review, live credential continuity and external provider homologation are
-verified. No real payments are needed by CI. The disposable PostgreSQL
+Keep new collection blocked until recovery and safe presentation are verified,
+operational review and credential continuity are completed, and external
+provider homologation is approved. No real payments are needed by CI. The disposable PostgreSQL
 suite uses mocked provider calls and covers duplicate/concurrent approvals,
 rollback/retry, expired leases, sandbox isolation, refund review, late
 approval, missing identities, outages and subscription expiry. The transport
