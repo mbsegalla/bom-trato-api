@@ -14,11 +14,7 @@ interface CurrentPaymentContext {
   receivingSettingsVersion: number;
 }
 
-export function isReceivablePaymentLinkCurrent(
-  link: LinkSnapshot,
-  context: CurrentPaymentContext,
-  now: Date,
-): boolean {
+export function isReceivablePaymentLinkCurrent(link: LinkSnapshot, context: CurrentPaymentContext, now: Date): boolean {
   return (
     link.revokedAt === null &&
     link.expiresAt.getTime() > now.getTime() &&

@@ -70,7 +70,15 @@ jobs:
         run: pnpm prisma:generate
 
       - name: Check code quality
+        id: quality
         run: pnpm check
+
+      - name: Show lint and formatting fixes
+        if: failure() && steps.quality.outcome == 'failure'
+        run: |
+          pnpm lint:fix || true
+          pnpm format
+          git --no-pager diff --no-ext-diff
 
       - name: Apply migrations to disposable database
         run: pnpm exec prisma migrate deploy
