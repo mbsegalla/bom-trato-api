@@ -5,12 +5,13 @@ import { OrganizationTrial } from './organizationTrial.entity.js';
 const start = new Date('2026-01-01T00:00:00Z');
 const day = 86_400_000;
 const at = (days: number) => new Date(start.getTime() + days * day);
-const trial = () => OrganizationTrial.create({
-  id: 'trial',
-  organizationId: 'org',
-  ownerId: 'owner',
-  now: start
-});
+const trial = () =>
+  OrganizationTrial.create({
+    id: 'trial',
+    organizationId: 'org',
+    ownerId: 'owner',
+    now: start,
+  });
 
 describe('OrganizationTrial', () => {
   it('grants 14 days and denies access at the exact expiry boundary', () => {

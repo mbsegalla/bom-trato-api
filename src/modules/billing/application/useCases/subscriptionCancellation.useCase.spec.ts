@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { SubscriptionCancellationService } from '../services/subscriptionCancellationService.service.js';
+
 import { CancelSubscriptionUseCase } from './cancelSubscription.useCase.js';
 import { ResumeSubscriptionUseCase } from './resumeSubscription.useCase.js';
 

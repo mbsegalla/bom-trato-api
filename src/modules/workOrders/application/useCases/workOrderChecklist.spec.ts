@@ -20,7 +20,7 @@ import { UpdateWorkOrderChecklistItemUseCase } from './updateWorkOrderChecklistI
 const params = {
   organizationId: 'organization',
   workOrderId: 'work-order',
-  userId: 'member'
+  userId: 'member',
 };
 const changeParams = { ...params, itemId: 'first', version: 1 };
 const createdAt = new Date('2026-11-25T12:00:00.000Z');
@@ -189,7 +189,7 @@ describe('work order checklist items', () => {
       {
         title: ' Verificar a instalação ',
         completed: true,
-        visibleInPortal: true
+        visibleInPortal: true,
       },
     );
 
@@ -210,7 +210,7 @@ describe('work order checklist items', () => {
         completed: false,
         completedAt: null,
         completedById: null,
-        version: 2
+        version: 2,
       });
 
       const completed = await fixture.update.execute(
@@ -337,7 +337,7 @@ describe('work order checklist access', () => {
           visibleInPortal: true,
           completed: true,
           completedAt,
-          completedById: 'technician'
+          completedById: 'technician',
         }),
       ]);
       fixture.access.hasPlatformAccess = scenario !== 'expired';
@@ -368,7 +368,7 @@ describe('work order checklist access', () => {
         visibleInPortal: false,
         completedAt,
         completedById: 'technician',
-        version: 2
+        version: 2,
       });
 
       await fixture.delete.execute({ ...changeParams, version: 2 });

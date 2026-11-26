@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+
 import { PrismaWorkOrderShareUnitOfWork } from './prismaWorkOrderShareUnitOfWork.js';
 
 const params = { organizationId: 'org', userId: 'owner' };
@@ -15,7 +16,8 @@ function fixture() {
     organization: { findUnique: organization },
     organizationMember: { findUnique: member },
     workOrder: { findFirst: workOrder },
-    $queryRaw: query, $executeRaw: execute,
+    $queryRaw: query,
+    $executeRaw: execute,
   };
   const transaction = vi.fn(async (operation: (client: typeof db) => Promise<unknown>) => operation(db));
   const unit = new PrismaWorkOrderShareUnitOfWork({ $transaction: transaction } as unknown as PrismaService);
@@ -28,10 +30,15 @@ describe('PrismaWorkOrderShareUnitOfWork', () => {
     const f = fixture();
 
     expect(await f.unit.read(params, async (context) => context.access)).toMatchObject({
-      isMember: false, verified: false, hasPlatformAccess: false,
+      isMember: false,
+      verified: false,
+      hasPlatformAccess: false,
     });
     expect(f.member).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId_userId: params } }));
-    expect(f.transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'RepeatableRead' }));
+    expect(f.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ isolationLevel: 'RepeatableRead' }),
+    );
   });
 
   it('scopes work order lookup to the tenant and selects only required fields', async () => {
@@ -42,7 +49,7 @@ describe('PrismaWorkOrderShareUnitOfWork', () => {
       where: { id: 'order', organizationId: 'org' },
       select: { id: true, organizationId: true, version: true },
     });
-    expect(f.query.mock.calls[0]![0].join(' ')).toContain('FOR UPDATE');
+    expect(f.query.mock.calls[0][0].join(' ')).toContain('FOR UPDATE');
   });
 
   it('rejects missing organizations in both transaction modes', async () => {

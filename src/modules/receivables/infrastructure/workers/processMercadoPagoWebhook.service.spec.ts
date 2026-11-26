@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MercadoPagoWebhookRepository } from '../../application/ports/mercadoPagoWebhookRepository.port.js';
 import {
   mercadoPagoWebhookDisposition,
-  mercadoPagoWebhookRetryDelaySeconds
+  mercadoPagoWebhookRetryDelaySeconds,
 } from '../../domain/policies/mercadoPagoWebhookRetry.policy.js';
 import type {
   ClaimedMercadoPagoWebhook,
-  SandboxPixWebhookBinding
+  SandboxPixWebhookBinding,
 } from '../../domain/types/mercadoPagoWebhook.types.js';
 import { MercadoPagoError } from '../providers/mercadoPago/mercadoPagoClient.js';
 import type { MercadoPagoConnectionRuntime } from '../providers/mercadoPago/mercadoPagoConnectionRuntime.js';
@@ -40,8 +40,8 @@ function fixture(liveMode = false) {
       access: {
         binding,
         connectedAt,
-        accessToken: 'fixture-access'
-      }
+        accessToken: 'fixture-access',
+      },
     }),
     settle: vi.fn().mockResolvedValue(true),
   };
@@ -51,7 +51,8 @@ function fixture(liveMode = false) {
     readSandboxPix,
     repository,
     processor: new ProcessMercadoPagoWebhookService(
-      repository as unknown as MercadoPagoWebhookRepository, runtime as unknown as MercadoPagoConnectionRuntime,
+      repository as unknown as MercadoPagoWebhookRepository,
+      runtime as unknown as MercadoPagoConnectionRuntime,
     ),
   };
 }
@@ -72,7 +73,7 @@ describe('sandbox webhook processing', () => {
       kind: 'CHECKED',
       binding,
       connectedAt,
-      status: 'APPROVED'
+      status: 'APPROVED',
     });
   });
 
@@ -140,16 +141,21 @@ describe('sandbox webhook retry disposition', () => {
     expect(mercadoPagoWebhookDisposition({ ...checked, status: 'APPROVED' }, 0)).toMatchObject({
       complete: true,
       review: false,
-      code: 'VERIFIED_APPROVED'
+      code: 'VERIFIED_APPROVED',
     });
     expect(mercadoPagoWebhookDisposition({ ...checked, status: 'REFUNDED' }, 0)).toMatchObject({
       complete: false,
       review: true,
-      code: 'VERIFIED_REFUNDED'
+      code: 'VERIFIED_REFUNDED',
     });
-    expect(mercadoPagoWebhookDisposition({
-      ...checked,
-      status: 'REVIEW_REQUIRED'
-    }, 0)).toMatchObject({ complete: false, review: true });
+    expect(
+      mercadoPagoWebhookDisposition(
+        {
+          ...checked,
+          status: 'REVIEW_REQUIRED',
+        },
+        0,
+      ),
+    ).toMatchObject({ complete: false, review: true });
   });
 });

@@ -24,17 +24,20 @@ databaseSuite('public professional directory (disposable PostgreSQL)', () => {
     db.cleanup(() => db.prisma.catalogService.deleteMany({ where: { id: service.id } }));
     db.cleanup(() => db.prisma.publicBusinessProfile.deleteMany({ where: { organizationId: actor.organizationId } }));
 
-    const profile = PublicBusinessProfile.create({
-      id: randomUUID(),
-      organizationId: actor.organizationId,
-      slug: 'fixture-' + actor.organizationId,
-      headline: null,
-      description: null,
-      whatsappPhone: '34999991234',
-      whatsappEnabled: true,
-      published: true,
-      serviceIds: [service.id],
-    }, now);
+    const profile = PublicBusinessProfile.create(
+      {
+        id: randomUUID(),
+        organizationId: actor.organizationId,
+        slug: 'fixture-' + actor.organizationId,
+        headline: null,
+        description: null,
+        whatsappPhone: '34999991234',
+        whatsappEnabled: true,
+        published: true,
+        serviceIds: [service.id],
+      },
+      now,
+    );
     const repository = new PrismaPublicProfileRepository(db.prisma);
     await repository.save(profile);
 
@@ -47,18 +50,22 @@ databaseSuite('public professional directory (disposable PostgreSQL)', () => {
     const second = await fixture(marker);
 
     await db.prisma.publicBusinessProfile.update({
-      where: { organizationId: first.actor.organizationId }, data: { ratingSum: 5, ratingCount: 1, reputationScore: 5000 },
+      where: { organizationId: first.actor.organizationId },
+      data: { ratingSum: 5, ratingCount: 1, reputationScore: 5000 },
     });
     const params = { page: 1, limit: 1, search: '  instalacao ' + marker + '  ', city: 'uberlandia', state: 'mg' };
     const firstPage = await first.repository.listPublished(params);
     const secondPage = await first.repository.listPublished({ ...params, page: 2 });
 
     expect(firstPage).toMatchObject({
-      page: 1, hasMore: true,
+      page: 1,
+      hasMore: true,
       items: [{ slug: first.profile.snapshot().slug, ratingAverage: 5, ratingCount: 1, whatsappAvailable: true }],
     });
     expect(secondPage).toMatchObject({
-      page: 2, hasMore: false, items: [{ slug: second.profile.snapshot().slug, ratingAverage: null }],
+      page: 2,
+      hasMore: false,
+      items: [{ slug: second.profile.snapshot().slug, ratingAverage: null }],
     });
     expect(firstPage.items[0]).not.toHaveProperty('whatsappPhone');
     expect(firstPage.items[0]).not.toHaveProperty('organizationId');
@@ -73,18 +80,26 @@ databaseSuite('public professional directory (disposable PostgreSQL)', () => {
     expect(await f.repository.findPublishedBySlug(slug)).toMatchObject({
       services: [{ id: f.service.id, name: f.service.name }],
     });
-    expect(await f.repository.findWhatsappContact(slug)).toEqual({ businessName: 'Fixture ' + f.marker, phone: '34999991234' });
+    expect(await f.repository.findWhatsappContact(slug)).toEqual({
+      businessName: 'Fixture ' + f.marker,
+      phone: '34999991234',
+    });
 
     await db.prisma.catalogService.update({ where: { id: f.service.id }, data: { archivedAt: new Date() } });
     expect(await f.repository.findPublishedBySlug(slug)).toMatchObject({ services: [] });
-    expect((await f.repository.listPublished({ page: 1, limit: 10, search: 'instalacao ' + f.marker })).items).toEqual([]);
+    expect((await f.repository.listPublished({ page: 1, limit: 10, search: 'instalacao ' + f.marker })).items).toEqual(
+      [],
+    );
 
     await db.prisma.organization.update({ where: { id: f.actor.organizationId }, data: { city: null } });
     expect(await f.repository.findPublishedBySlug(slug)).toBeNull();
     expect(await f.repository.findWhatsappContact(slug)).toBeNull();
 
     await db.prisma.organization.update({ where: { id: f.actor.organizationId }, data: { city: 'Uberlândia' } });
-    await db.prisma.publicBusinessProfile.update({ where: { organizationId: f.actor.organizationId }, data: { published: false } });
+    await db.prisma.publicBusinessProfile.update({
+      where: { organizationId: f.actor.organizationId },
+      data: { published: false },
+    });
     expect(await f.repository.findPublishedBySlug(slug)).toBeNull();
   });
 
@@ -99,13 +114,16 @@ databaseSuite('public professional directory (disposable PostgreSQL)', () => {
       await expect(f.repository.save(changed)).rejects.toThrow('PUBLIC_PROFILE_SERVICE_NOT_FOUND');
     }
 
-    expect(await f.repository.findByOrganizationId(f.actor.organizationId)).toMatchObject({ serviceIds: [f.service.id] });
+    expect(await f.repository.findByOrganizationId(f.actor.organizationId)).toMatchObject({
+      serviceIds: [f.service.id],
+    });
 
     const duplicate = PublicBusinessProfile.restore({ ...original, slug: other.profile.snapshot().slug });
     await expect(f.repository.save(duplicate)).rejects.toThrow('PUBLIC_PROFILE_SLUG_TAKEN');
 
     expect(await f.repository.suggestAvailableSlug(original.slug, f.actor.organizationId)).toBe(original.slug);
-    expect(await f.repository.suggestAvailableSlug(original.slug, other.actor.organizationId))
-      .toBe(original.slug + '-' + other.actor.organizationId.replaceAll('-', '').slice(0, 10));
+    expect(await f.repository.suggestAvailableSlug(original.slug, other.actor.organizationId)).toBe(
+      original.slug + '-' + other.actor.organizationId.replaceAll('-', '').slice(0, 10),
+    );
   });
 });

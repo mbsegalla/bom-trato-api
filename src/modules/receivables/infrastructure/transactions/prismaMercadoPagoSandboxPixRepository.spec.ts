@@ -20,7 +20,7 @@ vi.mock('../../../organizations/infrastructure/transactions/organizationTransact
 vi.mock('../access/assertReceivingSettingsOwner.js', () => ({
   assertReceivingSettingsOwner: vi.fn().mockResolvedValue({
     hasPlatformAccess: true,
-    billingNeedsReconciliation: false
+    billingNeedsReconciliation: false,
   }),
 }));
 
@@ -89,7 +89,7 @@ function fixture() {
     accountId: '456',
     accessToken: 'fixture-access',
     liveMode: false,
-    expiresAt: new Date(Date.now() + 3600000)
+    expiresAt: new Date(Date.now() + 3600000),
   };
   const connection = {
     accountId: access.accountId,
@@ -99,15 +99,8 @@ function fixture() {
     disconnectedAt: null as Date | null,
     expiresAt: access.expiresAt,
     accessTokenCiphertext: runtime.cipher.seal(
-      [
-        'credential',
-        actor.organizationId,
-        '123',
-        'false',
-        access.accountId,
-        'access'
-      ],
-      access.accessToken
+      ['credential', actor.organizationId, '123', 'false', access.accountId, 'access'],
+      access.accessToken,
     ),
     refreshTokenCiphertext: 'fixture-refresh-ciphertext',
     refreshClaimId: null,
@@ -118,7 +111,7 @@ function fixture() {
     status: 'OPEN',
     currency: 'brl',
     amountInCents: 10000,
-    receivedInCents: 0
+    receivedInCents: 0,
   };
   let stored: Issuance | null = null;
   let transaction: Promise<unknown> = Promise.resolve();
@@ -130,23 +123,30 @@ function fixture() {
     mercadoPagoOAuthAttempt: { findUnique: vi.fn().mockResolvedValue(null) },
     mercadoPagoSandboxPix: {
       findUnique: vi.fn(async () => stored),
-      create: vi.fn(async ({ data }: {
-        data: Omit<Issuance,
-        'status' | 'externalPaymentId' | 'copyAndPasteCiphertext' | 'expiresAt'>
-      }) => {
-        if (stored !== null) throw new Error('duplicate reservation');
-        stored = {
-          ...data,
-          status: 'RESERVED',
-          externalPaymentId: null,
-          copyAndPasteCiphertext: null,
-          expiresAt: null
-        };
+      create: vi.fn(
+        async ({
+          data,
+        }: {
+          data: Omit<Issuance, 'status' | 'externalPaymentId' | 'copyAndPasteCiphertext' | 'expiresAt'>;
+        }) => {
+          if (stored !== null) {
+            throw new Error('duplicate reservation');
+          }
+          stored = {
+            ...data,
+            status: 'RESERVED',
+            externalPaymentId: null,
+            copyAndPasteCiphertext: null,
+            expiresAt: null,
+          };
 
-        return stored;
-      }),
+          return stored;
+        },
+      ),
       updateMany: vi.fn(async ({ data }: { data: Partial<Issuance> }) => {
-        if (stored === null || stored.status !== 'RESERVED') return { count: 0 };
+        if (stored === null || stored.status !== 'RESERVED') {
+          return { count: 0 };
+        }
         stored = { ...stored, ...data };
 
         return { count: 1 };
@@ -187,7 +187,9 @@ function fixture() {
     };
   });
   const repository = new PrismaMercadoPagoSandboxPixRepository(
-    prisma as unknown as PrismaService, runtime, credentials as unknown as MercadoPagoCredentialService,
+    prisma as unknown as PrismaService,
+    runtime,
+    credentials as unknown as MercadoPagoCredentialService,
   );
 
   return {
@@ -196,7 +198,7 @@ function fixture() {
     db,
     receivable,
     connection,
-    stored: () => stored
+    stored: () => stored,
   };
 }
 

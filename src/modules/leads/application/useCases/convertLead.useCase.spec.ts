@@ -7,6 +7,7 @@ import { Lead } from '../../domain/entities/lead.entity.js';
 import type { LeadRepository } from '../../domain/repositories/lead.repository.js';
 import type { LeadTransaction, LeadUnitOfWork } from '../ports/leadUnitOfWork.port.js';
 import { LeadApplicationService } from '../services/leadApplicationService.service.js';
+
 import { ConvertLeadUseCase } from './convertLead.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner', leadId: 'lead' };
@@ -22,19 +23,22 @@ function fixture() {
       requestedServiceName: 'Fixture service',
       name: 'Fixture customer',
       email: 'client@example.invalid',
-      message: 'Preciso de uma revisao'
+      message: 'Preciso de uma revisao',
     },
-    now
+    now,
   ).snapshot();
-  const customer = Customer.create({
-    id: 'existing',
-    organizationId: 'org',
-    name: state.name,
-    email: state.email
-  }, now).snapshot();
+  const customer = Customer.create(
+    {
+      id: 'existing',
+      organizationId: 'org',
+      name: state.name,
+      email: state.email,
+    },
+    now,
+  ).snapshot();
   const leads = {
     findById: vi.fn<LeadRepository['findById']>().mockResolvedValue(state),
-    save: vi.fn<LeadRepository['save']>().mockResolvedValue(undefined)
+    save: vi.fn<LeadRepository['save']>().mockResolvedValue(undefined),
   };
   const customers = { create: vi.fn<CustomerRepository['create']>().mockResolvedValue(undefined) };
   const quotes = { create: vi.fn<QuoteRepository['create']>().mockResolvedValue(undefined) };
@@ -46,7 +50,7 @@ function fixture() {
     unit: 'SERVICE',
     amountInCents: 1234,
     currency: 'brl',
-    archivedAt: null
+    archivedAt: null,
   });
   const tx = {
     access: {
@@ -54,15 +58,17 @@ function fixture() {
       verified: true,
       hasPlatformAccess: true,
       source: 'TRIAL',
-      billingNeedsReconciliation: false
+      billingNeedsReconciliation: false,
     },
     leads,
     customers,
     quotes,
     findCustomersByContact,
-    findCatalogService
+    findCatalogService,
   } as unknown as LeadTransaction;
-  const run = vi.fn(async (_actor: typeof actor, operation: (context: LeadTransaction) => Promise<unknown>) => operation(tx));
+  const run = vi.fn(async (_actor: typeof actor, operation: (context: LeadTransaction) => Promise<unknown>) =>
+    operation(tx),
+  );
 
   return {
     state,
@@ -72,7 +78,7 @@ function fixture() {
     quotes,
     findCustomersByContact,
     findCatalogService,
-    useCase: new ConvertLeadUseCase(new LeadApplicationService({ run } as unknown as LeadUnitOfWork))
+    useCase: new ConvertLeadUseCase(new LeadApplicationService({ run } as unknown as LeadUnitOfWork)),
   };
 }
 
@@ -85,18 +91,18 @@ describe('ConvertLeadUseCase', () => {
     expect(result.lead).toMatchObject({
       status: 'CONVERTED',
       convertedCustomerId: result.customerId,
-      convertedQuoteId: result.quoteId
+      convertedQuoteId: result.quoteId,
     });
-    expect(f.customers.create.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.customers.create.mock.calls[0][0].snapshot()).toMatchObject({
       id: result.customerId,
       organizationId: 'org',
-      email: 'client@example.invalid'
+      email: 'client@example.invalid',
     });
-    expect(f.quotes.create.mock.calls[0]![0].snapshot()).toMatchObject({
+    expect(f.quotes.create.mock.calls[0][0].snapshot()).toMatchObject({
       id: result.quoteId,
       customerId: result.customerId,
       status: 'DRAFT',
-      totalInCents: 1234
+      totalInCents: 1234,
     });
   });
 
@@ -109,7 +115,7 @@ describe('ConvertLeadUseCase', () => {
 
     expect(result.customerId).toBe(f.customer.id);
     expect(f.customers.create).not.toHaveBeenCalled();
-    expect(f.quotes.create.mock.calls[0]![0].snapshot().totalInCents).toBe(0);
+    expect(f.quotes.create.mock.calls[0][0].snapshot().totalInCents).toBe(0);
   });
 
   it('rejects ambiguous contacts and archived customers without creating anything', async () => {

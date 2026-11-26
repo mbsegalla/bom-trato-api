@@ -1,6 +1,6 @@
+import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { Request, Response } from 'express';
 import { AuthCookies } from './authCookies.js';
 
 const origin = 'https://web.example.invalid';
@@ -14,10 +14,11 @@ function fixture() {
   const setHeader = vi.fn();
   const clearCookie = vi.fn();
   const response = { cookie, setHeader, clearCookie } as unknown as Response;
-  const request = (token: string, refresh = 'fixture-refresh', requestOrigin = origin, header = token) => ({
-    cookies: { '__Host-bomTratoCsrf': token, '__Host-bomTratoRefresh': refresh },
-    get: (name: string) => name === 'origin' ? requestOrigin : name === 'x-csrf-token' ? header : undefined,
-  }) as unknown as Request;
+  const request = (token: string, refresh = 'fixture-refresh', requestOrigin = origin, header = token) =>
+    ({
+      cookies: { '__Host-bomTratoCsrf': token, '__Host-bomTratoRefresh': refresh },
+      get: (name: string) => (name === 'origin' ? requestOrigin : name === 'x-csrf-token' ? header : undefined),
+    }) as unknown as Request;
 
   return {
     cookies,
@@ -25,7 +26,7 @@ function fixture() {
     cookie,
     setHeader,
     clearCookie,
-    request
+    request,
   };
 }
 
@@ -34,20 +35,24 @@ describe('AuthCookies', () => {
     const f = fixture();
     const token = f.cookies.setSession(f.response, 'fixture-refresh', new Date(Date.now() + 86400000));
 
-    expect(f.cookie).toHaveBeenCalledWith('__Host-bomTratoRefresh', 'fixture-refresh', expect.objectContaining({
-      secure: true,
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-    }));
+    expect(f.cookie).toHaveBeenCalledWith(
+      '__Host-bomTratoRefresh',
+      'fixture-refresh',
+      expect.objectContaining({
+        secure: true,
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+      }),
+    );
     expect(f.cookie).toHaveBeenCalledWith(
       '__Host-bomTratoCsrf',
       token,
       expect.objectContaining({
         secure: true,
         httpOnly: true,
-        maxAge: 3600000
-      })
+        maxAge: 3600000,
+      }),
     );
     expect(() => f.cookies.assertCsrf(f.request(token))).not.toThrow();
     expect(() => f.cookies.assertCsrf(f.request(token, 'different-refresh'))).toThrow('Invalid CSRF token');
@@ -59,7 +64,9 @@ describe('AuthCookies', () => {
     try {
       const f = fixture();
       const token = f.cookies.issueCsrf(f.response, 'fixture-refresh');
-      expect(() => f.cookies.assertCsrf(f.request(token, 'fixture-refresh', 'https://other.example.invalid'))).toThrow('Request origin is not allowed');
+      expect(() => f.cookies.assertCsrf(f.request(token, 'fixture-refresh', 'https://other.example.invalid'))).toThrow(
+        'Request origin is not allowed',
+      );
       expect(() => f.cookies.assertCsrf(f.request(token, 'fixture-refresh', origin, ''))).toThrow('Invalid CSRF token');
       const tampered = token.slice(0, -1) + (token.endsWith('a') ? 'b' : 'a');
       expect(() => f.cookies.assertCsrf(f.request(tampered))).toThrow('Invalid CSRF token');
@@ -74,7 +81,13 @@ describe('AuthCookies', () => {
     const f = fixture();
     f.cookies.clear(f.response);
 
-    expect(f.clearCookie).toHaveBeenCalledWith('__Host-bomTratoRefresh', expect.objectContaining({ secure: true, path: '/' }));
-    expect(f.clearCookie).toHaveBeenCalledWith('__Host-bomTratoCsrf', expect.objectContaining({ secure: true, path: '/' }));
+    expect(f.clearCookie).toHaveBeenCalledWith(
+      '__Host-bomTratoRefresh',
+      expect.objectContaining({ secure: true, path: '/' }),
+    );
+    expect(f.clearCookie).toHaveBeenCalledWith(
+      '__Host-bomTratoCsrf',
+      expect.objectContaining({ secure: true, path: '/' }),
+    );
   });
 });

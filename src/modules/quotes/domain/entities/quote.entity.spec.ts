@@ -5,24 +5,29 @@ import { QuoteItem } from './quoteItem.entity.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const expiresAt = new Date(now.getTime() + 86_400_000);
-const create = () => Quote.create({
-  id: 'quote',
-  organizationId: 'org',
-  userId: 'owner',
-  customer: {
-    id: 'customer',
-    name: 'Cliente',
-    email: null,
-    phone: null
-  },
-  details: { title: 'Servico', validUntil: expiresAt },
-}, now);
-const item = () => QuoteItem.create('item', {
-  name: 'Servico',
-  unit: 'SERVICE',
-  quantity: '2.5',
-  unitAmountInCents: 1000
-});
+const create = () =>
+  Quote.create(
+    {
+      id: 'quote',
+      organizationId: 'org',
+      userId: 'owner',
+      customer: {
+        id: 'customer',
+        name: 'Cliente',
+        email: null,
+        phone: null,
+      },
+      details: { title: 'Servico', validUntil: expiresAt },
+    },
+    now,
+  );
+const item = () =>
+  QuoteItem.create('item', {
+    name: 'Servico',
+    unit: 'SERVICE',
+    quantity: '2.5',
+    unitAmountInCents: 1000,
+  });
 
 describe('Quote', () => {
   it('maintains integer totals and rejects a discount beyond the subtotal without mutating state', () => {

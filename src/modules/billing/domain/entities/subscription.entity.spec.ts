@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { Subscription } from './subscription.entity.js';
 import type { SubscriptionProps } from './subscription.entity.js';
+import { Subscription } from './subscription.entity.js';
 
 const start = new Date('2026-01-01T00:00:00Z');
 const end = new Date('2026-02-01T00:00:00Z');
@@ -29,16 +29,12 @@ describe('Subscription', () => {
     expect(Subscription.restore({ ...props, status, paidThrough: null }).hasAccessAt(start)).toBe(false);
   });
 
-  it.each([
-    'INCOMPLETE',
-    'INCOMPLETE_EXPIRED',
-    'TRIALING',
-    'CANCELED',
-    'UNPAID',
-    'PAUSED'
-  ] as const)('denies paid access for %s', (status) => {
-    expect(Subscription.restore({ ...props, status }).hasAccessAt(start)).toBe(false);
-  });
+  it.each(['INCOMPLETE', 'INCOMPLETE_EXPIRED', 'TRIALING', 'CANCELED', 'UNPAID', 'PAUSED'] as const)(
+    'denies paid access for %s',
+    (status) => {
+      expect(Subscription.restore({ ...props, status }).hasAccessAt(start)).toBe(false);
+    },
+  );
 
   it('does not allow ended subscriptions and omits Stripe identifiers from public views', () => {
     expect(Subscription.restore({ ...props, endedAt: start }).hasAccessAt(start)).toBe(false);

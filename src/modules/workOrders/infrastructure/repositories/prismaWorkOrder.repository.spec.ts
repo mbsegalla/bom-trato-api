@@ -4,6 +4,7 @@ import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Quote } from '../../../quotes/domain/entities/quote.entity.js';
 import { QuoteItem } from '../../../quotes/domain/entities/quoteItem.entity.js';
 import { WorkOrder } from '../../domain/entities/workOrder.entity.js';
+
 import { PrismaWorkOrderRepository } from './prismaWorkOrder.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
@@ -12,13 +13,18 @@ const end = new Date('2026-01-02T11:00:00Z');
 const actor = { organizationId: 'org', userId: 'owner' };
 
 function makeOrder() {
-  const quote = Quote.create({
-    id: 'quote',
-    ...actor,
-    customer: { id: 'customer', name: 'Fixture', email: null, phone: null },
-    details: { title: 'Fixture service' },
-  }, now);
-  quote.addItem(QuoteItem.create('item', { name: 'Fixture service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 1000 }));
+  const quote = Quote.create(
+    {
+      id: 'quote',
+      ...actor,
+      customer: { id: 'customer', name: 'Fixture', email: null, phone: null },
+      details: { title: 'Fixture service' },
+    },
+    now,
+  );
+  quote.addItem(
+    QuoteItem.create('item', { name: 'Fixture service', unit: 'SERVICE', quantity: '1', unitAmountInCents: 1000 }),
+  );
   quote.markSent(now);
   quote.approve(now);
 
@@ -35,13 +41,27 @@ function fixture() {
   const createSchedule = vi.fn().mockResolvedValue(undefined);
   const listStatus = vi.fn().mockResolvedValue([]);
   const listSchedule = vi.fn().mockResolvedValue([]);
-  const repository = new PrismaWorkOrderRepository({
-    workOrder: { findFirst, findMany, create, updateMany },
-    workOrderStatusHistory: { create: createStatus, findMany: listStatus },
-    workOrderScheduleHistory: { create: createSchedule, findMany: listSchedule },
-  } as unknown as Prisma.TransactionClient, actor.organizationId);
+  const repository = new PrismaWorkOrderRepository(
+    {
+      workOrder: { findFirst, findMany, create, updateMany },
+      workOrderStatusHistory: { create: createStatus, findMany: listStatus },
+      workOrderScheduleHistory: { create: createSchedule, findMany: listSchedule },
+    } as unknown as Prisma.TransactionClient,
+    actor.organizationId,
+  );
 
-  return { order, repository, findFirst, findMany, create, updateMany, createStatus, createSchedule, listStatus, listSchedule };
+  return {
+    order,
+    repository,
+    findFirst,
+    findMany,
+    create,
+    updateMany,
+    createStatus,
+    createSchedule,
+    listStatus,
+    listSchedule,
+  };
 }
 
 describe('PrismaWorkOrderRepository', () => {
@@ -56,7 +76,14 @@ describe('PrismaWorkOrderRepository', () => {
         ...state,
         workOrderItems: { create: items },
         workOrderStatusHistory: {
-          create: { fromStatus: null, toStatus: 'OPEN', actorId: actor.userId, version: 1, reason: null, createdAt: now },
+          create: {
+            fromStatus: null,
+            toStatus: 'OPEN',
+            actorId: actor.userId,
+            version: 1,
+            reason: null,
+            createdAt: now,
+          },
         },
       },
     });
@@ -80,12 +107,18 @@ describe('PrismaWorkOrderRepository', () => {
     expect(await f.repository.findByQuoteId('quote')).toEqual(f.order.snapshot());
     expect(await f.repository.findById('unknown')).toBeNull();
 
-    expect(f.findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: { quoteId: 'quote', organizationId: 'org' },
-    }));
-    expect(f.findFirst).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: { id: 'unknown', organizationId: 'org' },
-    }));
+    expect(f.findFirst).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { quoteId: 'quote', organizationId: 'org' },
+      }),
+    );
+    expect(f.findFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: 'unknown', organizationId: 'org' },
+      }),
+    );
   });
 
   it('checks only active overlapping work for the assigned professional', async () => {
@@ -98,9 +131,12 @@ describe('PrismaWorkOrderRepository', () => {
 
     expect(f.findFirst).toHaveBeenCalledWith({
       where: {
-        organizationId: 'org', id: { not: 'order' }, assignedToId: 'worker',
+        organizationId: 'org',
+        id: { not: 'order' },
+        assignedToId: 'worker',
         status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
-        scheduledStartAt: { lt: end }, scheduledEndAt: { gt: start },
+        scheduledStartAt: { lt: end },
+        scheduledEndAt: { gt: start },
       },
       select: { id: true },
     });
@@ -109,7 +145,10 @@ describe('PrismaWorkOrderRepository', () => {
   it('records the scheduling and status transition together and preserves immutable totals', async () => {
     const f = fixture();
     f.findFirst.mockResolvedValueOnce({
-      status: 'OPEN', assignedToId: null, scheduledStartAt: null, scheduledEndAt: null,
+      status: 'OPEN',
+      assignedToId: null,
+      scheduledStartAt: null,
+      scheduledEndAt: null,
     });
     f.order.assign('worker');
     f.order.update({ serviceAddress: 'Fixture address' });
@@ -122,22 +161,43 @@ describe('PrismaWorkOrderRepository', () => {
       where: { id: 'order', organizationId: 'org', version: 1 },
       data: expect.objectContaining({ status: 'SCHEDULED', version: 2, assignedToId: 'worker' }),
     });
-    expect(f.updateMany.mock.calls[0]![0].data).not.toHaveProperty('totalInCents');
-    expect(f.createSchedule).toHaveBeenCalledWith({ data: {
-      workOrderId: 'order', fromAssignedToId: null, toAssignedToId: 'worker',
-      fromStartAt: null, fromEndAt: null, toStartAt: start, toEndAt: end,
-      fromStatus: 'OPEN', toStatus: 'SCHEDULED', actorId: actor.userId, version: 2, createdAt: now,
-    } });
-    expect(f.createStatus).toHaveBeenCalledWith({ data: {
-      workOrderId: 'order', fromStatus: 'OPEN', toStatus: 'SCHEDULED', actorId: actor.userId,
-      version: 2, reason: null, createdAt: now,
-    } });
+    expect(f.updateMany.mock.calls[0][0].data).not.toHaveProperty('totalInCents');
+    expect(f.createSchedule).toHaveBeenCalledWith({
+      data: {
+        workOrderId: 'order',
+        fromAssignedToId: null,
+        toAssignedToId: 'worker',
+        fromStartAt: null,
+        fromEndAt: null,
+        toStartAt: start,
+        toEndAt: end,
+        fromStatus: 'OPEN',
+        toStatus: 'SCHEDULED',
+        actorId: actor.userId,
+        version: 2,
+        createdAt: now,
+      },
+    });
+    expect(f.createStatus).toHaveBeenCalledWith({
+      data: {
+        workOrderId: 'order',
+        fromStatus: 'OPEN',
+        toStatus: 'SCHEDULED',
+        actorId: actor.userId,
+        version: 2,
+        reason: null,
+        createdAt: now,
+      },
+    });
   });
 
   it('does not write history when editing notes without changing the schedule or status', async () => {
     const f = fixture();
     f.findFirst.mockResolvedValueOnce({
-      status: 'OPEN', assignedToId: null, scheduledStartAt: null, scheduledEndAt: null,
+      status: 'OPEN',
+      assignedToId: null,
+      scheduledStartAt: null,
+      scheduledEndAt: null,
     });
     f.order.updateExecutionNotes('Fixture notes');
     f.order.recordChange(actor.userId, now);
@@ -166,7 +226,9 @@ describe('PrismaWorkOrderRepository', () => {
     const f = fixture();
 
     await expect(f.repository.listStatusHistory('order')).rejects.toThrow('WORK_ORDER_NOT_FOUND');
-    await expect(f.repository.listScheduleHistory('order', { page: 2, limit: 1 })).rejects.toThrow('WORK_ORDER_NOT_FOUND');
+    await expect(f.repository.listScheduleHistory('order', { page: 2, limit: 1 })).rejects.toThrow(
+      'WORK_ORDER_NOT_FOUND',
+    );
     expect(f.listStatus).not.toHaveBeenCalled();
     expect(f.listSchedule).not.toHaveBeenCalled();
 
@@ -175,7 +237,9 @@ describe('PrismaWorkOrderRepository', () => {
 
     await f.repository.listStatusHistory('order');
     expect(await f.repository.listScheduleHistory('order', { page: 2, limit: 1 })).toEqual({
-      items: [{ version: 3 }], page: 2, hasMore: true,
+      items: [{ version: 3 }],
+      page: 2,
+      hasMore: true,
     });
     expect(f.listStatus).toHaveBeenCalledWith({
       where: { workOrderId: 'order', workOrder: { organizationId: 'org' } },
@@ -183,7 +247,9 @@ describe('PrismaWorkOrderRepository', () => {
     });
     expect(f.listSchedule).toHaveBeenCalledWith({
       where: { workOrderId: 'order', workOrder: { organizationId: 'org' } },
-      orderBy: { version: 'desc' }, skip: 1, take: 2,
+      orderBy: { version: 'desc' },
+      skip: 1,
+      take: 2,
     });
   });
 });

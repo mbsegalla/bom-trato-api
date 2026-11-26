@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
 import { requestLogContext, setAuthenticatedLogUser } from '../../logging/requestLogContext.js';
+
 import { requestCorrelationMiddleware } from './requestCorrelation.middleware.js';
 
 describe('request correlation middleware', () => {

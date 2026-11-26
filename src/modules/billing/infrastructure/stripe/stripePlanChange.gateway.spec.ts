@@ -1,8 +1,8 @@
+import type Stripe from 'stripe';
 import { describe, expect, it, vi } from 'vitest';
 
-import type Stripe from 'stripe';
-
 import type { PlanChangeProps } from '../../domain/entities/planChange.entity.js';
+
 import { StripePlanChangeGateway } from './stripePlanChange.gateway.js';
 
 const change: PlanChangeProps = {
@@ -95,12 +95,26 @@ function fixture() {
     subscriptions: { retrieve: retrieveSubscription, update: updateSubscription },
     invoices: { retrieve: retrieveInvoice, createPreview: preview, voidInvoice },
     invoiceItems: { list: listInvoiceItems },
-    subscriptionSchedules: { create: createSchedule, update: updateSchedule, retrieve: retrieveSchedule, release: releaseSchedule },
+    subscriptionSchedules: {
+      create: createSchedule,
+      update: updateSchedule,
+      retrieve: retrieveSchedule,
+      release: releaseSchedule,
+    },
   } as unknown as Stripe);
 
   return {
-    gateway, retrieveSubscription, retrieveInvoice, listInvoiceItems, preview, updateSubscription,
-    createSchedule, updateSchedule, retrieveSchedule, releaseSchedule, voidInvoice,
+    gateway,
+    retrieveSubscription,
+    retrieveInvoice,
+    listInvoiceItems,
+    preview,
+    updateSubscription,
+    createSchedule,
+    updateSchedule,
+    retrieveSchedule,
+    releaseSchedule,
+    voidInvoice,
   };
 }
 
@@ -177,32 +191,62 @@ describe('StripePlanChangeGateway', () => {
     f.retrieveSubscription.mockResolvedValueOnce(applied);
 
     expect(await f.gateway.execute(change)).toMatchObject({ status: 'APPLIED', stripeInvoiceId: invoice.id });
-    expect(f.updateSubscription).toHaveBeenCalledWith(actor.subscriptionId, expect.objectContaining({
-      items: [{ id: change.stripeItemId, price: change.targetStripePriceId, quantity: 1 }],
-      payment_behavior: 'pending_if_incomplete',
-      metadata: { planChangeId: change.id },
-    }), { idempotencyKey: 'plan-change:' + change.id });
+    expect(f.updateSubscription).toHaveBeenCalledWith(
+      actor.subscriptionId,
+      expect.objectContaining({
+        items: [{ id: change.stripeItemId, price: change.targetStripePriceId, quantity: 1 }],
+        payment_behavior: 'pending_if_incomplete',
+        metadata: { planChangeId: change.id },
+      }),
+      { idempotencyKey: 'plan-change:' + change.id },
+    );
   });
 
   it('creates a period-end schedule with current and next prices and separate stable keys', async () => {
     const f = fixture();
     f.retrieveSubscription.mockResolvedValueOnce({ ...subscription, schedule: 'sched_fixture' });
 
-    expect(await f.gateway.execute({ ...change, mode: 'PERIOD_END' })).toMatchObject({ status: 'SCHEDULED', stripeScheduleId: 'sched_fixture' });
-    expect(f.createSchedule).toHaveBeenCalledWith({ from_subscription: actor.subscriptionId }, { idempotencyKey: 'plan-change-schedule:' + change.id });
-    expect(f.updateSchedule).toHaveBeenCalledWith('sched_fixture', expect.objectContaining({
-      phases: [
-        expect.objectContaining({ start_date: change.periodStart, end_date: change.periodEnd, items: [{ price: change.sourceStripePriceId, quantity: 1 }] }),
-        expect.objectContaining({ start_date: change.periodEnd, items: [{ price: change.targetStripePriceId, quantity: 1 }], duration: { interval: 'month', interval_count: 1 } }),
-      ],
-    }), { idempotencyKey: 'plan-change-phases:' + change.id });
+    expect(await f.gateway.execute({ ...change, mode: 'PERIOD_END' })).toMatchObject({
+      status: 'SCHEDULED',
+      stripeScheduleId: 'sched_fixture',
+    });
+    expect(f.createSchedule).toHaveBeenCalledWith(
+      { from_subscription: actor.subscriptionId },
+      { idempotencyKey: 'plan-change-schedule:' + change.id },
+    );
+    expect(f.updateSchedule).toHaveBeenCalledWith(
+      'sched_fixture',
+      expect.objectContaining({
+        phases: [
+          expect.objectContaining({
+            start_date: change.periodStart,
+            end_date: change.periodEnd,
+            items: [{ price: change.sourceStripePriceId, quantity: 1 }],
+          }),
+          expect.objectContaining({
+            start_date: change.periodEnd,
+            items: [{ price: change.targetStripePriceId, quantity: 1 }],
+            duration: { interval: 'month', interval_count: 1 },
+          }),
+        ],
+      }),
+      { idempotencyKey: 'plan-change-phases:' + change.id },
+    );
     expect(f.updateSubscription).not.toHaveBeenCalled();
   });
 
   it('inspects a pending payment only when both invoice customer and subscription match', async () => {
     const f = fixture();
-    f.retrieveSubscription.mockResolvedValue({ ...subscription, metadata: { planChangeId: change.id }, pending_update: {} });
-    f.retrieveInvoice.mockResolvedValueOnce({ ...invoice, status: 'open', confirmation_secret: { client_secret: 'fixture-secret' } });
+    f.retrieveSubscription.mockResolvedValue({
+      ...subscription,
+      metadata: { planChangeId: change.id },
+      pending_update: {},
+    });
+    f.retrieveInvoice.mockResolvedValueOnce({
+      ...invoice,
+      status: 'open',
+      confirmation_secret: { client_secret: 'fixture-secret' },
+    });
 
     expect(await f.gateway.inspect(change)).toEqual({
       status: 'PENDING_PAYMENT',
@@ -220,7 +264,9 @@ describe('StripePlanChangeGateway', () => {
 
   it('does not void an already applied or unrelated change but voids the owned open invoice idempotently', async () => {
     const f = fixture();
-    f.retrieveSubscription.mockResolvedValueOnce(applied).mockResolvedValueOnce(subscription)
+    f.retrieveSubscription
+      .mockResolvedValueOnce(applied)
+      .mockResolvedValueOnce(subscription)
       .mockResolvedValueOnce({ ...subscription, metadata: { planChangeId: change.id }, pending_update: {} });
     f.retrieveInvoice.mockResolvedValueOnce({ ...invoice, status: 'open' });
 
@@ -239,7 +285,9 @@ describe('StripePlanChangeGateway', () => {
     f.retrieveSubscription.mockResolvedValueOnce({ ...subscription, schedule: 'sched_fixture' });
     f.retrieveSchedule.mockResolvedValueOnce({ metadata: { planChangeId: 'other' }, status: 'active' });
 
-    await expect(f.gateway.releaseSchedule({ ...change, mode: 'PERIOD_END' })).rejects.toThrow('BILLING_RECONCILIATION_REQUIRED');
+    await expect(f.gateway.releaseSchedule({ ...change, mode: 'PERIOD_END' })).rejects.toThrow(
+      'BILLING_RECONCILIATION_REQUIRED',
+    );
 
     expect(f.releaseSchedule).not.toHaveBeenCalled();
   });

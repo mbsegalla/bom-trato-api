@@ -4,16 +4,25 @@ import { describe, expect, it, vi } from 'vitest';
 import type { mercadoPagoLiveWebhookConfig } from '../../../../config/mercadoPagoLiveWebhook.config.js';
 import type { MercadoPagoLiveWebhookRepository } from '../../application/ports/mercadoPagoLiveWebhookRepository.port.js';
 import type { ClaimedMercadoPagoWebhook } from '../../domain/types/mercadoPagoWebhook.types.js';
+
 import { MercadoPagoLiveWebhookWorker } from './mercadoPagoLiveWebhook.worker.js';
 import type { ProcessMercadoPagoLiveWebhookService } from './processMercadoPagoLiveWebhook.service.js';
 
-const job: ClaimedMercadoPagoWebhook = { clientId: '123', deliveryKey: 'delivery', paymentId: '456', leaseToken: 'lease', attempts: 0 };
+const job: ClaimedMercadoPagoWebhook = {
+  clientId: '123',
+  deliveryKey: 'delivery',
+  paymentId: '456',
+  leaseToken: 'lease',
+  attempts: 0,
+};
 
 function fixture(options: Record<string, unknown> = {}) {
   const claim = vi.fn<MercadoPagoLiveWebhookRepository['claim']>().mockResolvedValue(null);
   const execute = vi.fn().mockResolvedValue(true);
   const worker = new MercadoPagoLiveWebhookWorker(
-    { enabled: true, workerEnabled: true, clientId: job.clientId, ...options } as ConfigType<typeof mercadoPagoLiveWebhookConfig>,
+    { enabled: true, workerEnabled: true, clientId: job.clientId, ...options } as ConfigType<
+      typeof mercadoPagoLiveWebhookConfig
+    >,
     { claim } as unknown as MercadoPagoLiveWebhookRepository,
     { execute } as unknown as ProcessMercadoPagoLiveWebhookService,
   );
@@ -22,13 +31,16 @@ function fixture(options: Record<string, unknown> = {}) {
 }
 
 describe('MercadoPagoLiveWebhookWorker', () => {
-  it.each([{ enabled: false }, { workerEnabled: false }, { clientId: undefined }])('does not claim work when disabled: %j', async (options) => {
-    const f = fixture(options);
+  it.each([{ enabled: false }, { workerEnabled: false }, { clientId: undefined }])(
+    'does not claim work when disabled: %j',
+    async (options) => {
+      const f = fixture(options);
 
-    await f.worker.recover();
+      await f.worker.recover();
 
-    expect(f.claim).not.toHaveBeenCalled();
-  });
+      expect(f.claim).not.toHaveBeenCalled();
+    },
+  );
 
   it('drains at most ten jobs per recovery and uses a unique lease for each claim', async () => {
     const f = fixture();
@@ -57,7 +69,11 @@ describe('MercadoPagoLiveWebhookWorker', () => {
     const f = fixture();
     let finish!: (result: boolean) => void;
     f.claim.mockResolvedValueOnce(job);
-    f.execute.mockReturnValueOnce(new Promise<boolean>((resolve) => { finish = resolve; }));
+    f.execute.mockReturnValueOnce(
+      new Promise<boolean>((resolve) => {
+        finish = resolve;
+      }),
+    );
 
     const first = f.worker.recover();
     const second = f.worker.recover();

@@ -32,7 +32,10 @@ databaseSuite('verified review persistence (disposable PostgreSQL)', () => {
     const resolved = await f.repository.resolveInvitation(f.invitation.tokenHash);
 
     expect(resolved).toMatchObject({
-      workOrderId: f.order.id, customerId: f.customer.id, professionalSlug: f.profile.slug, reviewExists: false,
+      workOrderId: f.order.id,
+      customerId: f.customer.id,
+      professionalSlug: f.profile.slug,
+      reviewExists: false,
     });
 
     const result = await f.repository.submitVerifiedReview(f.params);
@@ -51,10 +54,12 @@ databaseSuite('verified review persistence (disposable PostgreSQL)', () => {
       ratingCount: 1,
       reputationScore: ProfessionalReview.calculateReputationScore(5, 1),
     });
-    expect(await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: f.invitation.id } }))
-      .toMatchObject({ usedAt: f.params.now });
-    expect(await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: other.id } }))
-      .toMatchObject({ revokedAt: f.params.now });
+    expect(
+      await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: f.invitation.id } }),
+    ).toMatchObject({ usedAt: f.params.now });
+    expect(await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: other.id } })).toMatchObject({
+      revokedAt: f.params.now,
+    });
     expect(await f.repository.resolveInvitation(f.invitation.tokenHash)).toMatchObject({ reviewExists: true });
   });
 
@@ -74,27 +79,33 @@ databaseSuite('verified review persistence (disposable PostgreSQL)', () => {
     const reviews = await db.prisma.professionalReview.findMany({ where: { workOrderId: f.order.id } });
     expect(reviews).toHaveLength(1);
     const profile = await db.prisma.publicBusinessProfile.findUniqueOrThrow({ where: { id: f.profile.id } });
-    expect(profile).toMatchObject({ ratingCount: 1, ratingSum: reviews[0]!.rating });
+    expect(profile).toMatchObject({ ratingCount: 1, ratingSum: reviews[0].rating });
   }, 30000);
 
   it('rejects invalid ratings, revoked or expired tokens and uncompleted services without mutating reputation', async () => {
     const f = await fixture();
 
-    await expect(f.repository.submitVerifiedReview({ ...f.params, rating: 6 })).rejects.toThrow('INVALID_REVIEW_RATING');
-    await expect(f.repository.submitVerifiedReview({ ...f.params, now: f.invitation.expiresAt }))
-      .rejects.toThrow('REVIEW_INVITATION_EXPIRED');
+    await expect(f.repository.submitVerifiedReview({ ...f.params, rating: 6 })).rejects.toThrow(
+      'INVALID_REVIEW_RATING',
+    );
+    await expect(f.repository.submitVerifiedReview({ ...f.params, now: f.invitation.expiresAt })).rejects.toThrow(
+      'REVIEW_INVITATION_EXPIRED',
+    );
 
     await db.prisma.workOrder.update({ where: { id: f.order.id }, data: { status: 'IN_PROGRESS', completedAt: null } });
     await expect(f.repository.submitVerifiedReview(f.params)).rejects.toThrow('REVIEW_WORK_ORDER_NOT_COMPLETED');
 
     await db.prisma.professionalReviewInvitation.update({
-      where: { id: f.invitation.id }, data: { revokedAt: f.params.now },
+      where: { id: f.invitation.id },
+      data: { revokedAt: f.params.now },
     });
     await expect(f.repository.submitVerifiedReview(f.params)).rejects.toThrow('REVIEW_INVITATION_NOT_FOUND');
 
     expect(await db.prisma.professionalReview.count({ where: { workOrderId: f.order.id } })).toBe(0);
-    expect(await db.prisma.publicBusinessProfile.findUniqueOrThrow({ where: { id: f.profile.id } }))
-      .toMatchObject({ ratingCount: 0, ratingSum: 0 });
+    expect(await db.prisma.publicBusinessProfile.findUniqueOrThrow({ where: { id: f.profile.id } })).toMatchObject({
+      ratingCount: 0,
+      ratingSum: 0,
+    });
   });
 
   it('rejects invitations to the business owner and rotates earlier unused invitations for a real customer', async () => {
@@ -112,15 +123,27 @@ databaseSuite('verified review persistence (disposable PostgreSQL)', () => {
       now: new Date(),
     };
 
-    const issue = (params: typeof input) => db.prisma.$transaction((tx) =>
-      new PrismaWorkOrderReviewInvitationRepository(tx, f.actor.organizationId).create(params));
+    const issue = (params: typeof input) =>
+      db.prisma.$transaction((tx) =>
+        new PrismaWorkOrderReviewInvitationRepository(tx, f.actor.organizationId).create(params),
+      );
 
-    expect(await issue({ ...input, customerEmail: owner.email.toUpperCase() }))
-      .toEqual({ created: false, reason: 'ORGANIZATION_CONTACT' });
-    expect(await issue(input)).toMatchObject({ created: true, invitationId: input.id, recipientEmail: f.customer.email });
-    expect(await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: f.invitation.id } }))
-      .toMatchObject({ revokedAt: input.now });
-    expect(await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: input.id } }))
-      .toMatchObject({ tokenHash: input.tokenHash, revokedAt: null, usedAt: null });
+    expect(await issue({ ...input, customerEmail: owner.email.toUpperCase() })).toEqual({
+      created: false,
+      reason: 'ORGANIZATION_CONTACT',
+    });
+    expect(await issue(input)).toMatchObject({
+      created: true,
+      invitationId: input.id,
+      recipientEmail: f.customer.email,
+    });
+    expect(
+      await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: f.invitation.id } }),
+    ).toMatchObject({ revokedAt: input.now });
+    expect(await db.prisma.professionalReviewInvitation.findUniqueOrThrow({ where: { id: input.id } })).toMatchObject({
+      tokenHash: input.tokenHash,
+      revokedAt: null,
+      usedAt: null,
+    });
   });
 });

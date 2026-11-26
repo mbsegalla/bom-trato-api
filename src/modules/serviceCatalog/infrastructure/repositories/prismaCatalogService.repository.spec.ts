@@ -2,18 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { CatalogService } from '../../domain/entities/catalogService.entity.js';
+
 import { PrismaCatalogServiceRepository } from './prismaCatalogService.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const organizationId = 'org';
-const service = CatalogService.create({
-  id: 'service',
-  organizationId,
-  name: 'Fixture service',
-  unit: 'SERVICE',
-  amountInCents: 12345,
-  estimatedDurationMinutes: 90,
-}, now);
+const service = CatalogService.create(
+  {
+    id: 'service',
+    organizationId,
+    name: 'Fixture service',
+    unit: 'SERVICE',
+    amountInCents: 12345,
+    estimatedDurationMinutes: 90,
+  },
+  now,
+);
 const state = service.snapshot();
 
 function fixture() {
@@ -21,9 +25,12 @@ function fixture() {
   const findFirst = vi.fn().mockResolvedValue(null);
   const findMany = vi.fn().mockResolvedValue([]);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaCatalogServiceRepository({
-    catalogService: { create, findFirst, findMany, updateMany },
-  } as unknown as Prisma.TransactionClient, organizationId);
+  const repository = new PrismaCatalogServiceRepository(
+    {
+      catalogService: { create, findFirst, findMany, updateMany },
+    } as unknown as Prisma.TransactionClient,
+    organizationId,
+  );
 
   return { repository, create, findFirst, findMany, updateMany };
 }
@@ -57,8 +64,11 @@ describe('PrismaCatalogServiceRepository', () => {
     const filter = { contains: String.raw`100\%\_\\test`, mode: 'insensitive' };
     f.findMany.mockResolvedValueOnce([state, { ...state, id: 'next' }]);
 
-    expect(await f.repository.list({ page: 2, limit: 1, status: 'ACTIVE', search }))
-      .toEqual({ items: [state], page: 2, hasMore: true });
+    expect(await f.repository.list({ page: 2, limit: 1, status: 'ACTIVE', search })).toEqual({
+      items: [state],
+      page: 2,
+      hasMore: true,
+    });
 
     expect(f.findMany).toHaveBeenCalledWith({
       where: {
@@ -78,12 +88,18 @@ describe('PrismaCatalogServiceRepository', () => {
     await f.repository.list({ page: 1, limit: 10, status: 'ARCHIVED' });
     await f.repository.list({ page: 1, limit: 10, status: 'ALL' });
 
-    expect(f.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: { organizationId, archivedAt: { not: null } },
-    }));
-    expect(f.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: { organizationId },
-    }));
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { organizationId, archivedAt: { not: null } },
+      }),
+    );
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { organizationId },
+      }),
+    );
   });
 
   it('updates mutable catalog data while retaining original currency and tenant identity', async () => {

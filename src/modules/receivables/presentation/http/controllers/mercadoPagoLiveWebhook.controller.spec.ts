@@ -22,7 +22,7 @@ function request(signingSecret = secret): Request {
       data: { id: 'wrong-id' },
       live_mode: false,
       user_id: 'untrusted-seller',
-      status: 'approved'
+      status: 'approved',
     },
   } as unknown as Request;
 }
@@ -34,7 +34,7 @@ function fixture(enabled = true) {
       enabled,
       workerEnabled: false,
       clientId,
-      secret
+      secret,
     },
     { enqueue } as unknown as MercadoPagoLiveWebhookRepository,
   );

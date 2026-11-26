@@ -4,6 +4,7 @@ import type { SubscriptionProps } from '../../domain/entities/subscription.entit
 import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingCustomerProps, BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { PaymentMethodGateway } from '../ports/paymentMethodGateway.port.js';
+
 import { GetPaymentMethodUseCase } from './getPaymentMethod.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner' };

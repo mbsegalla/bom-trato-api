@@ -11,7 +11,7 @@ const input = {
   tokenHash: 'hash',
   createdById: 'owner',
   now,
-  expiresAt
+  expiresAt,
 };
 
 describe('ReviewInvitation', () => {
@@ -23,7 +23,11 @@ describe('ReviewInvitation', () => {
 
     const props = invitation.snapshot();
 
-    expect(() => ReviewInvitation.restore({ ...props, usedAt: now }).assertUsable(now)).toThrow('REVIEW_ALREADY_SUBMITTED');
-    expect(() => ReviewInvitation.restore({ ...props, revokedAt: now }).assertUsable(now)).toThrow('REVIEW_INVITATION_NOT_FOUND');
+    expect(() => ReviewInvitation.restore({ ...props, usedAt: now }).assertUsable(now)).toThrow(
+      'REVIEW_ALREADY_SUBMITTED',
+    );
+    expect(() => ReviewInvitation.restore({ ...props, revokedAt: now }).assertUsable(now)).toThrow(
+      'REVIEW_INVITATION_NOT_FOUND',
+    );
   });
 });

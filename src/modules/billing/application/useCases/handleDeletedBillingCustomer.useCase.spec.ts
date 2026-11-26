@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { BillingCustomerProps, BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
+
 import { HandleDeletedBillingCustomerUseCase } from './handleDeletedBillingCustomer.useCase.js';
 
 const customer: BillingCustomerProps = {
@@ -36,7 +37,9 @@ function fixture() {
 describe('HandleDeletedBillingCustomerUseCase', () => {
   it('ignores unknown and stale customer deletion events', async () => {
     const f = fixture();
-    f.customerByStripeId.mockResolvedValueOnce(null).mockResolvedValueOnce({ ...customer, stripeCustomerId: 'cus_new' });
+    f.customerByStripeId
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...customer, stripeCustomerId: 'cus_new' });
 
     await f.useCase.execute(params);
     await f.useCase.execute(params);

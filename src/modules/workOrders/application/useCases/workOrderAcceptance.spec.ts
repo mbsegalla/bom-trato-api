@@ -36,7 +36,7 @@ const now = new Date('2026-11-25T18:00:00.000Z');
 const params = {
   organizationId: 'organization',
   workOrderId: 'work-order',
-  userId: 'member'
+  userId: 'member',
 };
 const token = 'a'.repeat(64);
 
@@ -94,20 +94,24 @@ function setup() {
         position: 0,
       },
     ],
-    photos: [{
-      id: 'photo',
-      stage: 'AFTER',
-      caption: 'Foto dinâmica',
-      width: 800,
-      height: 600,
-      createdAt: new Date()
-    }],
-    checklistItems: [{
-      id: 'checklist',
-      title: 'Tarefa dinâmica',
-      completed: true,
-      completedAt: new Date()
-    }],
+    photos: [
+      {
+        id: 'photo',
+        stage: 'AFTER',
+        caption: 'Foto dinâmica',
+        width: 800,
+        height: 600,
+        createdAt: new Date(),
+      },
+    ],
+    checklistItems: [
+      {
+        id: 'checklist',
+        title: 'Tarefa dinâmica',
+        completed: true,
+        completedAt: new Date(),
+      },
+    ],
     receivables: [],
     timelineSource: { quoteApprovedAt: null, statusHistory: [], scheduleHistory: [] },
   };
@@ -282,11 +286,7 @@ describe('work order completion acceptance', () => {
     });
   });
 
-  it.each([
-    { signerName: 'Outro nome' },
-    { snapshotHash: 'b'.repeat(64) },
-    { consentVersion: '2' }
-  ])(
+  it.each([{ signerName: 'Outro nome' }, { snapshotHash: 'b'.repeat(64) }, { consentVersion: '2' }])(
     'does not replace existing evidence for a different replay %j',
     async (change) => {
       const fixture = setup();
@@ -415,7 +415,7 @@ describe('work order completion acceptance', () => {
         currency: 'BRL',
         amountInCents: 10000,
         receivedInCents: 5000,
-        status: 'PARTIALLY_PAID'
+        status: 'PARTIALLY_PAID',
       },
     ];
 
@@ -576,7 +576,7 @@ describe('acceptance persistence boundaries', () => {
     const row = {
       ...recorded,
       consent: true,
-      snapshot: recorded.snapshot as unknown as Prisma.JsonValue
+      snapshot: recorded.snapshot as unknown as Prisma.JsonValue,
     };
     const findFirst = vi.fn<Prisma.TransactionClient['workOrderAcceptance']['findFirst']>().mockResolvedValue(row);
     const create = vi.fn<Prisma.TransactionClient['workOrderAcceptance']['create']>().mockResolvedValue(row);

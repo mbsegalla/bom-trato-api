@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+
 import { PrismaWorkOrderScheduleRepository } from './prismaWorkOrderSchedule.repository.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -23,9 +24,12 @@ const row = {
 
 function fixture() {
   const findMany = vi.fn().mockResolvedValue([]);
-  const repository = new PrismaWorkOrderScheduleRepository({
-    workOrder: { findMany },
-  } as unknown as Prisma.TransactionClient, 'org');
+  const repository = new PrismaWorkOrderScheduleRepository(
+    {
+      workOrder: { findMany },
+    } as unknown as Prisma.TransactionClient,
+    'org',
+  );
 
   return { repository, findMany };
 }
@@ -42,18 +46,20 @@ describe('PrismaWorkOrderScheduleRepository', () => {
       hasMore: true,
       items: [{ id: row.id, assignedToName: 'Fixture professional', late: true }],
     });
-    expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: {
-        organizationId: 'org',
-        assignedToId: 'worker',
-        status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
-        scheduledStartAt: { lt: to },
-        scheduledEndAt: { gt: from },
-      },
-      orderBy: [{ scheduledStartAt: 'asc' }, { id: 'asc' }],
-      skip: 1,
-      take: 2,
-    }));
+    expect(f.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: 'org',
+          assignedToId: 'worker',
+          status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
+          scheduledStartAt: { lt: to },
+          scheduledEndAt: { gt: from },
+        },
+        orderBy: [{ scheduledStartAt: 'asc' }, { id: 'asc' }],
+        skip: 1,
+        take: 2,
+      }),
+    );
   });
 
   it('restricts late results to unstarted scheduled work and supports the inverse filter', async () => {
@@ -63,12 +69,18 @@ describe('PrismaWorkOrderScheduleRepository', () => {
     await f.repository.list({ page: 1, limit: 10, from, to, now, late: true });
     await f.repository.list({ page: 1, limit: 10, from, to, now, late: false });
 
-    expect(f.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: expect.objectContaining({ AND: [lateWhere] }),
-    }));
-    expect(f.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      where: expect.objectContaining({ NOT: lateWhere }),
-    }));
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({ AND: [lateWhere] }),
+      }),
+    );
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({ NOT: lateWhere }),
+      }),
+    );
   });
 
   it('does not mark started orders or orders beginning exactly now as late', async () => {
@@ -90,8 +102,9 @@ describe('PrismaWorkOrderScheduleRepository', () => {
       const f = fixture();
       f.findMany.mockResolvedValueOnce([{ ...row, ...override }]);
 
-      await expect(f.repository.list({ page: 1, limit: 10, from, to, now }))
-        .rejects.toThrow('INVALID_WORK_ORDER_SCHEDULE');
+      await expect(f.repository.list({ page: 1, limit: 10, from, to, now })).rejects.toThrow(
+        'INVALID_WORK_ORDER_SCHEDULE',
+      );
     },
   );
 });

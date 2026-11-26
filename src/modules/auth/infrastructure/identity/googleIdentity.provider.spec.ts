@@ -3,7 +3,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GoogleIdentityVerifier } from './googleIdentity.provider.js';
 
-const payload = { sub: 'fixture-sub', email: 'USER@EXAMPLE.INVALID', email_verified: true, name: ' Fixture User ', hd: ' example.invalid ' };
+const payload = {
+  sub: 'fixture-sub',
+  email: 'USER@EXAMPLE.INVALID',
+  email_verified: true,
+  name: ' Fixture User ',
+  hd: ' example.invalid ',
+};
 
 function fixture(value: unknown = payload) {
   const verify = vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
@@ -26,14 +32,18 @@ describe('GoogleIdentityVerifier', () => {
     const f = fixture();
 
     expect(await f.verifier.verifyCredential('fixture-token')).toEqual({
-      subject: 'fixture-sub', email: 'user@example.invalid', name: 'Fixture User',
-      emailVerified: true, hostedDomain: 'example.invalid',
+      subject: 'fixture-sub',
+      email: 'user@example.invalid',
+      name: 'Fixture User',
+      emailVerified: true,
+      hostedDomain: 'example.invalid',
     });
     expect(f.verify).toHaveBeenCalledWith({ idToken: 'fixture-token', audience: 'fixture-client' });
   });
 
   it.each([null, {}, { ...payload, sub: '' }, { ...payload, email: '' }, { ...payload, email_verified: 'true' }])(
-    'rejects malformed identity payloads', async (value) => {
+    'rejects malformed identity payloads',
+    async (value) => {
       await expect(fixture(value).verifier.verifyCredential('token')).rejects.toThrow('INVALID_GOOGLE_CREDENTIAL');
     },
   );
@@ -45,7 +55,11 @@ describe('GoogleIdentityVerifier', () => {
     [{ name: 'a'.repeat(120) }, 'a'.repeat(100)],
   ] as const)('normalizes missing or oversized profile names', async (patch, name) => {
     const f = fixture({ ...payload, ...patch, hd: ' ', email_verified: false });
-    expect(await f.verifier.verifyCredential('token')).toMatchObject({ name, hostedDomain: null, emailVerified: false });
+    expect(await f.verifier.verifyCredential('token')).toMatchObject({
+      name,
+      hostedDomain: null,
+      emailVerified: false,
+    });
   });
 
   it('translates upstream verification errors into a safe domain error', async () => {

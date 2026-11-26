@@ -2,9 +2,9 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ManageMercadoPagoLivePixUseCase } from '../../../src/modules/receivables/application/useCases/manageMercadoPagoLivePix.useCase.js';
-import { MercadoPagoLivePixController } from '../../../src/modules/receivables/presentation/http/controllers/mercadoPagoLivePix.controller.js';
 import { ReceivingSettingsError } from '../../../src/modules/receivables/domain/errors/receivingSettings.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { MercadoPagoLivePixController } from '../../../src/modules/receivables/presentation/http/controllers/mercadoPagoLivePix.controller.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 const route = '/api/organizations/' + organizationId + '/receivables/' + itemId + '/mercado-pago/live-pix';
 const actor = { organizationId, receivableId: itemId, userId, sessionId: 'session' };
@@ -23,9 +23,10 @@ describe('Mercado Pago live Pix HTTP contracts', () => {
   const recover = vi.fn();
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([MercadoPagoLivePixController], [
-      { provide: ManageMercadoPagoLivePixUseCase, useValue: { read, issue, recover } },
-    ]);
+    fixture = await createHttpFixture(
+      [MercadoPagoLivePixController],
+      [{ provide: ManageMercadoPagoLivePixUseCase, useValue: { read, issue, recover } }],
+    );
   });
 
   beforeEach(() => {
@@ -55,7 +56,11 @@ describe('Mercado Pago live Pix HTTP contracts', () => {
 
     expect(issue).not.toHaveBeenCalled();
 
-    const response = await request(fixture.server).post(route).set('Authorization', 'Bearer fixture').send(input).expect(200);
+    const response = await request(fixture.server)
+      .post(route)
+      .set('Authorization', 'Bearer fixture')
+      .send(input)
+      .expect(200);
 
     expect(issue).toHaveBeenCalledWith(actor, expect.objectContaining(input));
     expect(response.headers['cache-control']).toContain('no-store');
@@ -75,16 +80,25 @@ describe('Mercado Pago live Pix HTTP contracts', () => {
   });
 
   it('recovers only a valid issuance under the trusted actor and maps provider unavailability', async () => {
-    await request(fixture.server).post(route + '/recovery').set('Authorization', 'Bearer fixture')
-      .send({ issuanceId: 'invalid' }).expect(400);
+    await request(fixture.server)
+      .post(route + '/recovery')
+      .set('Authorization', 'Bearer fixture')
+      .send({ issuanceId: 'invalid' })
+      .expect(400);
     expect(recover).not.toHaveBeenCalled();
 
-    await request(fixture.server).post(route + '/recovery').set('Authorization', 'Bearer fixture')
-      .send({ issuanceId: itemId }).expect(200);
+    await request(fixture.server)
+      .post(route + '/recovery')
+      .set('Authorization', 'Bearer fixture')
+      .send({ issuanceId: itemId })
+      .expect(200);
     expect(recover).toHaveBeenCalledWith(actor, expect.objectContaining({ issuanceId: itemId }));
 
     recover.mockRejectedValueOnce(new ReceivingSettingsError('MERCADO_PAGO_UNAVAILABLE'));
-    await request(fixture.server).post(route + '/recovery').set('Authorization', 'Bearer fixture')
-      .send({ issuanceId: itemId }).expect(503);
+    await request(fixture.server)
+      .post(route + '/recovery')
+      .set('Authorization', 'Bearer fixture')
+      .send({ issuanceId: itemId })
+      .expect(503);
   });
 });

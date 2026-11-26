@@ -97,7 +97,7 @@ function setup() {
     workOrder,
     findWorkOrder,
     useCase,
-    token
+    token,
   };
 }
 
@@ -117,7 +117,7 @@ describe('public work order checklist projection', () => {
         id: true,
         title: true,
         completed: true,
-        completedAt: true
+        completedAt: true,
       },
     });
     expect(result.checklist).toEqual({

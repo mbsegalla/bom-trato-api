@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { PlanChange } from './planChange.entity.js';
 import type { CreatePlanChangeParams, PlanChangePrice } from './planChange.entity.js';
+import { PlanChange } from './planChange.entity.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const periodStart = now.getTime() / 1000 - 86400;
@@ -34,7 +34,7 @@ const source: PlanChangePrice = {
   amountInCents: 2990,
   currency: 'brl',
   interval: 'MONTH',
-  intervalCount: 1
+  intervalCount: 1,
 };
 
 describe('PlanChange', () => {
@@ -44,10 +44,12 @@ describe('PlanChange', () => {
     expect(PlanChange.determineMode({ source, target })).toBe('IMMEDIATE');
     expect(PlanChange.determineMode({ source: target, target: source })).toBe('PERIOD_END');
     expect(PlanChange.determineMode({ source, target: { ...target, interval: 'YEAR' } })).toBe('PERIOD_END');
-    expect(() => PlanChange.determineMode({
-      source,
-      target: { ...target, currency: 'usd' }
-    })).toThrow('PLAN_CHANGE_UNSUPPORTED');
+    expect(() =>
+      PlanChange.determineMode({
+        source,
+        target: { ...target, currency: 'usd' },
+      }),
+    ).toThrow('PLAN_CHANGE_UNSUPPORTED');
   });
 
   it.each([
@@ -56,7 +58,7 @@ describe('PlanChange', () => {
     { amountDueNow: -1 },
     { targetAmountInCents: 1.5 },
     { expiresAt: now },
-    { prorationDate: periodEnd }
+    { prorationDate: periodEnd },
   ])('rejects invalid quote parameters %j', (patch) => {
     expect(() => PlanChange.create({ ...input, ...patch })).toThrow();
   });
@@ -92,7 +94,7 @@ describe('PlanChange', () => {
     expect(value.toPublic()).toMatchObject({
       effectiveAt: new Date(periodEnd * 1000),
       status: 'SCHEDULED',
-      clientSecret: null
+      clientSecret: null,
     });
     expect(value.toPublic()).not.toHaveProperty('stripeSubscriptionId');
   });

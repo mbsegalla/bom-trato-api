@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { OrganizationTeamPolicy } from './organizationTeam.policy.js';
 import type { OrganizationTeamContext } from './organizationTeam.policy.js';
+import { OrganizationTeamPolicy } from './organizationTeam.policy.js';
 
 const owner: OrganizationTeamContext = {
   ownerId: 'owner',
@@ -33,9 +33,14 @@ describe('OrganizationTeamPolicy', () => {
     expect(() => policy.assertCanAdd(limits, 2)).not.toThrow();
     expect(() => policy.assertCanAdd(limits, 3)).toThrow('MEMBER_LIMIT_REACHED');
     expect(() => policy.assertCanAdd({ ...limits, hasAccess: false }, 0)).toThrow('SUBSCRIPTION_REQUIRED');
-    expect(() => policy.assertCanAdd({
-      ...limits,
-      teamManagementEnabled: false
-    }, 0)).toThrow('TEAM_MANAGEMENT_REQUIRED');
+    expect(() =>
+      policy.assertCanAdd(
+        {
+          ...limits,
+          teamManagementEnabled: false,
+        },
+        0,
+      ),
+    ).toThrow('TEAM_MANAGEMENT_REQUIRED');
   });
 });

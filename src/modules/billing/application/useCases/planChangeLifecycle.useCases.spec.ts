@@ -7,6 +7,7 @@ import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
 import type { PlanChangeGateway } from '../ports/planChangeGateway.port.js';
 import type { PlanChangeProcessor } from '../services/planChangeProcessor.service.js';
+
 import { CancelPlanChangeUseCase } from './cancelPlanChange.useCase.js';
 import { ConfirmPlanChangeUseCase } from './confirmPlanChange.useCase.js';
 import { GetPlanChangeUseCase } from './getPlanChange.useCase.js';
@@ -17,19 +18,45 @@ import { SyncPlanChangeUseCase } from './syncPlanChange.useCase.js';
 const now = new Date('2026-01-01T12:00:00Z');
 const second = now.getTime() / 1000;
 const state: PlanChangeProps = {
-  id: 'change', organizationId: 'org', requestedById: 'owner',
-  sourcePlanPriceId: 'source', targetPlanPriceId: 'target', targetMaxUsers: 5,
-  stripeCustomerId: 'cus_fixture', stripeSubscriptionId: 'sub_fixture', stripeItemId: 'si_fixture',
-  sourceStripePriceId: 'price_source', targetStripePriceId: 'price_target',
-  mode: 'IMMEDIATE', status: 'QUOTED', currency: 'brl',
-  amountDueNow: 1000, targetAmountInCents: 5990, targetInterval: 'MONTH', targetIntervalCount: 1,
-  periodStart: second - 3600, periodEnd: second + 86400, prorationDate: second,
-  expiresAt: new Date(now.getTime() + 300000), startedAt: null, stripeInvoiceId: null, stripeScheduleId: null,
+  id: 'change',
+  organizationId: 'org',
+  requestedById: 'owner',
+  sourcePlanPriceId: 'source',
+  targetPlanPriceId: 'target',
+  targetMaxUsers: 5,
+  stripeCustomerId: 'cus_fixture',
+  stripeSubscriptionId: 'sub_fixture',
+  stripeItemId: 'si_fixture',
+  sourceStripePriceId: 'price_source',
+  targetStripePriceId: 'price_target',
+  mode: 'IMMEDIATE',
+  status: 'QUOTED',
+  currency: 'brl',
+  amountDueNow: 1000,
+  targetAmountInCents: 5990,
+  targetInterval: 'MONTH',
+  targetIntervalCount: 1,
+  periodStart: second - 3600,
+  periodEnd: second + 86400,
+  prorationDate: second,
+  expiresAt: new Date(now.getTime() + 300000),
+  startedAt: null,
+  stripeInvoiceId: null,
+  stripeScheduleId: null,
 };
 const actor = { organizationId: state.organizationId, userId: state.requestedById };
 const action = { ...actor, changeId: state.id };
-const target = { id: state.targetPlanPriceId, stripePriceId: state.targetStripePriceId, amountInCents: state.targetAmountInCents };
-const source = { stripeItemId: state.stripeItemId, stripePriceId: state.sourceStripePriceId, periodStart: state.periodStart, periodEnd: state.periodEnd };
+const target = {
+  id: state.targetPlanPriceId,
+  stripePriceId: state.targetStripePriceId,
+  amountInCents: state.targetAmountInCents,
+};
+const source = {
+  stripeItemId: state.stripeItemId,
+  stripePriceId: state.sourceStripePriceId,
+  periodStart: state.periodStart,
+  periodEnd: state.periodEnd,
+};
 const sourceInfo = { level: 1, maxUsers: 2, amountInCents: 2990, currency: 'brl', interval: 'MONTH', intervalCount: 1 };
 const targetInfo = { ...sourceInfo, level: 2, maxUsers: 5, amountInCents: state.targetAmountInCents };
 const subscription = {
@@ -59,7 +86,7 @@ function fixture() {
     active: vi.fn().mockResolvedValue(null),
     create: vi.fn().mockResolvedValue(undefined),
     save: vi.fn().mockResolvedValue(undefined),
-    priceInfo: vi.fn(async (id: string) => id === state.sourcePlanPriceId ? sourceInfo : targetInfo),
+    priceInfo: vi.fn(async (id: string) => (id === state.sourcePlanPriceId ? sourceInfo : targetInfo)),
     reserve: vi.fn().mockResolvedValue({ ...state, status: 'PROCESSING', startedAt: now }),
   };
   const gateway = {
@@ -86,7 +113,12 @@ function fixture() {
   const p = processor as unknown as PlanChangeProcessor;
 
   return {
-    billing, repository, gateway, planGateway, lock, processor,
+    billing,
+    repository,
+    gateway,
+    planGateway,
+    lock,
+    processor,
     preview: new PreviewPlanChangeUseCase(b, r, g, pg, l),
     confirm: new ConfirmPlanChangeUseCase(b, r, g, pg, l, p),
     cancel: new CancelPlanChangeUseCase(b, r, pg, l, p),
@@ -108,22 +140,31 @@ describe('plan change preview', () => {
     const f = fixture();
 
     expect(await f.preview.execute({ ...actor, planPriceId: target.id })).toMatchObject({
-      mode: 'IMMEDIATE', status: 'QUOTED', amountDueNow: 1000, quoteExpiresAt: state.expiresAt,
+      mode: 'IMMEDIATE',
+      status: 'QUOTED',
+      amountDueNow: 1000,
+      quoteExpiresAt: state.expiresAt,
     });
     expect(f.billing.assertOwner).toHaveBeenCalledTimes(2);
     expect(f.gateway.validatePrice).toHaveBeenCalledWith(target);
     expect(f.repository.create).toHaveBeenCalledWith(expect.any(PlanChange));
     expect(f.planGateway.preview).toHaveBeenCalledWith(expect.objectContaining({ amountDueNow: 0, targetMaxUsers: 5 }));
-    expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(f.billing.currentSubscription.mock.invocationCallOrder[0]!);
+    expect(f.billing.saveSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
+      f.billing.currentSubscription.mock.invocationCallOrder[0],
+    );
   });
 
   it('selects a period-end change for a downgrade rather than an immediate upgrade', async () => {
     const f = fixture();
-    f.repository.priceInfo.mockResolvedValueOnce(sourceInfo).mockResolvedValueOnce({ ...targetInfo, level: 1, amountInCents: 1990 });
+    f.repository.priceInfo
+      .mockResolvedValueOnce(sourceInfo)
+      .mockResolvedValueOnce({ ...targetInfo, level: 1, amountInCents: 1990 });
     f.planGateway.preview.mockResolvedValueOnce(0);
 
     expect(await f.preview.execute({ ...actor, planPriceId: target.id })).toMatchObject({
-      mode: 'PERIOD_END', amountDueNow: 0, effectiveAt: new Date(state.periodEnd * 1000),
+      mode: 'PERIOD_END',
+      amountDueNow: 0,
+      effectiveAt: new Date(state.periodEnd * 1000),
     });
   });
 
@@ -158,8 +199,12 @@ describe('plan change confirmation', () => {
 
     expect(await f.confirm.execute(action)).toMatchObject({ status: 'PROCESSING' });
     expect(f.repository.reserve).toHaveBeenCalledWith(state.id);
-    expect(f.planGateway.preview.mock.invocationCallOrder[0]).toBeLessThan(f.repository.reserve.mock.invocationCallOrder[0]!);
-    expect(f.repository.reserve.mock.invocationCallOrder[0]).toBeLessThan(f.processor.execute.mock.invocationCallOrder[0]!);
+    expect(f.planGateway.preview.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.reserve.mock.invocationCallOrder[0],
+    );
+    expect(f.repository.reserve.mock.invocationCallOrder[0]).toBeLessThan(
+      f.processor.execute.mock.invocationCallOrder[0],
+    );
   });
 
   it('marks an expired quote without reserving or executing it', async () => {
@@ -172,16 +217,16 @@ describe('plan change confirmation', () => {
     expect(f.processor.execute).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { stripePriceId: 'price_changed' },
-    { amountInCents: 7000 },
-  ])('rejects changed provider pricing: %j', async (override) => {
-    const f = fixture();
-    f.billing.availablePrice.mockResolvedValueOnce({ ...target, ...override });
+  it.each([{ stripePriceId: 'price_changed' }, { amountInCents: 7000 }])(
+    'rejects changed provider pricing: %j',
+    async (override) => {
+      const f = fixture();
+      f.billing.availablePrice.mockResolvedValueOnce({ ...target, ...override });
 
-    await expect(f.confirm.execute(action)).rejects.toThrow('PRICE_MISMATCH');
-    expect(f.repository.reserve).not.toHaveBeenCalled();
-  });
+      await expect(f.confirm.execute(action)).rejects.toThrow('PRICE_MISMATCH');
+      expect(f.repository.reserve).not.toHaveBeenCalled();
+    },
+  );
 
   it('revalidates member capacity and the source billing period before reserving', async () => {
     const f = fixture();
@@ -199,7 +244,9 @@ describe('plan change confirmation', () => {
 
   it('refreshes an already processing change without reserving it twice', async () => {
     const f = fixture();
-    f.processor.ownedChange.mockResolvedValueOnce(PlanChange.restore({ ...state, status: 'PROCESSING', startedAt: now }));
+    f.processor.ownedChange.mockResolvedValueOnce(
+      PlanChange.restore({ ...state, status: 'PROCESSING', startedAt: now }),
+    );
 
     expect(await f.confirm.execute(action)).toMatchObject({ status: 'PROCESSING' });
     expect(f.processor.refresh).toHaveBeenCalledTimes(1);
@@ -229,7 +276,9 @@ describe('plan change cancellation and reconciliation', () => {
     await f.cancel.execute(action);
 
     expect(f.planGateway.cancel).toHaveBeenCalledWith(change.snapshot());
-    expect(f.planGateway.cancel.mock.invocationCallOrder[0]).toBeLessThan(f.processor.refresh.mock.invocationCallOrder[0]!);
+    expect(f.planGateway.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+      f.processor.refresh.mock.invocationCallOrder[0],
+    );
   });
 
   it('does not expose a stale payment secret when remote status has changed', async () => {

@@ -5,6 +5,7 @@ import type { UpdateBillingCustomerNameUseCase } from '../../../billing/applicat
 import { Organization } from '../../domain/entities/organization.entity.js';
 import type { OrganizationLogoImageProcessor } from '../ports/organizationLogoImage.port.js';
 import type { OrganizationTeamApplicationService } from '../services/organizationTeamApplicationService.service.js';
+
 import { GetOrganizationProfileUseCase } from './getOrganizationProfile.useCase.js';
 import { RemoveOrganizationLogoUseCase } from './removeOrganizationLogo.useCase.js';
 import { UpdateOrganizationProfileUseCase } from './updateOrganizationProfile.useCase.js';
@@ -16,16 +17,28 @@ const upload = { buffer: Buffer.from('fixture source'), size: 14, mimeType: 'ima
 const image = { buffer: Buffer.from('fixture processed'), contentType: 'image/webp', extension: 'webp' };
 
 function fixture(hasLogo = true) {
-  const organization = Organization.create({ id: params.organizationId, ownerId: params.userId, name: 'Fixture company' });
-  if (hasLogo) organization.setLogo(previous);
+  const organization = Organization.create({
+    id: params.organizationId,
+    ownerId: params.userId,
+    name: 'Fixture company',
+  });
+  if (hasLogo) {
+    organization.setLogo(previous);
+  }
   const snapshot = organization.snapshot();
   const saveOrganization = vi.fn().mockResolvedValue(undefined);
   const assertOwner = vi.fn();
   const assertMember = vi.fn();
   const policy = { assertOwner, assertMember };
   const tx = { organization: snapshot, saveOrganization };
-  const readTeam = vi.fn(async (_params: unknown, operation: (context: typeof tx, authorization: typeof policy) => Promise<unknown>) => operation(tx, policy));
-  const withTeam = vi.fn(async (_params: unknown, operation: (context: typeof tx, authorization: typeof policy) => Promise<unknown>) => operation(tx, policy));
+  const readTeam = vi.fn(
+    async (_params: unknown, operation: (context: typeof tx, authorization: typeof policy) => Promise<unknown>) =>
+      operation(tx, policy),
+  );
+  const withTeam = vi.fn(
+    async (_params: unknown, operation: (context: typeof tx, authorization: typeof policy) => Promise<unknown>) =>
+      operation(tx, policy),
+  );
   const processor = { readTeam, withTeam } as unknown as OrganizationTeamApplicationService;
   const put = vi.fn().mockResolvedValue(undefined);
   const remove = vi.fn().mockResolvedValue(undefined);
@@ -36,10 +49,23 @@ function fixture(hasLogo = true) {
 
   return {
     get: new GetOrganizationProfileUseCase(processor, storage),
-    update: new UpdateOrganizationProfileUseCase(processor, { execute: updateBilling } as unknown as UpdateBillingCustomerNameUseCase, storage),
-    upload: new UploadOrganizationLogoUseCase(processor, { process } as unknown as OrganizationLogoImageProcessor, storage),
+    update: new UpdateOrganizationProfileUseCase(
+      processor,
+      { execute: updateBilling } as unknown as UpdateBillingCustomerNameUseCase,
+      storage,
+    ),
+    upload: new UploadOrganizationLogoUseCase(processor, { process }, storage),
     removeLogo: new RemoveOrganizationLogoUseCase(processor, storage),
-    assertOwner, assertMember, readTeam, withTeam, saveOrganization, put, remove, publicUrl, process, updateBilling,
+    assertOwner,
+    assertMember,
+    readTeam,
+    withTeam,
+    saveOrganization,
+    put,
+    remove,
+    publicUrl,
+    process,
+    updateBilling,
   };
 }
 
@@ -48,7 +74,11 @@ describe('organization profile and logo operations', () => {
     const f = fixture();
     const profile = await f.get.execute(params);
     expect(f.assertMember).toHaveBeenCalledTimes(1);
-    expect(profile).toMatchObject({ id: 'org', name: 'Fixture company', logoUrl: 'https://cdn.example.invalid/' + previous });
+    expect(profile).toMatchObject({
+      id: 'org',
+      name: 'Fixture company',
+      logoUrl: 'https://cdn.example.invalid/' + previous,
+    });
     expect(profile).not.toHaveProperty('ownerId');
     expect(profile).not.toHaveProperty('logoKey');
   });
@@ -61,7 +91,9 @@ describe('organization profile and logo operations', () => {
 
   it('rejects nonmembers before exposing any profile URL', async () => {
     const f = fixture();
-    f.assertMember.mockImplementation(() => { throw new Error('MEMBER_REQUIRED'); });
+    f.assertMember.mockImplementation(() => {
+      throw new Error('MEMBER_REQUIRED');
+    });
     await expect(f.get.execute(params)).rejects.toThrow('MEMBER_REQUIRED');
     expect(f.publicUrl).not.toHaveBeenCalled();
   });
@@ -70,14 +102,16 @@ describe('organization profile and logo operations', () => {
     const f = fixture();
     expect(await f.update.execute(params, { name: '  New company  ' })).toMatchObject({ name: 'New company' });
     expect(f.updateBilling).toHaveBeenCalledWith({ organizationId: 'org', name: 'New company' });
-    expect(f.updateBilling.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]!);
+    expect(f.updateBilling.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]);
     expect(f.assertOwner).toHaveBeenCalledTimes(2);
     expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ name: 'New company' }));
   });
 
   it('does not call billing when updating business details without a name change', async () => {
     const f = fixture();
-    expect(await f.update.execute(params, { email: 'new@example.invalid', defaultReceivableDueDays: 0 })).toMatchObject({ email: 'new@example.invalid', defaultReceivableDueDays: 0 });
+    expect(await f.update.execute(params, { email: 'new@example.invalid', defaultReceivableDueDays: 0 })).toMatchObject(
+      { email: 'new@example.invalid', defaultReceivableDueDays: 0 },
+    );
     expect(f.updateBilling).not.toHaveBeenCalled();
   });
 
@@ -97,7 +131,9 @@ describe('organization profile and logo operations', () => {
 
   it('rejects logo uploads before image processing when ownership fails', async () => {
     const f = fixture();
-    f.assertOwner.mockImplementation(() => { throw new Error('OWNER_REQUIRED'); });
+    f.assertOwner.mockImplementation(() => {
+      throw new Error('OWNER_REQUIRED');
+    });
     await expect(f.upload.execute(params, upload)).rejects.toThrow('OWNER_REQUIRED');
     expect(f.process).not.toHaveBeenCalled();
     expect(f.put).not.toHaveBeenCalled();
@@ -106,15 +142,18 @@ describe('organization profile and logo operations', () => {
   it('stores a versioned logo before persisting the new key and removes the previous object after commit', async () => {
     const f = fixture();
     const profile = await f.upload.execute(params, upload);
-    const key = f.put.mock.calls[0]![0].key as string;
+    const key = f.put.mock.calls[0][0].key as string;
     expect(key).toMatch(/^organizations\/org\/logo\/[a-f0-9-]+\.webp$/);
     expect(f.put).toHaveBeenCalledWith({
-      key, body: image.buffer, contentType: 'image/webp', cacheControl: 'public, max-age=31536000, immutable',
+      key,
+      body: image.buffer,
+      contentType: 'image/webp',
+      cacheControl: 'public, max-age=31536000, immutable',
     });
     expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ logoKey: key }));
     expect(f.remove).toHaveBeenCalledExactlyOnceWith(previous);
-    expect(f.put.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]!);
-    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]!);
+    expect(f.put.mock.invocationCallOrder[0]).toBeLessThan(f.saveOrganization.mock.invocationCallOrder[0]);
+    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]);
     expect(profile.logoUrl).toBe('https://cdn.example.invalid/' + key);
   });
 
@@ -135,7 +174,7 @@ describe('organization profile and logo operations', () => {
     const f = fixture();
     f.saveOrganization.mockRejectedValue(new Error('database failure'));
     await expect(f.upload.execute(params, upload)).rejects.toThrow('database failure');
-    expect(f.remove).toHaveBeenCalledExactlyOnceWith(f.put.mock.calls[0]![0].key);
+    expect(f.remove).toHaveBeenCalledExactlyOnceWith(f.put.mock.calls[0][0].key);
     expect(f.remove).not.toHaveBeenCalledWith(previous);
   });
 
@@ -157,7 +196,7 @@ describe('organization profile and logo operations', () => {
     expect(await f.removeLogo.execute(params)).toMatchObject({ logoUrl: null });
     expect(f.saveOrganization).toHaveBeenCalledWith(expect.objectContaining({ logoKey: null }));
     expect(f.remove).toHaveBeenCalledExactlyOnceWith(previous);
-    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]!);
+    expect(f.saveOrganization.mock.invocationCallOrder[0]).toBeLessThan(f.remove.mock.invocationCallOrder[0]);
   });
 
   it('does not delete anything when no logo is configured', async () => {

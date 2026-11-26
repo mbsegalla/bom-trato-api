@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+
 import { expect, it, vi } from 'vitest';
 
 import { ReceivableApplicationService } from '../../../src/modules/receivables/application/services/receivableApplicationService.service.js';
@@ -6,6 +7,7 @@ import { RecordReceivablePaymentUseCase } from '../../../src/modules/receivables
 import { ReverseReceivablePaymentUseCase } from '../../../src/modules/receivables/application/useCases/reverseReceivablePayment.useCase.js';
 import { PrismaReceivableRepository } from '../../../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
 import { PrismaReceivableUnitOfWork } from '../../../src/modules/receivables/infrastructure/transactions/prismaReceivableUnitOfWork.js';
+
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
 paymentIntegrationSuite('payment ledger concurrency (disposable PostgreSQL)', () => {
@@ -51,9 +53,16 @@ paymentIntegrationSuite('payment ledger concurrency (disposable PostgreSQL)', ()
     const f = await setup();
 
     await f.record.execute(f.params, f.input);
-    await expect(f.record.execute({ ...f.params, version: 2 }, {
-      ...f.input, requestId: randomUUID(), amountInCents: 4001,
-    })).rejects.toThrow('PAYMENT_EXCEEDS_BALANCE');
+    await expect(
+      f.record.execute(
+        { ...f.params, version: 2 },
+        {
+          ...f.input,
+          requestId: randomUUID(),
+          amountInCents: 4001,
+        },
+      ),
+    ).rejects.toThrow('PAYMENT_EXCEEDS_BALANCE');
 
     const ledger = await db.ledger(f.receivable.id);
 
@@ -65,12 +74,14 @@ paymentIntegrationSuite('payment ledger concurrency (disposable PostgreSQL)', ()
     const f = await setup();
     const result = await f.record.execute(f.params, f.input);
     const params = { ...f.params, version: 2 };
-    const failure = vi.spyOn(PrismaReceivableRepository.prototype, 'savePaymentReversal')
+    const failure = vi
+      .spyOn(PrismaReceivableRepository.prototype, 'savePaymentReversal')
       .mockRejectedValueOnce(new Error('Fixture reversal write failure'));
 
     try {
-      await expect(f.reverse.execute(params, result.payment.id, 'Fixture reversal'))
-        .rejects.toThrow('Fixture reversal write failure');
+      await expect(f.reverse.execute(params, result.payment.id, 'Fixture reversal')).rejects.toThrow(
+        'Fixture reversal write failure',
+      );
     } finally {
       failure.mockRestore();
     }
@@ -110,22 +121,30 @@ paymentIntegrationSuite('payment ledger concurrency (disposable PostgreSQL)', ()
     const f = await setup();
 
     await f.record.execute(f.params, f.input);
-    await f.record.execute({ ...f.params, version: 2 }, {
-      ...f.input,
-      requestId: randomUUID(),
-      amountInCents: 4000,
-    });
+    await f.record.execute(
+      { ...f.params, version: 2 },
+      {
+        ...f.input,
+        requestId: randomUUID(),
+        amountInCents: 4000,
+      },
+    );
 
     const before = await db.ledger(f.receivable.id);
 
     expect(before.receivable).toMatchObject({ receivedInCents: 10000, version: 3, status: 'PAID' });
     expect(before.payments).toHaveLength(2);
 
-    await expect(f.record.execute({ ...f.params, version: 3 }, {
-      ...f.input,
-      requestId: randomUUID(),
-      amountInCents: 1,
-    })).rejects.toThrow();
+    await expect(
+      f.record.execute(
+        { ...f.params, version: 3 },
+        {
+          ...f.input,
+          requestId: randomUUID(),
+          amountInCents: 1,
+        },
+      ),
+    ).rejects.toThrow();
 
     const after = await db.ledger(f.receivable.id);
 

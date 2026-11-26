@@ -61,7 +61,7 @@ describe('provider payment confirmation policy', () => {
       ...receivable,
       status: 'PAID' as const,
       version: 3,
-      receivedInCents: 50000
+      receivedInCents: 50000,
     };
     const replay = { ...payment, eventId: 'event-2' };
 

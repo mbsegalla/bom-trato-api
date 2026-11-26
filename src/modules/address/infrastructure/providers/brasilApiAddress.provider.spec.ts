@@ -9,7 +9,7 @@ const payload = {
   neighborhood: '',
   city: ' Uberlandia ',
   state: 'mg',
-  ibge: { city: 3170206, state: 31 }
+  ibge: { city: 3170206, state: 31 },
 };
 
 describe('BrasilApiAddressProvider', () => {
@@ -27,13 +27,15 @@ describe('BrasilApiAddressProvider', () => {
         city: 'Uberlandia',
         state: 'MG',
         cityIbgeCode: '3170206',
-        stateIbgeCode: '31'
+        stateIbgeCode: '31',
       });
-      if (!result) throw new Error('Missing fixture');
+      if (!result) {
+        throw new Error('Missing fixture');
+      }
       result.city = 'Changed';
       expect((await provider.findByPostalCode('38400000'))?.city).toBe('Uberlandia');
       expect(fetch).toHaveBeenCalledTimes(1);
-      expect(String(fetch.mock.calls[0]![0])).toBe('https://brasilapi.com.br/api/cep/v1/38400000');
+      expect(String(fetch.mock.calls[0][0])).toBe('https://brasilapi.com.br/api/cep/v1/38400000');
       now += 7 * 86400000;
       await provider.findByPostalCode('38400000');
       expect(fetch).toHaveBeenCalledTimes(2);
@@ -63,16 +65,21 @@ describe('BrasilApiAddressProvider', () => {
   });
 
   it('deduplicates municipality names accent-insensitively and keeps state caches independent', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json([
-      { nome: 'Zeta', codigo_ibge: 3 },
-      { nome: 'Águas', codigo_ibge: '1' },
-      { nome: 'Aguas', codigo_ibge: 2 },
-    ]));
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      Response.json([
+        { nome: 'Zeta', codigo_ibge: 3 },
+        { nome: 'Águas', codigo_ibge: '1' },
+        { nome: 'Aguas', codigo_ibge: 2 },
+      ]),
+    );
     try {
-      expect(await provider.listCities('MG')).toEqual([{ name: 'Águas', code: '1' }, { name: 'Zeta', code: '3' }]);
+      expect(await provider.listCities('MG')).toEqual([
+        { name: 'Águas', code: '1' },
+        { name: 'Zeta', code: '3' },
+      ]);
       const cached = await provider.listCities('MG');
-      cached[0]!.name = 'Changed';
-      expect((await provider.listCities('MG'))[0]!.name).toBe('Águas');
+      cached[0].name = 'Changed';
+      expect((await provider.listCities('MG'))[0].name).toBe('Águas');
       await provider.listCities('SP');
       expect(fetch).toHaveBeenCalledTimes(2);
     } finally {

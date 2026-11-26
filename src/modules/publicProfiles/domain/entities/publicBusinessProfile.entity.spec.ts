@@ -12,7 +12,7 @@ const input = {
   whatsappPhone: null,
   whatsappEnabled: false,
   published: false,
-  serviceIds: ['a', 'a']
+  serviceIds: ['a', 'a'],
 };
 
 describe('PublicBusinessProfile', () => {
@@ -21,20 +21,31 @@ describe('PublicBusinessProfile', () => {
     expect(PublicBusinessProfile.create(input, now).snapshot()).toMatchObject({
       slug: 'empresa',
       serviceIds: ['a'],
-      publishedAt: null
+      publishedAt: null,
     });
   });
 
   it('requires a valid enabled contact before publication', () => {
-    expect(() => PublicBusinessProfile.create({ ...input, published: true }, now)).toThrow('PUBLIC_PROFILE_CONTACT_REQUIRED');
-    expect(() => PublicBusinessProfile.create({ ...input, whatsappEnabled: true }, now)).toThrow('PUBLIC_PROFILE_CONTACT_REQUIRED');
-    expect(() => PublicBusinessProfile.create({ ...input, slug: '../unsafe' }, now)).toThrow('INVALID_PUBLIC_PROFILE_SLUG');
+    expect(() => PublicBusinessProfile.create({ ...input, published: true }, now)).toThrow(
+      'PUBLIC_PROFILE_CONTACT_REQUIRED',
+    );
+    expect(() => PublicBusinessProfile.create({ ...input, whatsappEnabled: true }, now)).toThrow(
+      'PUBLIC_PROFILE_CONTACT_REQUIRED',
+    );
+    expect(() => PublicBusinessProfile.create({ ...input, slug: '../unsafe' }, now)).toThrow(
+      'INVALID_PUBLIC_PROFILE_SLUG',
+    );
   });
 
   it('caps the number of distinct published services', () => {
-    expect(() => PublicBusinessProfile.create({
-      ...input,
-      serviceIds: Array.from({ length: 21 }, (_, i) => String(i))
-    }, now)).toThrow('PUBLIC_PROFILE_TOO_MANY_SERVICES');
+    expect(() =>
+      PublicBusinessProfile.create(
+        {
+          ...input,
+          serviceIds: Array.from({ length: 21 }, (_, i) => String(i)),
+        },
+        now,
+      ),
+    ).toThrow('PUBLIC_PROFILE_TOO_MANY_SERVICES');
   });
 });

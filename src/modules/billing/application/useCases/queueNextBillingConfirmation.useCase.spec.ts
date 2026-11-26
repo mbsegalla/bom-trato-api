@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BillingSuccessNotificationUnitOfWork } from '../ports/billingSuccessNotificationUnitOfWork.port.js';
 import type { BillingSuccessNotification, BillingSuccessNotificationTransaction } from '../types/billing.types.js';
+
 import { QueueNextBillingConfirmationUseCase } from './queueNextBillingConfirmation.useCase.js';
 
 const now = new Date('2026-01-01T12:00:00Z');
@@ -34,7 +35,7 @@ function fixture(notification: BillingSuccessNotification) {
       return true;
     }),
   };
-  const useCase = new QueueNextBillingConfirmationUseCase(unit as BillingSuccessNotificationUnitOfWork);
+  const useCase = new QueueNextBillingConfirmationUseCase(unit);
 
   return { email, inApp, unit, useCase };
 }
@@ -51,24 +52,34 @@ describe('QueueNextBillingConfirmationUseCase', () => {
     { billingReason: 'subscription_create', subscriptionStatus: 'ACTIVE', type: 'SUBSCRIPTION_ACTIVATED' },
     { billingReason: 'subscription_create', subscriptionStatus: 'PAST_DUE', type: 'PAYMENT_CONFIRMED' },
     { billingReason: 'subscription_cycle', subscriptionStatus: 'ACTIVE', type: 'PAYMENT_CONFIRMED' },
-  ])('queues the correct successful billing notification: $type', async ({ billingReason, subscriptionStatus, type }) => {
-    const f = fixture({ ...invoice, billingReason, subscriptionStatus });
+  ])(
+    'queues the correct successful billing notification: $type',
+    async ({ billingReason, subscriptionStatus, type }) => {
+      const f = fixture({ ...invoice, billingReason, subscriptionStatus });
 
-    expect(await f.useCase.execute()).toBe(true);
-    expect(f.email).toHaveBeenCalledWith({
-      key: 'invoice-paid/in_fixture',
-      recipient: invoice.recipient.email,
-      expiresAt: new Date(now.getTime() + 86400000),
-      content: { type, invoiceNumber: invoice.number, amountPaidInCents: invoice.amountPaid, currency: invoice.currency },
-    });
-    expect(f.inApp).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'billing-success/in_fixture',
-      userId: invoice.recipient.userId,
-      organizationId: invoice.organizationId,
-      type,
-      href: '/settings?tab=billing',
-    }));
-  });
+      expect(await f.useCase.execute()).toBe(true);
+      expect(f.email).toHaveBeenCalledWith({
+        key: 'invoice-paid/in_fixture',
+        recipient: invoice.recipient.email,
+        expiresAt: new Date(now.getTime() + 86400000),
+        content: {
+          type,
+          invoiceNumber: invoice.number,
+          amountPaidInCents: invoice.amountPaid,
+          currency: invoice.currency,
+        },
+      });
+      expect(f.inApp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          key: 'billing-success/in_fixture',
+          userId: invoice.recipient.userId,
+          organizationId: invoice.organizationId,
+          type,
+          href: '/settings?tab=billing',
+        }),
+      );
+    },
+  );
 
   it('queues plan confirmation separately from invoice payment using stable event keys', async () => {
     const f = fixture({
@@ -83,13 +94,23 @@ describe('QueueNextBillingConfirmationUseCase', () => {
 
     await f.useCase.execute();
 
-    expect(f.email).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'plan-change-applied/change',
-      content: { type: 'PLAN_CHANGE_CONFIRMED', organizationName: invoice.organizationName, planName: 'Fixture professional' },
-    }));
-    expect(f.inApp).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'plan-change-confirmed/change', type: 'PLAN_CHANGE_CONFIRMED', userId: invoice.recipient.userId,
-    }));
+    expect(f.email).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'plan-change-applied/change',
+        content: {
+          type: 'PLAN_CHANGE_CONFIRMED',
+          organizationName: invoice.organizationName,
+          planName: 'Fixture professional',
+        },
+      }),
+    );
+    expect(f.inApp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'plan-change-confirmed/change',
+        type: 'PLAN_CHANGE_CONFIRMED',
+        userId: invoice.recipient.userId,
+      }),
+    );
   });
 
   it.each([

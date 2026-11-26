@@ -10,7 +10,7 @@ const input = {
   workOrderId: 'order',
   tokenHash: 'hash',
   userId: 'owner',
-  expiresAt
+  expiresAt,
 };
 
 describe('WorkOrderShare', () => {
@@ -26,6 +26,8 @@ describe('WorkOrderShare', () => {
   });
 
   it.each([now, new Date(expiresAt.getTime() + 1), new Date(NaN)])('rejects invalid expiration %s', (date) => {
-    expect(() => WorkOrderShare.create({ ...input, expiresAt: date }, now)).toThrow('INVALID_WORK_ORDER_SHARE_EXPIRATION');
+    expect(() => WorkOrderShare.create({ ...input, expiresAt: date }, now)).toThrow(
+      'INVALID_WORK_ORDER_SHARE_EXPIRATION',
+    );
   });
 });

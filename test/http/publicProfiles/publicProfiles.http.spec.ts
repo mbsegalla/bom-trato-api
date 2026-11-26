@@ -1,16 +1,16 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GetPublicProfileSettingsUseCase } from '../../../src/modules/publicProfiles/application/useCases/getPublicProfileSettings.useCase.js';
-import { UpdatePublicProfileUseCase } from '../../../src/modules/publicProfiles/application/useCases/updatePublicProfile.useCase.js';
-import { ListPublicProfessionalsUseCase } from '../../../src/modules/publicProfiles/application/useCases/listPublicProfessionals.useCase.js';
+import { OrganizationTeamError } from '../../../src/modules/organizations/domain/errors/organizationTeam.error.js';
 import { GetPublicProfessionalUseCase } from '../../../src/modules/publicProfiles/application/useCases/getPublicProfessional.useCase.js';
 import { GetPublicProfessionalWhatsappUseCase } from '../../../src/modules/publicProfiles/application/useCases/getPublicProfessionalWhatsapp.useCase.js';
+import { GetPublicProfileSettingsUseCase } from '../../../src/modules/publicProfiles/application/useCases/getPublicProfileSettings.useCase.js';
+import { ListPublicProfessionalsUseCase } from '../../../src/modules/publicProfiles/application/useCases/listPublicProfessionals.useCase.js';
+import { UpdatePublicProfileUseCase } from '../../../src/modules/publicProfiles/application/useCases/updatePublicProfile.useCase.js';
+import { PublicProfileError } from '../../../src/modules/publicProfiles/domain/errors/publicProfile.error.js';
 import { OrganizationPublicProfileController } from '../../../src/modules/publicProfiles/presentation/http/controllers/organizationPublicProfile.controller.js';
 import { PublicProfessionalsController } from '../../../src/modules/publicProfiles/presentation/http/controllers/publicProfessionals.controller.js';
-import { PublicProfileError } from '../../../src/modules/publicProfiles/domain/errors/publicProfile.error.js';
-import { OrganizationTeamError } from '../../../src/modules/organizations/domain/errors/organizationTeam.error.js';
-import { createHttpFixture, organizationId, itemId, userId } from '../support/http.fixture.js';
+import { createHttpFixture, itemId, organizationId, userId } from '../support/http.fixture.js';
 
 describe('publicProfiles HTTP contracts', () => {
   let fixture: Awaited<ReturnType<typeof createHttpFixture>>;
@@ -23,13 +23,16 @@ describe('publicProfiles HTTP contracts', () => {
   const actor = { organizationId, userId };
 
   beforeAll(async () => {
-    fixture = await createHttpFixture([OrganizationPublicProfileController, PublicProfessionalsController], [
-      { provide: GetPublicProfileSettingsUseCase, useValue: { execute: getSettings } },
-      { provide: UpdatePublicProfileUseCase, useValue: { execute: update } },
-      { provide: ListPublicProfessionalsUseCase, useValue: { execute: list } },
-      { provide: GetPublicProfessionalUseCase, useValue: { execute: get } },
-      { provide: GetPublicProfessionalWhatsappUseCase, useValue: { execute: whatsapp } },
-    ]);
+    fixture = await createHttpFixture(
+      [OrganizationPublicProfileController, PublicProfessionalsController],
+      [
+        { provide: GetPublicProfileSettingsUseCase, useValue: { execute: getSettings } },
+        { provide: UpdatePublicProfileUseCase, useValue: { execute: update } },
+        { provide: ListPublicProfessionalsUseCase, useValue: { execute: list } },
+        { provide: GetPublicProfessionalUseCase, useValue: { execute: get } },
+        { provide: GetPublicProfessionalWhatsappUseCase, useValue: { execute: whatsapp } },
+      ],
+    );
   });
 
   beforeEach(() => {
@@ -41,7 +44,6 @@ describe('publicProfiles HTTP contracts', () => {
   afterAll(async () => {
     await fixture?.app.close();
   });
-
 
   const route = '/api/organizations/' + organizationId + '/public-profile';
   const publicRoute = '/api/public/professionals';
@@ -58,14 +60,26 @@ describe('publicProfiles HTTP contracts', () => {
   it('scopes profile settings to the authenticated actor and normalizes editable public fields', async () => {
     await request(fixture.server).get(route).expect(401);
     await request(fixture.server).get(route).set('Authorization', auth).expect(200);
-    await request(fixture.server).patch(route).set('Authorization', auth).send({
-      ...input, slug: '  Fixture-Professional  ', headline: '  Fixture headline  ', description: ' ',
-    }).expect(200);
+    await request(fixture.server)
+      .patch(route)
+      .set('Authorization', auth)
+      .send({
+        ...input,
+        slug: '  Fixture-Professional  ',
+        headline: '  Fixture headline  ',
+        description: ' ',
+      })
+      .expect(200);
 
     expect(getSettings).toHaveBeenCalledExactlyOnceWith(actor);
-    expect(update).toHaveBeenCalledExactlyOnceWith(actor, expect.objectContaining({
-      ...input, headline: 'Fixture headline', description: null,
-    }));
+    expect(update).toHaveBeenCalledExactlyOnceWith(
+      actor,
+      expect.objectContaining({
+        ...input,
+        headline: 'Fixture headline',
+        description: null,
+      }),
+    );
   });
 
   it.each([
@@ -76,7 +90,11 @@ describe('publicProfiles HTTP contracts', () => {
     { ownerId: userId },
     { ratingCount: 100 },
   ])('rejects invalid public configuration or injected reputation fields: %j', async (override) => {
-    await request(fixture.server).patch(route).set('Authorization', auth).send({ ...input, ...override }).expect(400);
+    await request(fixture.server)
+      .patch(route)
+      .set('Authorization', auth)
+      .send({ ...input, ...override })
+      .expect(400);
 
     expect(update).not.toHaveBeenCalled();
   });
@@ -103,11 +121,20 @@ describe('publicProfiles HTTP contracts', () => {
   });
 
   it('allows anonymous directory reads, normalizes filters and rejects invalid pagination', async () => {
-    await request(fixture.server).get(publicRoute).query({ search: '  Fixture  ', city: '  Uberlândia  ', state: ' mg ', page: 2 }).expect(200);
+    await request(fixture.server)
+      .get(publicRoute)
+      .query({ search: '  Fixture  ', city: '  Uberlândia  ', state: ' mg ', page: 2 })
+      .expect(200);
 
-    expect(list).toHaveBeenCalledWith(expect.objectContaining({
-      search: 'Fixture', city: 'Uberlândia', state: 'MG', page: 2, limit: 12,
-    }));
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: 'Fixture',
+        city: 'Uberlândia',
+        state: 'MG',
+        page: 2,
+        limit: 12,
+      }),
+    );
 
     await request(fixture.server).get(publicRoute).query({ state: 'INVALID' }).expect(400);
     await request(fixture.server).get(publicRoute).query({ limit: 101 }).expect(400);
@@ -118,16 +145,23 @@ describe('publicProfiles HTTP contracts', () => {
     const url = 'https://wa.me/5534999991234';
     whatsapp.mockResolvedValueOnce(url);
 
-    await request(fixture.server).get(publicRoute + '/fixture-professional/whatsapp').expect(302).expect('Location', url);
+    await request(fixture.server)
+      .get(publicRoute + '/fixture-professional/whatsapp')
+      .expect(302)
+      .expect('Location', url);
     expect(whatsapp).toHaveBeenCalledWith('fixture-professional');
 
     whatsapp.mockRejectedValueOnce(new PublicProfileError('PUBLIC_PROFILE_CONTACT_UNAVAILABLE'));
-    const response = await request(fixture.server).get(publicRoute + '/fixture-professional/whatsapp').expect(404);
+    const response = await request(fixture.server)
+      .get(publicRoute + '/fixture-professional/whatsapp')
+      .expect(404);
 
     expect(response.headers.location).toBeUndefined();
     expect(response.body.error.code).toBe('PUBLIC_PROFILE_CONTACT_UNAVAILABLE');
 
-    await request(fixture.server).get(publicRoute + '/fixture-professional').expect(200);
+    await request(fixture.server)
+      .get(publicRoute + '/fixture-professional')
+      .expect(200);
     expect(get).toHaveBeenCalledWith('fixture-professional');
   });
 });

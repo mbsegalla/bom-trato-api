@@ -4,6 +4,7 @@ import { User } from '../../../users/domain/entities/user.entity.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthTransaction, AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
+
 import { VerifyEmailUseCase } from './verifyEmail.useCase.js';
 
 const policy = {
@@ -13,20 +14,21 @@ const policy = {
   verificationTtlSeconds: 86400,
   resetTtlSeconds: 1800,
 };
-const user = (patch: Partial<Parameters<typeof User.restore>[0]> = {}) => User.restore({
-  id: 'user',
-  name: 'Fixture',
-  email: 'user@example.invalid',
-  passwordHash: 'hash',
-  selectedPlanPriceId: null,
-  emailVerifiedAt: new Date('2026-01-01T00:00:00Z'),
-  disabledAt: null,
-  ...patch,
-});
+const user = (patch: Partial<Parameters<typeof User.restore>[0]> = {}) =>
+  User.restore({
+    id: 'user',
+    name: 'Fixture',
+    email: 'user@example.invalid',
+    passwordHash: 'hash',
+    selectedPlanPriceId: null,
+    emailVerifiedAt: new Date('2026-01-01T00:00:00Z'),
+    disabledAt: null,
+    ...patch,
+  });
 const input = {
   token: 'a'.repeat(43),
   userAgent: 'fixture',
-  previousRefreshToken: 'b'.repeat(43)
+  previousRefreshToken: 'b'.repeat(43),
 };
 function fixture() {
   const auth = {
@@ -42,15 +44,14 @@ function fixture() {
     signAccess: vi.fn<AuthSecurity['signAccess']>().mockResolvedValue('access'),
   };
   const run = vi.fn(async (operation: (tx: AuthTransaction) => Promise<unknown>) =>
-    operation({ auth } as unknown as AuthTransaction));
+    operation({ auth } as unknown as AuthTransaction),
+  );
 
   return {
     auth,
     security,
     run,
-    useCase: new VerifyEmailUseCase(
-      { run } as unknown as AuthUnitOfWork, security as unknown as AuthSecurity, policy,
-    )
+    useCase: new VerifyEmailUseCase({ run } as unknown as AuthUnitOfWork, security as unknown as AuthSecurity, policy),
   };
 }
 
@@ -63,12 +64,12 @@ describe('VerifyEmailUseCase', () => {
     expect(f.auth.consumeAction).toHaveBeenCalledWith({
       tokenHash: 'hash:' + input.token,
       purpose: 'VERIFY_EMAIL',
-      now: expect.any(Date)
+      now: expect.any(Date),
     });
     expect(f.auth.revokeByToken).toHaveBeenCalledWith({
       tokenHash: 'hash:' + input.previousRefreshToken,
       now: expect.any(Date),
-      reason: 'SESSION_REPLACED'
+      reason: 'SESSION_REPLACED',
     });
     expect(f.auth.startSession).toHaveBeenCalledWith({
       session: expect.objectContaining({ id: 'session', userId: 'user' }),
@@ -79,13 +80,9 @@ describe('VerifyEmailUseCase', () => {
     expect(result).toMatchObject({ accessToken: 'access', expiresIn: 900 });
   });
 
-  it.each([
-    null,
-    user({ disabledAt: new Date() }),
-    user({ passwordHash: null }),
-    user({ emailVerifiedAt: null })
-  ])(
-    'never starts or signs a session for an unavailable identity', async (account) => {
+  it.each([null, user({ disabledAt: new Date() }), user({ passwordHash: null }), user({ emailVerifiedAt: null })])(
+    'never starts or signs a session for an unavailable identity',
+    async (account) => {
       const f = fixture();
       f.auth.findUserByEmail.mockResolvedValueOnce(account);
 

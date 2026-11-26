@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { OrganizationInvitation } from '../../domain/entities/organizationInvitation.entity.js';
+
 import { PrismaOrganizationInvitationRepository } from './prismaOrganizationInvitation.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
@@ -11,7 +12,12 @@ const email = 'member@example.invalid';
 
 function fixture() {
   const invitation = OrganizationInvitation.create({
-    id: invitationId, organizationId, email, invitedById: 'owner', tokenHash: 'fixture-hash', now,
+    id: invitationId,
+    organizationId,
+    email,
+    invitedById: 'owner',
+    tokenHash: 'fixture-hash',
+    now,
   });
   const findFirst = vi.fn().mockResolvedValue(null);
   const findUnique = vi.fn().mockResolvedValue(null);
@@ -38,7 +44,8 @@ describe('PrismaOrganizationInvitationRepository', () => {
       where: { organizationId_pendingEmail: { organizationId, pendingEmail: email } },
     });
     expect(f.findUnique).toHaveBeenNthCalledWith(2, {
-      where: { tokenHash: 'fixture-hash' }, select: { id: true, organizationId: true },
+      where: { tokenHash: 'fixture-hash' },
+      select: { id: true, organizationId: true },
     });
   });
 
@@ -61,9 +68,11 @@ describe('PrismaOrganizationInvitationRepository', () => {
     other.invitation.revoke(now);
     await other.repository.save(other.invitation);
 
-    expect(other.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'REVOKED', pendingEmail: null }),
-    }));
+    expect(other.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'REVOKED', pendingEmail: null }),
+      }),
+    );
   });
 
   it('rotates only accepted tokens for the removed member in the selected organization', async () => {
@@ -82,7 +91,7 @@ describe('PrismaOrganizationInvitationRepository', () => {
         data: { tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) },
       });
     }
-    expect(f.update.mock.calls[0]![0].data.tokenHash).not.toBe(f.update.mock.calls[1]![0].data.tokenHash);
+    expect(f.update.mock.calls[0][0].data.tokenHash).not.toBe(f.update.mock.calls[1][0].data.tokenHash);
   });
 
   it('includes only unexpired pending invitations and combines stored and effective expiry', async () => {
@@ -92,16 +101,24 @@ describe('PrismaOrganizationInvitationRepository', () => {
     await f.repository.list({ organizationId, status: 'EXPIRED', page: 2, limit: 10, now });
     await f.repository.list({ organizationId, status: 'ACCEPTED', page: 1, limit: 10, now });
 
-    expect(f.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      where: { organizationId, status: 'PENDING', expiresAt: { gt: now } },
-    }));
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { organizationId, status: 'PENDING', expiresAt: { gt: now } },
+      }),
+    );
     expect(f.findMany).toHaveBeenNthCalledWith(2, {
       where: { organizationId, OR: [{ status: 'EXPIRED' }, { status: 'PENDING', expiresAt: { lte: now } }] },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: 10, take: 11,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: 10,
+      take: 11,
     });
-    expect(f.findMany).toHaveBeenNthCalledWith(3, expect.objectContaining({
-      where: { organizationId, status: 'ACCEPTED' },
-    }));
+    expect(f.findMany).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        where: { organizationId, status: 'ACCEPTED' },
+      }),
+    );
   });
 
   it('paginates all invitations when no status is supplied', async () => {
@@ -110,7 +127,9 @@ describe('PrismaOrganizationInvitationRepository', () => {
     f.findMany.mockResolvedValueOnce([state, { ...state, id: 'next' }]);
 
     expect(await f.repository.list({ organizationId, page: 1, limit: 1, now })).toEqual({
-      items: [state], page: 1, hasMore: true,
+      items: [state],
+      page: 1,
+      hasMore: true,
     });
     expect(f.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { organizationId }, take: 2 }));
   });

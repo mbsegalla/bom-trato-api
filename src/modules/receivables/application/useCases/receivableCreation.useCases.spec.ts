@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { CreateReceivableUseCase } from './createReceivable.useCase.js';
 import { actor, now, receivableFixture, receivableState, source } from './support/receivable.fixture.js';
+import { CreateReceivableUseCase } from './createReceivable.useCase.js';
 
 const input = { workOrderId: source.id, dueAt: now.toISOString(), notes: '  Fixture note  ' };
 
@@ -24,7 +24,7 @@ describe('CreateReceivableUseCase', () => {
       version: 1,
     });
     expect(f.findWorkOrder).toHaveBeenCalledWith(source.id);
-    expect(f.receivables.create.mock.calls[0]![0].snapshot()).toMatchObject({ id: result.id, amountInCents: 10000 });
+    expect(f.receivables.create.mock.calls[0][0].snapshot()).toMatchObject({ id: result.id, amountInCents: 10000 });
   });
 
   it('returns an existing full receivable without writing a duplicate', async () => {
@@ -44,7 +44,9 @@ describe('CreateReceivableUseCase', () => {
       receivableState({ kind: 'DOWN_PAYMENT', amountInCents: 3000 }),
     ]);
 
-    await expect(new CreateReceivableUseCase(f.service).execute(actor, input)).rejects.toThrow('RECEIVABLE_ALREADY_EXISTS');
+    await expect(new CreateReceivableUseCase(f.service).execute(actor, input)).rejects.toThrow(
+      'RECEIVABLE_ALREADY_EXISTS',
+    );
     expect(f.receivables.create).not.toHaveBeenCalled();
   });
 

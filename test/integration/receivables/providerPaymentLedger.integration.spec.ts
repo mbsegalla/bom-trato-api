@@ -1,5 +1,7 @@
-import { expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
+
+import { expect, it, vi } from 'vitest';
+
 import { PrismaReceivableRepository } from '../../../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
@@ -10,12 +12,7 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
   it('commits one ledger entry and one version advance despite concurrent duplicate delivery', async () => {
     const { prisma, useCase, fixture, ledger } = context;
 
-    const {
-      actor,
-      registration,
-      payment,
-      receivable
-    } = await fixture();
+    const { actor, registration, payment, receivable } = await fixture();
     const chargeId = await useCase.register(actor, registration);
 
     expect(await useCase.register(actor, registration)).toBe(chargeId);
@@ -32,25 +29,21 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
     expect(state.receivable).toMatchObject({ receivedInCents: 10_000, status: 'PAID', version: 2 });
     expect(state.payments).toHaveLength(1);
     expect(state.payments[0]).toMatchObject({ amountInCents: 10_000, method: 'PIX', requestId: chargeId });
-    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: chargeId } }))
-      .toMatchObject({
-        paymentId: state.payments[0]?.id,
-        confirmedAmountInCents: 10_000,
-        confirmedCurrency: 'brl'
-      });
+    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: chargeId } })).toMatchObject({
+      paymentId: state.payments[0]?.id,
+      confirmedAmountInCents: 10_000,
+      confirmedCurrency: 'brl',
+    });
   }, 30_000);
 
   it('rejects test registration and ignores test confirmations, even with a live identity', async () => {
     const { prisma, useCase, fixture, ledger } = context;
 
-    const {
-      actor,
-      registration,
-      payment,
-      receivable
-    } = await fixture();
+    const { actor, registration, payment, receivable } = await fixture();
 
-    await expect(useCase.register(actor, { ...registration, liveMode: false })).rejects.toThrow('INVALID_RECEIVABLE_INPUT');
+    await expect(useCase.register(actor, { ...registration, liveMode: false })).rejects.toThrow(
+      'INVALID_RECEIVABLE_INPUT',
+    );
     expect(await prisma.receivableProviderCharge.count({ where: { receivableId: receivable.id } })).toBe(0);
 
     await useCase.register(actor, registration);
@@ -87,12 +80,11 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
 
     expect(await useCase.execute(wrong)).toBe('REVIEW_REQUIRED');
     expect(await useCase.execute(first.payment)).toBe('REVIEW_REQUIRED');
-    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: firstCharge } }))
-      .toMatchObject({
-        reviewReason: 'AMOUNT_MISMATCH',
-        confirmedEventId: wrong.eventId,
-        confirmedAmountInCents: 9_999
-      });
+    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: firstCharge } })).toMatchObject({
+      reviewReason: 'AMOUNT_MISMATCH',
+      confirmedEventId: wrong.eventId,
+      confirmedAmountInCents: 9_999,
+    });
 
     const second = await fixture();
     const secondCharge = await useCase.register(second.actor, second.registration);
@@ -100,13 +92,15 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
       where: { id: second.receivable.id },
       data: {
         version: 2,
-        notes: 'Changed before settlement'
-      }
+        notes: 'Changed before settlement',
+      },
     });
 
     expect(await useCase.execute(second.payment)).toBe('REVIEW_REQUIRED');
-    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: secondCharge } }))
-      .toMatchObject({ reviewReason: 'RECEIVABLE_CHANGED', paymentId: null });
+    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: secondCharge } })).toMatchObject({
+      reviewReason: 'RECEIVABLE_CHANGED',
+      paymentId: null,
+    });
     expect((await ledger(first.receivable.id)).payments).toHaveLength(0);
     expect((await ledger(second.receivable.id)).payments).toHaveLength(0);
   });
@@ -114,14 +108,10 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
   it('rolls back the balance/version update when creating the ledger payment fails, then safely retries', async () => {
     const { prisma, useCase, fixture, ledger } = context;
 
-    const {
-      actor,
-      registration,
-      payment,
-      receivable
-    } = await fixture();
+    const { actor, registration, payment, receivable } = await fixture();
     const chargeId = await useCase.register(actor, registration);
-    const failure = vi.spyOn(PrismaReceivableRepository.prototype, 'createPayment')
+    const failure = vi
+      .spyOn(PrismaReceivableRepository.prototype, 'createPayment')
       .mockRejectedValueOnce(new Error('Injected failure after aggregate save'));
 
     await expect(useCase.execute(payment)).rejects.toThrow('Injected failure');
@@ -132,20 +122,16 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
       receivable: { receivedInCents: 0, status: 'OPEN', version: 1 },
       payments: [],
     });
-    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: chargeId } }))
-      .toMatchObject({ paymentId: null, confirmedEventId: null });
+    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: chargeId } })).toMatchObject({
+      paymentId: null,
+      confirmedEventId: null,
+    });
     expect(await useCase.execute(payment)).toBe('APPLIED');
     expect((await ledger(receivable.id)).payments).toHaveLength(1);
   });
 
   it('records a verified settlement after subscription access expires, but never after ownership changes', async () => {
-    const {
-      prisma,
-      useCase,
-      users,
-      fixture,
-      ledger
-    } = context;
+    const { prisma, useCase, users, fixture, ledger } = context;
 
     const first = await fixture();
     await useCase.register(first.actor, first.registration);
@@ -162,7 +148,7 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
       data: {
         name: 'Fixture successor',
         email: randomUUID() + '@example.invalid',
-        emailVerifiedAt: new Date()
+        emailVerifiedAt: new Date(),
       },
     });
     users.push(newOwner.id);
@@ -170,8 +156,10 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
     await prisma.organization.update({ where: { id: second.actor.organizationId }, data: { ownerId: newOwner.id } });
 
     expect(await useCase.execute(second.payment)).toBe('REVIEW_REQUIRED');
-    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: secondCharge } }))
-      .toMatchObject({ reviewReason: 'OWNER_CHANGED', paymentId: null });
+    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: secondCharge } })).toMatchObject({
+      reviewReason: 'OWNER_CHANGED',
+      paymentId: null,
+    });
     expect((await ledger(second.receivable.id)).payments).toHaveLength(0);
   });
   it('refuses to register a provider charge against another tenant receivable', async () => {
@@ -180,27 +168,38 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
     const actor = { ...first.actor, receivableId: second.receivable.id };
 
     await expect(context.useCase.register(actor, first.registration)).rejects.toThrow('RECEIVABLE_NOT_FOUND');
-    expect(await context.prisma.receivableProviderCharge.count({ where: { receivableId: second.receivable.id } })).toBe(0);
+    expect(await context.prisma.receivableProviderCharge.count({ where: { receivableId: second.receivable.id } })).toBe(
+      0,
+    );
   });
 
   it('rejects a stale version or a mismatched outstanding amount without registering a charge', async () => {
     const f = await context.fixture();
 
-    await expect(context.useCase.register(f.actor, { ...f.registration, receivableVersion: 2 }))
-      .rejects.toThrow('RECEIVABLE_VERSION_CONFLICT');
-    await expect(context.useCase.register(f.actor, { ...f.registration, expectedAmountInCents: 9999 }))
-      .rejects.toThrow('INVALID_RECEIVABLE_INPUT');
+    await expect(context.useCase.register(f.actor, { ...f.registration, receivableVersion: 2 })).rejects.toThrow(
+      'RECEIVABLE_VERSION_CONFLICT',
+    );
+    await expect(context.useCase.register(f.actor, { ...f.registration, expectedAmountInCents: 9999 })).rejects.toThrow(
+      'INVALID_RECEIVABLE_INPUT',
+    );
     expect(await context.prisma.receivableProviderCharge.count({ where: { receivableId: f.receivable.id } })).toBe(0);
   });
 
-  it.each([{ receivableVersion: 2 }, { expectedAmountInCents: 9999 }])('rejects changed data under the original provider identity', async (patch) => {
-    const f = await context.fixture();
-    const id = await context.useCase.register(f.actor, f.registration);
+  it.each([{ receivableVersion: 2 }, { expectedAmountInCents: 9999 }])(
+    'rejects changed data under the original provider identity',
+    async (patch) => {
+      const f = await context.fixture();
+      const id = await context.useCase.register(f.actor, f.registration);
 
-    await expect(context.useCase.register(f.actor, { ...f.registration, ...patch })).rejects.toThrow('IDEMPOTENCY_CONFLICT');
-    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
-      .toMatchObject({ expectedAmountInCents: f.registration.expectedAmountInCents, receivableVersion: f.registration.receivableVersion });
-  });
+      await expect(context.useCase.register(f.actor, { ...f.registration, ...patch })).rejects.toThrow(
+        'IDEMPOTENCY_CONFLICT',
+      );
+      expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } })).toMatchObject({
+        expectedAmountInCents: f.registration.expectedAmountInCents,
+        receivableVersion: f.registration.receivableVersion,
+      });
+    },
+  );
 
   it('retains a currency mismatch as sticky review without touching the ledger', async () => {
     const f = await context.fixture();
@@ -209,8 +208,12 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
 
     expect(await context.useCase.execute(wrong)).toBe('REVIEW_REQUIRED');
     expect(await context.useCase.execute(f.payment)).toBe('REVIEW_REQUIRED');
-    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
-      .toMatchObject({ reviewReason: 'CURRENCY_MISMATCH', confirmedCurrency: 'usd', confirmedEventId: wrong.eventId, paymentId: null });
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      reviewReason: 'CURRENCY_MISMATCH',
+      confirmedCurrency: 'usd',
+      confirmedEventId: wrong.eventId,
+      paymentId: null,
+    });
     expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
   });
 
@@ -218,10 +221,14 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
     const f = await context.fixture();
     const id = await context.useCase.register(f.actor, f.registration);
 
-    await expect(context.useCase.execute({ ...f.payment, paidAt: new Date(Date.now() + 60_000) }))
-      .rejects.toThrow('INVALID_PAYMENT_DATE');
-    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
-      .toMatchObject({ confirmedEventId: null, paymentId: null, reviewReason: null });
+    await expect(context.useCase.execute({ ...f.payment, paidAt: new Date(Date.now() + 60_000) })).rejects.toThrow(
+      'INVALID_PAYMENT_DATE',
+    );
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      confirmedEventId: null,
+      paymentId: null,
+      reviewReason: null,
+    });
     expect(await context.useCase.execute(f.payment)).toBe('APPLIED');
     expect((await context.ledger(f.receivable.id)).payments).toHaveLength(1);
   });
@@ -232,8 +239,11 @@ paymentIntegrationSuite('providerPaymentLedger (disposable PostgreSQL)', () => {
     const id = await context.useCase.register(f.actor, registration);
 
     expect(await context.useCase.execute({ ...f.payment, provider: registration.provider })).toBe('UNMATCHED');
-    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } }))
-      .toMatchObject({ confirmedEventId: null, paymentId: null, reviewReason: null });
+    expect(await context.prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      confirmedEventId: null,
+      paymentId: null,
+      reviewReason: null,
+    });
     expect((await context.ledger(f.receivable.id)).payments).toHaveLength(0);
   });
 });

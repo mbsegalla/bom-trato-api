@@ -16,25 +16,31 @@ function fixture() {
         id: 'customer',
         name: 'Cliente',
         email: null,
-        phone: null
+        phone: null,
       },
-      details: { title: 'Servico' }
+      details: { title: 'Servico' },
     },
-    now
+    now,
   );
-  quote.addItem(QuoteItem.create('item', {
-    name: 'Servico',
-    unit: 'SERVICE',
-    quantity: '1',
-    unitAmountInCents: 1000
-  }));
+  quote.addItem(
+    QuoteItem.create('item', {
+      name: 'Servico',
+      unit: 'SERVICE',
+      quantity: '1',
+      unitAmountInCents: 1000,
+    }),
+  );
   quote.markSent(now);
-  const share = QuoteShare.create({
-    id: 'share',
-    tokenHash: 'hash',
-    userId: 'owner',
-    expiresAt
-  }, quote, now);
+  const share = QuoteShare.create(
+    {
+      id: 'share',
+      tokenHash: 'hash',
+      userId: 'owner',
+      expiresAt,
+    },
+    quote,
+    now,
+  );
 
   return { quote, share };
 }
@@ -53,14 +59,18 @@ describe('QuoteShare', () => {
     const { quote, share } = fixture();
 
     expect(() => share.assertReadable(quote, expiresAt)).toThrow('QUOTE_SHARE_NOT_FOUND');
-    expect(() => QuoteShare.restore({
-      ...share.snapshot(),
-      revokedAt: now
-    }).assertReadable(quote, now)).toThrow('QUOTE_SHARE_NOT_FOUND');
-    expect(() => QuoteShare.restore({
-      ...share.snapshot(),
-      organizationId: 'other'
-    }).assertReadable(quote, now)).toThrow('QUOTE_SHARE_NOT_FOUND');
+    expect(() =>
+      QuoteShare.restore({
+        ...share.snapshot(),
+        revokedAt: now,
+      }).assertReadable(quote, now),
+    ).toThrow('QUOTE_SHARE_NOT_FOUND');
+    expect(() =>
+      QuoteShare.restore({
+        ...share.snapshot(),
+        organizationId: 'other',
+      }).assertReadable(quote, now),
+    ).toThrow('QUOTE_SHARE_NOT_FOUND');
 
     quote.recordChange('owner', now);
 

@@ -2,21 +2,25 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { Lead } from '../../domain/entities/lead.entity.js';
+
 import { PrismaLeadRepository } from './prismaLead.repository.js';
 
 const now = new Date('2026-01-01T00:00:00Z');
 const organizationId = 'org';
-const lead = Lead.create({
-  id: 'lead',
-  requestKey: 'request',
-  organizationId,
-  publicBusinessProfileId: 'profile',
-  catalogServiceId: null,
-  requestedServiceName: null,
-  name: 'Fixture customer',
-  email: 'customer@example.invalid',
-  message: 'Fixture service request',
-}, now);
+const lead = Lead.create(
+  {
+    id: 'lead',
+    requestKey: 'request',
+    organizationId,
+    publicBusinessProfileId: 'profile',
+    catalogServiceId: null,
+    requestedServiceName: null,
+    name: 'Fixture customer',
+    email: 'customer@example.invalid',
+    message: 'Fixture service request',
+  },
+  now,
+);
 const state = lead.snapshot();
 
 function fixture() {
@@ -25,9 +29,12 @@ function fixture() {
   const findFirst = vi.fn().mockResolvedValue(null);
   const findMany = vi.fn().mockResolvedValue([]);
   const updateMany = vi.fn().mockResolvedValue({ count: 1 });
-  const repository = new PrismaLeadRepository({
-    lead: { createMany, findUnique, findFirst, findMany, updateMany },
-  } as unknown as Prisma.TransactionClient, organizationId);
+  const repository = new PrismaLeadRepository(
+    {
+      lead: { createMany, findUnique, findFirst, findMany, updateMany },
+    } as unknown as Prisma.TransactionClient,
+    organizationId,
+  );
 
   return { repository, createMany, findUnique, findFirst, findMany, updateMany };
 }
@@ -72,8 +79,11 @@ describe('PrismaLeadRepository', () => {
     f.findMany.mockResolvedValueOnce([state, { ...state, id: 'next' }]);
 
     await f.repository.findById(state.id);
-    expect(await f.repository.list({ page: 2, limit: 1, status: 'NEW', search: '  Fixture  ' }))
-      .toEqual({ items: [state], page: 2, hasMore: true });
+    expect(await f.repository.list({ page: 2, limit: 1, status: 'NEW', search: '  Fixture  ' })).toEqual({
+      items: [state],
+      page: 2,
+      hasMore: true,
+    });
 
     expect(f.findFirst).toHaveBeenCalledWith({ where: { id: state.id, organizationId } });
     expect(f.findMany).toHaveBeenCalledWith({

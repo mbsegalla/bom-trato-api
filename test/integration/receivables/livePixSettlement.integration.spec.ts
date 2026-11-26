@@ -1,7 +1,9 @@
-import { expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { PrismaReceivableRepository } from '../../../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
+
+import { expect, it, vi } from 'vitest';
+
 import { MercadoPagoError } from '../../../src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoClient.js';
+import { PrismaReceivableRepository } from '../../../src/modules/receivables/infrastructure/repositories/prismaReceivable.repository.js';
 
 import { createPaymentFixture, paymentIntegrationSuite } from './support/payment.fixture.js';
 
@@ -80,7 +82,8 @@ paymentIntegrationSuite('livePixSettlement (disposable PostgreSQL)', () => {
 
     const f = await settlementFixture();
     const job = await f.delivery();
-    const failure = vi.spyOn(PrismaReceivableRepository.prototype, 'createPayment')
+    const failure = vi
+      .spyOn(PrismaReceivableRepository.prototype, 'createPayment')
       .mockRejectedValueOnce(new Error('Injected live payment failure'));
 
     await expect(f.processor.execute(job)).rejects.toThrow('Injected live payment failure');
@@ -134,18 +137,22 @@ paymentIntegrationSuite('livePixSettlement (disposable PostgreSQL)', () => {
     const f = await settlementFixture();
     const approval = await f.delivery();
     const prepared = await f.inbox.prepare(approval);
-    if (prepared.kind !== 'READY') throw new Error('Fixture preparation failed');
+    if (prepared.kind !== 'READY') {
+      throw new Error('Fixture preparation failed');
+    }
 
     const refund = await f.delivery();
     f.read.mockResolvedValueOnce({ status: 'REFUNDED' });
 
     expect(await f.processor.execute(refund)).toBe(true);
-    expect(await f.inbox.settle(approval, {
-      kind: 'CHECKED',
-      binding: prepared.binding,
-      stamp: prepared.stamp,
-      observation: { status: 'APPROVED', payment: f.approval(approval.deliveryKey) },
-    })).toBe(true);
+    expect(
+      await f.inbox.settle(approval, {
+        kind: 'CHECKED',
+        binding: prepared.binding,
+        stamp: prepared.stamp,
+        observation: { status: 'APPROVED', payment: f.approval(approval.deliveryKey) },
+      }),
+    ).toBe(true);
     expect(await f.stored(approval)).toMatchObject({ resultCode: 'ISSUANCE_REVIEW_REQUIRED' });
     expect(await useCase.execute(f.approval(approval.deliveryKey))).toBe('REVIEW_REQUIRED');
     expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
@@ -214,25 +221,21 @@ paymentIntegrationSuite('livePixSettlement (disposable PostgreSQL)', () => {
       status: 'REVIEW_REQUIRED',
       settlementReviewCode: 'LEDGER_REVIEW_REQUIRED',
     });
-    expect(await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: f.issuance.issuanceId } }))
-      .toMatchObject({ reviewReason: 'RECEIVABLE_CHANGED', paymentId: null });
+    expect(
+      await prisma.receivableProviderCharge.findUniqueOrThrow({ where: { id: f.issuance.issuanceId } }),
+    ).toMatchObject({ reviewReason: 'RECEIVABLE_CHANGED', paymentId: null });
     expect((await ledger(f.receivable.id)).payments).toHaveLength(0);
   });
 
   it('records owner changes without consulting another seller token', async () => {
-    const {
-      prisma,
-      users,
-      settlementFixture,
-      ledger
-    } = context;
+    const { prisma, users, settlementFixture, ledger } = context;
 
     const f = await settlementFixture();
     const successor = await prisma.user.create({
       data: {
         name: 'Fixture successor',
         email: randomUUID() + '@example.invalid',
-        emailVerifiedAt: new Date()
+        emailVerifiedAt: new Date(),
       },
     });
     users.push(successor.id);

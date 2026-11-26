@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Prisma } from '../../../../generated/prisma/client.js';
+
 import { PrismaCustomerRepository } from './prismaCustomer.repository.js';
 
 const row = {
@@ -28,7 +29,7 @@ describe('PrismaCustomerRepository overview totals', () => {
       currency: 'brl',
     });
 
-    const [parts, ...values] = query.mock.calls[0]!;
+    const [parts, ...values] = query.mock.calls[0];
     expect((parts as TemplateStringsArray).join('?')).toContain('payment."reversedAt" IS NULL');
     expect(values.filter((value) => value === 'org')).toHaveLength(4);
     expect(values.filter((value) => value === 'customer')).toHaveLength(4);

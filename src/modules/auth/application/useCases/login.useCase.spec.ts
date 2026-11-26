@@ -4,24 +4,26 @@ import { User } from '../../../users/domain/entities/user.entity.js';
 import type { AuthRepository } from '../../domain/repositories/auth.repository.js';
 import type { AuthSecurity } from '../ports/authSecurity.port.js';
 import type { AuthTransaction, AuthUnitOfWork } from '../ports/authUnitOfWork.port.js';
+
 import { LoginUseCase } from './login.useCase.js';
 
 const input = {
   email: ' USER@example.com ',
   password: 'Secret!password',
-  userAgent: 'fixture'
+  userAgent: 'fixture',
 };
 const now = new Date('2026-01-01T00:00:00Z');
-const user = (patch: Partial<Parameters<typeof User.restore>[0]> = {}) => User.restore({
-  id: 'user',
-  name: 'Fixture',
-  email: 'user@example.com',
-  passwordHash: 'hash',
-  selectedPlanPriceId: null,
-  emailVerifiedAt: now,
-  disabledAt: null,
-  ...patch,
-});
+const user = (patch: Partial<Parameters<typeof User.restore>[0]> = {}) =>
+  User.restore({
+    id: 'user',
+    name: 'Fixture',
+    email: 'user@example.com',
+    passwordHash: 'hash',
+    selectedPlanPriceId: null,
+    emailVerifiedAt: now,
+    disabledAt: null,
+    ...patch,
+  });
 
 function fixture() {
   const repository = {
@@ -38,14 +40,20 @@ function fixture() {
     signAccess: vi.fn<AuthSecurity['signAccess']>().mockResolvedValue('access'),
   };
   const run = vi.fn(async (operation: (tx: AuthTransaction) => Promise<unknown>) =>
-    operation({ auth: repository } as unknown as AuthTransaction));
-  const useCase = new LoginUseCase(repository as unknown as AuthRepository, security as unknown as AuthSecurity, {
-    accessTtlSeconds: 900,
-    idleTtlSeconds: 3600,
-    absoluteTtlSeconds: 86400,
-    verificationTtlSeconds: 86400,
-    resetTtlSeconds: 1800,
-  }, { run } as unknown as AuthUnitOfWork);
+    operation({ auth: repository } as unknown as AuthTransaction),
+  );
+  const useCase = new LoginUseCase(
+    repository as unknown as AuthRepository,
+    security as unknown as AuthSecurity,
+    {
+      accessTtlSeconds: 900,
+      idleTtlSeconds: 3600,
+      absoluteTtlSeconds: 86400,
+      verificationTtlSeconds: 86400,
+      resetTtlSeconds: 1800,
+    },
+    { run } as unknown as AuthUnitOfWork,
+  );
 
   return { useCase, repository, security, run };
 }
@@ -72,15 +80,18 @@ describe('LoginUseCase', () => {
     expect(result).toMatchObject({ accessToken: 'access', expiresIn: 900 });
   });
 
-  it.each([null, user({ passwordHash: null })])('does dummy verification for missing password accounts without opening a session', async (account) => {
-    const f = fixture();
-    f.repository.findUserByEmail.mockResolvedValue(account);
+  it.each([null, user({ passwordHash: null })])(
+    'does dummy verification for missing password accounts without opening a session',
+    async (account) => {
+      const f = fixture();
+      f.repository.findUserByEmail.mockResolvedValue(account);
 
-    await expect(f.useCase.execute(input)).rejects.toThrow('INVALID_CREDENTIALS');
-    expect(f.security.dummyVerify).toHaveBeenCalledWith(input.password);
-    expect(f.run).not.toHaveBeenCalled();
-    expect(f.security.signAccess).not.toHaveBeenCalled();
-  });
+      await expect(f.useCase.execute(input)).rejects.toThrow('INVALID_CREDENTIALS');
+      expect(f.security.dummyVerify).toHaveBeenCalledWith(input.password);
+      expect(f.run).not.toHaveBeenCalled();
+      expect(f.security.signAccess).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not start sessions for bad passwords, unverified or disabled accounts', async () => {
     const f = fixture();

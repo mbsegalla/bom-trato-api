@@ -4,6 +4,7 @@ import type { OrganizationPlatformAccessReader } from '../../../organizations/ap
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { PlanChangeRepository } from '../../domain/repositories/planChange.repository.js';
+
 import { GetEntitlementsUseCase } from './getEntitlements.useCase.js';
 
 const actor = { organizationId: 'org', userId: 'owner' };
@@ -12,7 +13,7 @@ const access: OrganizationAccessContext = {
   verified: true,
   hasPlatformAccess: true,
   source: 'SUBSCRIPTION',
-  billingNeedsReconciliation: false
+  billingNeedsReconciliation: false,
 };
 function fixture() {
   const read = vi.fn<OrganizationPlatformAccessReader['read']>().mockResolvedValue(access);
@@ -20,7 +21,7 @@ function fixture() {
     maxUsers: 5,
     memberCount: 2,
     teamManagementEnabled: true,
-    isOwner: true
+    isOwner: true,
   });
   const active = vi.fn<PlanChangeRepository['active']>().mockResolvedValue(null);
 
@@ -29,8 +30,10 @@ function fixture() {
     entitlements,
     active,
     useCase: new GetEntitlementsUseCase(
-      { entitlements } as unknown as BillingRepository, { active } as unknown as PlanChangeRepository, { read },
-    )
+      { entitlements } as unknown as BillingRepository,
+      { active } as unknown as PlanChangeRepository,
+      { read },
+    ),
   };
 }
 
@@ -39,7 +42,7 @@ describe('GetEntitlementsUseCase', () => {
     const f = fixture();
     f.read.mockResolvedValueOnce({ ...access, isMember: false }).mockResolvedValueOnce({
       ...access,
-      billingNeedsReconciliation: true
+      billingNeedsReconciliation: true,
     });
 
     await expect(f.useCase.execute(actor)).rejects.toThrow('ORGANIZATION_NOT_FOUND');
@@ -56,7 +59,7 @@ describe('GetEntitlementsUseCase', () => {
       maxUsers: 1,
       memberCount: 2,
       teamManagementEnabled: false,
-      canAddMember: false
+      canAddMember: false,
     });
     expect(f.active).not.toHaveBeenCalled();
   });
@@ -66,7 +69,9 @@ describe('GetEntitlementsUseCase', () => {
 
     expect(await f.useCase.execute(actor)).toMatchObject({ maxUsers: 5, canAddMember: true });
 
-    f.active.mockResolvedValueOnce({ targetMaxUsers: 2 } as NonNullable<Awaited<ReturnType<PlanChangeRepository['active']>>>);
+    f.active.mockResolvedValueOnce({ targetMaxUsers: 2 } as NonNullable<
+      Awaited<ReturnType<PlanChangeRepository['active']>>
+    >);
 
     expect(await f.useCase.execute(actor)).toMatchObject({ maxUsers: 5, canAddMember: false });
 
@@ -74,7 +79,7 @@ describe('GetEntitlementsUseCase', () => {
       maxUsers: 5,
       memberCount: 2,
       teamManagementEnabled: true,
-      isOwner: false
+      isOwner: false,
     });
 
     expect(await f.useCase.execute(actor)).toMatchObject({ canAddMember: false });

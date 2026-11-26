@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
+import { describe, expect, it, vi } from 'vitest';
+
 import type { BillingGateway } from '../../../application/ports/billingGateway.port.js';
 import type { BillingWebhookRepository } from '../../../application/ports/billingWebhookRepository.port.js';
 import { BillingError } from '../../../domain/errors/billing.error.js';
+
 import { StripeWebhookController } from './stripeWebhook.controller.js';
 
 const rawBody = Buffer.from('{"id":"evt_fixture"}');
@@ -13,14 +14,14 @@ const notice = {
   id: 'evt_fixture',
   type: 'invoice.paid',
   stripeCustomerId: 'cus_fixture',
-  stripeObjectId: 'in_fixture'
+  stripeObjectId: 'in_fixture',
 };
 function fixture() {
   const verifyWebhook = vi.fn<BillingGateway['verifyWebhook']>().mockReturnValue(notice);
   const enqueue = vi.fn<BillingWebhookRepository['enqueue']>().mockResolvedValue(undefined);
   const controller = new StripeWebhookController(
     { verifyWebhook } as unknown as BillingGateway,
-    { enqueue } as unknown as BillingWebhookRepository
+    { enqueue } as unknown as BillingWebhookRepository,
   );
 
   return { controller, verifyWebhook, enqueue };
@@ -31,7 +32,9 @@ describe('StripeWebhookController', () => {
     const f = fixture();
 
     await expect(f.controller.receive(request)).rejects.toMatchObject({ status: 400 });
-    await expect(f.controller.receive({} as RawBodyRequest<Request>, 'signature')).rejects.toMatchObject({ status: 400 });
+    await expect(f.controller.receive({} as RawBodyRequest<Request>, 'signature')).rejects.toMatchObject({
+      status: 400,
+    });
     expect(f.verifyWebhook).not.toHaveBeenCalled();
 
     f.verifyWebhook.mockImplementationOnce(() => {

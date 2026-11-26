@@ -1,6 +1,7 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
-import { createHash } from 'node:crypto';
 import { NodeQuoteShareSecurity } from './nodeQuoteShareSecurity.js';
 
 describe('NodeQuoteShareSecurity', () => {
@@ -16,14 +17,10 @@ describe('NodeQuoteShareSecurity', () => {
     expect(security.hash(first.token)).toBe(first.hash);
   });
 
-  it.each([
-    '',
-    'a'.repeat(63),
-    'a'.repeat(65),
-    'G'.repeat(64),
-    'A'.repeat(64),
-    ' ' + 'a'.repeat(64)
-  ])('rejects malformed private link secrets', (value) => {
-    expect(() => new NodeQuoteShareSecurity().hash(value)).toThrow('QUOTE_SHARE_NOT_FOUND');
-  });
+  it.each(['', 'a'.repeat(63), 'a'.repeat(65), 'G'.repeat(64), 'A'.repeat(64), ' ' + 'a'.repeat(64)])(
+    'rejects malformed private link secrets',
+    (value) => {
+      expect(() => new NodeQuoteShareSecurity().hash(value)).toThrow('QUOTE_SHARE_NOT_FOUND');
+    },
+  );
 });

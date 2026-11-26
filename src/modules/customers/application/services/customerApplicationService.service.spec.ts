@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { OrganizationAccessContext } from '../../../organizations/domain/policies/organizationAccess.policy.js';
 import type { CustomerRepository } from '../../domain/repositories/customer.repository.js';
 import type { CustomerTransaction, CustomerUnitOfWork } from '../ports/customerUnitOfWork.port.js';
+
 import { CustomerApplicationService } from './customerApplicationService.service.js';
 
 const actor = { organizationId: 'org', userId: 'owner' };
@@ -19,7 +20,9 @@ function fixture(access = allowed) {
     findByEmail: vi.fn<CustomerRepository['findByEmail']>().mockResolvedValue(null),
   };
   const tx = { customers, access } as unknown as CustomerTransaction;
-  const run = vi.fn(async (_actor: typeof actor, operation: (tx: CustomerTransaction) => Promise<unknown>) => operation(tx));
+  const run = vi.fn(async (_actor: typeof actor, operation: (tx: CustomerTransaction) => Promise<unknown>) =>
+    operation(tx),
+  );
   const service = new CustomerApplicationService({ run, read: run } as unknown as CustomerUnitOfWork);
 
   return { customers, tx, service, run };
@@ -68,6 +71,8 @@ describe('CustomerApplicationService', () => {
     });
 
     await expect(f.service.assertEmailAvailable(f.tx, 'person@example.invalid', 'existing')).resolves.toBeUndefined();
-    await expect(f.service.assertEmailAvailable(f.tx, 'person@example.invalid', 'other')).rejects.toThrow('CUSTOMER_EMAIL_ALREADY_EXISTS');
+    await expect(f.service.assertEmailAvailable(f.tx, 'person@example.invalid', 'other')).rejects.toThrow(
+      'CUSTOMER_EMAIL_ALREADY_EXISTS',
+    );
   });
 });

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { BillingError } from '../../domain/errors/billing.error.js';
+
 import { PostgresBillingLock } from './postgresBillingLock.js';
 
 const key = 'organization:11111111-1111-4111-8111-111111111111';
@@ -29,7 +30,7 @@ describe('PostgresBillingLock', () => {
 
     expect(await f.lock.run(key, operation)).toBe('result');
     expect(operation).toHaveBeenCalledTimes(1);
-    const { data } = f.createMany.mock.calls[0]![0];
+    const { data } = f.createMany.mock.calls[0][0];
     const { token, acquiredAt, leaseUntil } = data[0];
 
     expect(leaseUntil.getTime() - acquiredAt.getTime()).toBe(30_000);

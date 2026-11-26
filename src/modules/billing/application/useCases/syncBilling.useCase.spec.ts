@@ -4,6 +4,7 @@ import { BillingError } from '../../domain/errors/billing.error.js';
 import type { BillingRepository } from '../../domain/repositories/billing.repository.js';
 import type { BillingGateway } from '../ports/billingGateway.port.js';
 import type { BillingLock } from '../ports/billingLock.port.js';
+
 import { SyncBillingUseCase } from './syncBilling.useCase.js';
 
 const organizationId = 'org';
@@ -48,7 +49,9 @@ describe('SyncBillingUseCase', () => {
       nextReconcileAt: undefined,
       invoiceHistorySyncedAt: undefined,
     });
-    expect(f.gateway.snapshot.mock.invocationCallOrder[0]).toBeLessThan(f.repository.saveSnapshot.mock.invocationCallOrder[0]!);
+    expect(f.gateway.snapshot.mock.invocationCallOrder[0]).toBeLessThan(
+      f.repository.saveSnapshot.mock.invocationCallOrder[0],
+    );
   });
 
   it('requests full history on the first reconciliation and advances the checkpoint only when saving', async () => {
@@ -86,18 +89,23 @@ describe('SyncBillingUseCase', () => {
     });
   });
 
-  it.each(['COMPLETE', 'EXPIRED'] as const)('includes a confirmed %s checkout in the atomic snapshot', async (status) => {
-    const f = fixture();
-    f.repository.pendingCheckout.mockResolvedValueOnce(attempt);
-    f.gateway.checkout.mockResolvedValueOnce({ stripeSessionId: attempt.stripeSessionId, status });
+  it.each(['COMPLETE', 'EXPIRED'] as const)(
+    'includes a confirmed %s checkout in the atomic snapshot',
+    async (status) => {
+      const f = fixture();
+      f.repository.pendingCheckout.mockResolvedValueOnce(attempt);
+      f.gateway.checkout.mockResolvedValueOnce({ stripeSessionId: attempt.stripeSessionId, status });
 
-    await f.useCase.execute({ organizationId });
+      await f.useCase.execute({ organizationId });
 
-    expect(f.gateway.checkout).toHaveBeenCalledWith(attempt.stripeSessionId);
-    expect(f.repository.saveSnapshot).toHaveBeenCalledWith(expect.objectContaining({
-      checkout: { id: attempt.id, stripeSessionId: attempt.stripeSessionId, status },
-    }));
-  });
+      expect(f.gateway.checkout).toHaveBeenCalledWith(attempt.stripeSessionId);
+      expect(f.repository.saveSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          checkout: { id: attempt.id, stripeSessionId: attempt.stripeSessionId, status },
+        }),
+      );
+    },
+  );
 
   it('recovers an unattached checkout without closing a remotely open session', async () => {
     const f = fixture();

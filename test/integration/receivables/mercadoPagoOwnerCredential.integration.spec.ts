@@ -16,15 +16,25 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     const client = f.runtime.requireEnabled().client;
     const where = { organizationId_liveMode: { organizationId: f.actor.organizationId, liveMode: true } };
     const aad = (purpose: 'access' | 'refresh') => [
-      'credential', f.actor.organizationId, f.clientId, 'true', f.accountId, purpose,
+      'credential',
+      f.actor.organizationId,
+      f.clientId,
+      'true',
+      f.accountId,
+      purpose,
     ];
     const read = () => prisma.mercadoPagoConnection.findUniqueOrThrow({ where });
-    const nearExpiry = () => prisma.mercadoPagoConnection.update({
-      where, data: { expiresAt: new Date(Date.now() + 60_000) },
-    });
+    const nearExpiry = () =>
+      prisma.mercadoPagoConnection.update({
+        where,
+        data: { expiresAt: new Date(Date.now() + 60_000) },
+      });
     const rotated = {
-      accountId: f.accountId, accessToken: 'new-fixture-access', refreshToken: 'new-fixture-refresh',
-      expiresAt: new Date(Date.now() + 3_600_000), liveMode: true,
+      accountId: f.accountId,
+      accessToken: 'new-fixture-access',
+      refreshToken: 'new-fixture-refresh',
+      expiresAt: new Date(Date.now() + 3_600_000),
+      liveMode: true,
     };
 
     return { ...f, service, client, where, aad, read, nearExpiry, rotated };
@@ -36,7 +46,10 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     const row = await f.read();
 
     expect(await f.service.accessForOwner(f.actor)).toEqual({
-      accountId: f.accountId, accessToken: 'fixture-access', liveMode: true, expiresAt: row.expiresAt,
+      accountId: f.accountId,
+      accessToken: 'fixture-access',
+      liveMode: true,
+      expiresAt: row.expiresAt,
     });
     expect(refresh).not.toHaveBeenCalled();
     expect(await f.read()).toMatchObject({ refreshClaimId: null, refreshStartedAt: null });
@@ -47,7 +60,8 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     const refresh = vi.spyOn(f.client, 'refreshCredentials').mockRejectedValue(new Error('unexpected refresh'));
     await f.nearExpiry();
     await context.prisma.authSession.update({
-      where: { id: f.actor.sessionId }, data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
+      where: { id: f.actor.sessionId },
+      data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
     });
 
     await expect(f.service.accessForOwner(f.actor)).rejects.toThrow('MERCADO_PAGO_UNAVAILABLE');
@@ -60,15 +74,17 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     const other = await context.liveFixture();
     const refresh = vi.spyOn(f.client, 'refreshCredentials').mockRejectedValue(new Error('unexpected refresh'));
 
-    await expect(f.service.accessForOwner({ ...f.actor, sessionId: other.actor.sessionId }))
-      .rejects.toThrow('MERCADO_PAGO_UNAVAILABLE');
+    await expect(f.service.accessForOwner({ ...f.actor, sessionId: other.actor.sessionId })).rejects.toThrow(
+      'MERCADO_PAGO_UNAVAILABLE',
+    );
     expect(refresh).not.toHaveBeenCalled();
   });
 
   it('rejects an owner without subscription or trial access', async () => {
     const f = await setup();
     await context.prisma.organizationTrial.update({
-      where: { organizationId: f.actor.organizationId }, data: { revokedAt: new Date() },
+      where: { organizationId: f.actor.organizationId },
+      data: { revokedAt: new Date() },
     });
     const refresh = vi.spyOn(f.client, 'refreshCredentials').mockRejectedValue(new Error('unexpected refresh'));
 
@@ -96,7 +112,10 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     });
 
     expect(await f.service.accessForOwner(f.actor)).toEqual({
-      accountId: f.accountId, accessToken: f.rotated.accessToken, liveMode: true, expiresAt: f.rotated.expiresAt,
+      accountId: f.accountId,
+      accessToken: f.rotated.accessToken,
+      liveMode: true,
+      expiresAt: f.rotated.expiresAt,
     });
     const row = await f.read();
     expect(row).toMatchObject({ refreshClaimId: null, refreshStartedAt: null, expiresAt: f.rotated.expiresAt });
@@ -121,27 +140,34 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     expect(await f.read()).toMatchObject({ refreshClaimId: row.refreshClaimId });
   });
 
-  it.each(['account', 'mode', 'expiry'] as const)('rejects a rotated credential with incompatible %s', async (field) => {
-    const f = await setup();
-    await f.nearExpiry();
-    const credentials = field === 'account' ? { ...f.rotated, accountId: '99999' }
-      : field === 'mode' ? { ...f.rotated, liveMode: false }
-      : { ...f.rotated, expiresAt: new Date(Date.now() + 1000) };
-    const refresh = vi.spyOn(f.client, 'refreshCredentials').mockResolvedValue(credentials);
+  it.each(['account', 'mode', 'expiry'] as const)(
+    'rejects a rotated credential with incompatible %s',
+    async (field) => {
+      const f = await setup();
+      await f.nearExpiry();
+      const credentials =
+        field === 'account'
+          ? { ...f.rotated, accountId: '99999' }
+          : field === 'mode'
+            ? { ...f.rotated, liveMode: false }
+            : { ...f.rotated, expiresAt: new Date(Date.now() + 1000) };
+      const refresh = vi.spyOn(f.client, 'refreshCredentials').mockResolvedValue(credentials);
 
-    await expect(f.service.accessForOwner(f.actor)).rejects.toThrow('MERCADO_PAGO_UNAVAILABLE');
-    const row = await f.read();
-    expect(row.refreshClaimId).not.toBeNull();
-    expect(f.runtime.cipher.open(f.aad('refresh'), row.refreshTokenCiphertext!)).toBe('fixture-refresh');
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
+      await expect(f.service.accessForOwner(f.actor)).rejects.toThrow('MERCADO_PAGO_UNAVAILABLE');
+      const row = await f.read();
+      expect(row.refreshClaimId).not.toBeNull();
+      expect(f.runtime.cipher.open(f.aad('refresh'), row.refreshTokenCiphertext!)).toBe('fixture-refresh');
+      expect(refresh).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('does not persist rotated credentials when the session is revoked during provider I/O', async () => {
     const f = await setup();
     await f.nearExpiry();
     vi.spyOn(f.client, 'refreshCredentials').mockImplementation(async () => {
       await context.prisma.authSession.update({
-        where: { id: f.actor.sessionId }, data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
+        where: { id: f.actor.sessionId },
+        data: { revokedAt: new Date(), revocationReason: 'LOGOUT' },
       });
       return f.rotated;
     });
@@ -158,7 +184,8 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     const replacement = randomUUID();
     vi.spyOn(f.client, 'refreshCredentials').mockImplementation(async () => {
       await context.prisma.mercadoPagoConnection.update({
-        where: f.where, data: { refreshClaimId: replacement },
+        where: f.where,
+        data: { refreshClaimId: replacement },
       });
       return f.rotated;
     });
@@ -172,8 +199,12 @@ paymentIntegrationSuite('Mercado Pago owner credentials (disposable PostgreSQL)'
     await f.nearExpiry();
     let release!: () => void;
     let entered!: () => void;
-    const waiting = new Promise<void>((resolve) => { release = resolve; });
-    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
     const refresh = vi.spyOn(f.client, 'refreshCredentials').mockImplementation(async () => {
       entered();
       await waiting;

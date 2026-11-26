@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TrialMetricsCounts } from '../types/trialMetrics.types.js';
+
 import { GetTrialMetricsUseCase } from './getTrialMetrics.useCase.js';
 
 const period = {
   from: new Date('2026-01-01T00:00:00Z'),
   toExclusive: new Date('2026-02-01T00:00:00Z'),
-  asOf: new Date('2026-02-01T00:00:00Z')
+  asOf: new Date('2026-02-01T00:00:00Z'),
 };
 const counts: TrialMetricsCounts = {
   started: 3,
@@ -36,7 +37,7 @@ describe('GetTrialMetricsUseCase', () => {
       observedConversionRate: 33.33,
       maturedConversionRate: 50,
       customerActivationRate: 66.67,
-      workOrderActivationRate: 0
+      workOrderActivationRate: 0,
     });
     expect(read).toHaveBeenCalledWith(period);
   });
@@ -47,10 +48,10 @@ describe('GetTrialMetricsUseCase', () => {
         ...counts,
         started: 0,
         matured: 0,
-        linkedOrganizations: 0
+        linkedOrganizations: 0,
       },
       cohorts: [],
-      notifications: []
+      notifications: [],
     }));
     const useCase = new GetTrialMetricsUseCase({ read });
 
@@ -58,10 +59,12 @@ describe('GetTrialMetricsUseCase', () => {
 
     read.mockClear();
 
-    await expect(useCase.execute({
-      ...period,
-      toExclusive: period.from
-    })).rejects.toThrow('INVALID_TRIAL_METRICS_PERIOD');
+    await expect(
+      useCase.execute({
+        ...period,
+        toExclusive: period.from,
+      }),
+    ).rejects.toThrow('INVALID_TRIAL_METRICS_PERIOD');
     expect(read).not.toHaveBeenCalled();
   });
 });

@@ -53,14 +53,16 @@ const view: WorkOrderRecurrenceView = {
   completedOn: '2026-11-25',
 };
 const page: WorkOrderRecurrenceListView = {
-  items: [{
-    workOrderId,
-    customerId,
-    customerName: 'Cliente',
-    title: 'Limpeza',
-    customerArchived: false,
-    recurrence
-  }],
+  items: [
+    {
+      workOrderId,
+      customerId,
+      customerName: 'Cliente',
+      title: 'Limpeza',
+      customerArchived: false,
+      recurrence,
+    },
+  ],
   page: 2,
   hasMore: true,
   today: view.today,
@@ -208,7 +210,7 @@ describe('work order recurrence HTTP contract', () => {
         limit: '5',
         status: 'ACTIVE',
         visit: 'NEXT_SEVEN_DAYS',
-        customerName: ' Cliente '
+        customerName: ' Cliente ',
       })
       .set('Authorization', 'Bearer fixture')
       .expect('Cache-Control', 'private, no-store')

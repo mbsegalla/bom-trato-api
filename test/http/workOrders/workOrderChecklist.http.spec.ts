@@ -169,7 +169,7 @@ describe('work order checklist HTTP contract', () => {
         workOrderId,
         userId,
         itemId,
-        version: 1
+        version: 1,
       },
       { version: 1, completed: true },
     );
@@ -239,7 +239,7 @@ describe('work order checklist HTTP contract', () => {
       workOrderId,
       userId,
       itemId,
-      version: 1
+      version: 1,
     });
 
     await request(server).delete(`${route}/${itemId}`).set('Authorization', 'Bearer fixture').send({}).expect(400);

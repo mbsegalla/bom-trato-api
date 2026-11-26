@@ -29,7 +29,7 @@ describe('Lead', () => {
     expect(lead.snapshot()).toMatchObject({
       status: 'CONVERTED',
       convertedCustomerId: 'customer',
-      convertedQuoteId: 'quote'
+      convertedQuoteId: 'quote',
     });
     expect(() => lead.convert('other', 'other', now)).toThrow('INVALID_LEAD_TRANSITION');
     expect(() => lead.archive(now)).toThrow('INVALID_LEAD_TRANSITION');
