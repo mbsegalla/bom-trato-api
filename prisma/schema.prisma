@@ -1149,6 +1149,7 @@ model Receivable {
   customer           Customer            @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
   receivablePayments ReceivablePayment[]
   paymentLink        ReceivablePaymentLink?
+  providerCharges    ReceivableProviderCharge[]
 
   @@unique([workOrderId, kind])
   @@unique([id, organizationId])
@@ -1187,11 +1188,49 @@ model ReceivablePayment {
   reversalReason String?                 @db.VarChar(1000)
   createdAt      DateTime                @default(now()) @db.Timestamptz(3)
 
-  receivable Receivable @relation(fields: [receivableId], references: [id], onDelete: Restrict)
+  receivable     Receivable                @relation(fields: [receivableId], references: [id], onDelete: Restrict)
+  providerCharge ReceivableProviderCharge?
 
+  @@unique([id, receivableId])
   @@unique([receivableId, requestId])
   @@index([receivableId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([receivableId, reversedAt, receivedAt])
+}
+
+enum ReceivableProviderPaymentReviewReason {
+  CURRENCY_MISMATCH
+  AMOUNT_MISMATCH
+  RECEIVABLE_CHANGED
+  RECEIVABLE_INELIGIBLE
+  OWNER_CHANGED
+  REQUEST_ID_CONFLICT
+}
+
+model ReceivableProviderCharge {
+  id                     String                                 @id @default(uuid()) @db.Uuid
+  organizationId         String                                 @db.Uuid
+  receivableId           String                                 @db.Uuid
+  provider               String                                 @db.VarChar(32)
+  externalAccountId      String                                 @db.VarChar(128)
+  externalPaymentId      String                                 @db.VarChar(128)
+  expectedAmountInCents  Int
+  receivableVersion      Int
+  registeredById         String                                 @db.Uuid
+  createdAt              DateTime                               @default(now()) @db.Timestamptz(3)
+  paymentId              String?                                @db.Uuid
+  confirmedEventId       String?                                @db.VarChar(200)
+  confirmedAmountInCents Int?
+  confirmedCurrency      String?                                @db.VarChar(3)
+  confirmedAt            DateTime?                              @db.Timestamptz(3)
+  reviewReason           ReceivableProviderPaymentReviewReason?
+  reviewEventId          String?                                @db.VarChar(200)
+
+  receivable Receivable         @relation(fields: [receivableId, organizationId], references: [id, organizationId], onDelete: Restrict, map: "ReceivableProviderCharge_receivable_fkey")
+  payment    ReceivablePayment? @relation(fields: [paymentId, receivableId], references: [id, receivableId], onDelete: Restrict, map: "ReceivableProviderCharge_payment_fkey")
+
+  @@unique([provider, externalAccountId, externalPaymentId], map: "ReceivableProviderCharge_provider_payment_key")
+  @@unique([paymentId, receivableId], map: "ReceivableProviderCharge_payment_receivable_key")
+  @@index([organizationId, receivableId], map: "ReceivableProviderCharge_org_receivable_idx")
 }
 
 model NotificationOutbox {
