@@ -25,15 +25,15 @@ const helper = [
   'export const asymmetric = {',
   '  any: (constructor: Parameters<typeof expect.any>[0]): unknown => expect.any(constructor),',
   '  anything: (): unknown => expect.anything(),',
-  '  objectContaining: <T extends object>(value: T): unknown => expect.objectContaining(value),',
-  '  arrayContaining: <T>(value: T[]): unknown => expect.arrayContaining(value),',
+  '  objectContaining: (value: Parameters<typeof expect.objectContaining<object>>[0]): unknown => expect.objectContaining<object>(value),',
+  '  arrayContaining: (value: Parameters<typeof expect.arrayContaining<unknown>>[0]): unknown => expect.arrayContaining<unknown>(value),',
   '  stringContaining: (value: string): unknown => expect.stringContaining(value),',
   '  stringMatching: (value: string | RegExp): unknown => expect.stringMatching(value),',
   '  not: {',
   '    stringContaining: (value: string): unknown => expect.not.stringContaining(value),',
   '    stringMatching: (value: string | RegExp): unknown => expect.not.stringMatching(value),',
-  '    objectContaining: <T extends object>(value: T): unknown => expect.not.objectContaining(value),',
-  '    arrayContaining: <T>(value: T[]): unknown => expect.not.arrayContaining(value),',
+  '    objectContaining: (value: Parameters<typeof expect.not.objectContaining<object>>[0]): unknown => expect.not.objectContaining<object>(value),',
+  '    arrayContaining: (value: Parameters<typeof expect.not.arrayContaining<unknown>>[0]): unknown => expect.not.arrayContaining<unknown>(value),',
   '  },',
   '};',
   '',
@@ -221,3 +221,16 @@ for (const result of results) for (const m of result.messages) {
 console.log('ESLINT_ERRORS=' + results.reduce((n, r) => n + r.errorCount, 0));
 console.log('ESLINT_WARNINGS=' + results.reduce((n, r) => n + r.warningCount, 0));
 console.log('EDITED_FILES=' + edits.size);
+
+const additionalStylePaths = ["docs/mercado-pago-connection.md","docs/mercado-pago-dynamic-pix.md","docs/mercado-pago-production-pilot.md","docs/mercado-pago-production-readiness.md","src/config/mercadoPagoLiveWebhook.config.ts","src/config/mercadoPagoWebhook.config.ts","src/config/validation/env.validation.ts","src/modules/notifications/infrastructure/policies/support/automationPolicy.fixture.ts","src/modules/receivables/application/ports/mercadoPagoLivePixRepository.port.ts","src/modules/receivables/application/ports/mercadoPagoLivePixReviewRepository.port.ts","src/modules/receivables/application/ports/mercadoPagoSandboxPixRepository.port.ts","src/modules/receivables/application/types/mercadoPagoConnection.types.ts","src/modules/receivables/application/types/mercadoPagoLivePix.types.ts","src/modules/receivables/application/useCases/manageMercadoPagoConnection.useCase.ts","src/modules/receivables/application/useCases/manageMercadoPagoLivePix.useCase.ts","src/modules/receivables/application/useCases/manageMercadoPagoSandboxPix.useCase.ts","src/modules/receivables/application/useCases/support/receivable.fixture.ts","src/modules/receivables/domain/policies/mercadoPagoLivePixReview.policy.ts","src/modules/receivables/domain/policies/mercadoPagoSandboxPix.policy.ts","src/modules/receivables/domain/policies/mercadoPagoSandboxPixRecovery.policy.ts","src/modules/receivables/domain/policies/mercadoPagoWebhook.policy.ts","src/modules/receivables/domain/types/mercadoPagoLiveWebhook.types.ts","src/modules/receivables/domain/types/mercadoPagoWebhook.types.ts","src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoClient.ts","src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoConnectionRuntime.ts","src/modules/receivables/infrastructure/providers/mercadoPago/mercadoPagoPix.types.ts","src/modules/receivables/infrastructure/security/mercadoPagoCredentialCipher.ts","src/modules/receivables/infrastructure/transactions/mercadoPagoCredentialService.ts","src/modules/receivables/infrastructure/transactions/mercadoPagoLiveSettlement.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoConnectionRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLivePixReviewRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoLiveWebhookRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRecoveryRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoSandboxPixRepository.ts","src/modules/receivables/infrastructure/transactions/prismaMercadoPagoWebhookRepository.ts","src/modules/receivables/infrastructure/transactions/prismaReceivableProviderPaymentRepository.ts","src/modules/receivables/infrastructure/workers/processMercadoPagoWebhook.service.ts","src/modules/receivables/presentation/http/dtos/requests/mercadoPagoLivePix.dto.ts","src/modules/receivables/presentation/http/dtos/responses/mercadoPagoLivePixResponse.dto.ts","src/modules/receivables/presentation/http/dtos/responses/mercadoPagoSandboxPixResponse.dto.ts","test/http/support/http.fixture.ts","test/integration/receivables/support/payment.fixture.ts","test/integration/support/disposableDatabase.fixture.ts","vitest.config.ts"];
+for (const file of additionalStylePaths) {
+  const config = await prettier.resolveConfig(file);
+  let text = await readFile(file, 'utf8');
+  for (let pass = 0; pass < 6; pass++) {
+    const next = await prettier.format(text, { ...config, filepath: file });
+    if (next === text) break;
+    text = next;
+  }
+  await writeFile(file, text, 'utf8');
+}
+console.log('ADDITIONAL_PRETTIER_FILES=' + additionalStylePaths.length);

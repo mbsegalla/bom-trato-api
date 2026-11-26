@@ -48,40 +48,40 @@ jobs:
       - run: pnpm prisma:generate
       - name: Repair test lint diagnostics
         run: node fix-test-lint-once.mjs
-      - name: Commit only test changes to the isolated branch
+      - name: Remove temporary files from the validation checkout
+        run: rm -f fix-test-lint-once.mjs .github/workflows/fix-test-lint-once.yml
+      - name: Full project lint
+        run: pnpm lint --max-warnings=0
+      - name: Full project Prettier
+        run: pnpm format:check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Apply migrations and test
+        env:
+          PAYMENT_INTEGRATION_DATABASE_URL: postgresql://bom_trato_ci:ci_only_password@127.0.0.1:5432/bom_trato_ci?schema=public
+        run: pnpm exec prisma migrate deploy && pnpm test:coverage
+      - name: Build
+        run: pnpm build
+      - name: Commit validated changes to the isolated branch
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = 'chore/fix-test-lint'
+          git restore --source=HEAD --worktree -- fix-test-lint-once.mjs .github/workflows/fix-test-lint-once.yml
           git diff --check
-          git add -- src test
+          git add -- src test docs vitest.config.ts
           git diff --cached --name-only
           git diff --cached --stat
           if ! git diff --cached --quiet; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git commit -m 'test: type test matchers mocks and HTTP response assertions'
             auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
             echo "::add-mask::$auth"
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" fetch --depth=1 origin refs/heads/chore/fix-test-lint
+            test "$(git rev-parse HEAD^{tree})" = "$(git rev-parse FETCH_HEAD^{tree})"
+            git reset --soft FETCH_HEAD
+            git commit -m 'test: resolve lint and typecheck diagnostics and normalize formatting'
             git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/chore/fix-test-lint
           fi
-      - name: Remove temporary files from the validation checkout
-        run: rm -f fix-test-lint-once.mjs .github/workflows/fix-test-lint-once.yml
-      - name: Full project lint
-        run: pnpm lint
-      - name: Full project Prettier
-        if: always()
-        run: pnpm format:check
-      - name: Typecheck
-        if: always()
-        run: pnpm typecheck
-      - name: Apply migrations and test
-        if: always()
-        env:
-          PAYMENT_INTEGRATION_DATABASE_URL: postgresql://bom_trato_ci:ci_only_password@127.0.0.1:5432/bom_trato_ci?schema=public
-        run: pnpm exec prisma migrate deploy && pnpm test:coverage
-      - name: Build
-        if: always()
-        run: pnpm build
