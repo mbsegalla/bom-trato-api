@@ -9,7 +9,7 @@ const [operation, email] = process.argv.slice(2);
 
 assertDisposableEnvironment();
 assert.match(email ?? '', /^e2e-[0-9a-f-]{36}@example\.com$/);
-assert.ok(['verification-link', 'account-state'].includes(operation));
+assert.ok(['verification-link', 'reset-link', 'account-state'].includes(operation));
 
 const client = new pg.Client({ connectionString: databaseUrl, connectionTimeoutMillis: 5000 });
 
@@ -25,25 +25,30 @@ function decryptMessage(id, payload) {
   return JSON.parse(Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8'));
 }
 
-async function verificationLink() {
-  const { rows } = await client.query(`
+async function actionLink() {
+  const reset = operation === 'reset-link';
+  const type = reset ? 'RESET_PASSWORD' : 'VERIFY_EMAIL';
+  const { rows } = await client.query(
+    `
     SELECT "id", "encryptedPayload"
     FROM "NotificationOutbox"
-    WHERE "type" = 'VERIFY_EMAIL' AND "status" = 'PENDING'
+    WHERE "type" = $1 AND "status" = 'PENDING'
       AND "encryptedPayload" IS NOT NULL AND "expiresAt" > now()
     ORDER BY "createdAt" DESC
-  `);
+    `,
+    [type],
+  );
   const messages = rows
     .map((row) => decryptMessage(row.id, row.encryptedPayload))
     .filter((message) => message.to === email);
 
-  assert.equal(messages.length, 1, 'Expected one pending registration email for the synthetic user');
+  assert.equal(messages.length, 1, 'Expected one pending action email for the synthetic user');
   const message = messages[0];
-  assert.equal(message.template.id, 'fixture_verify_email');
+  assert.equal(message.template.id, reset ? 'fixture_reset_password' : 'fixture_verify_email');
   const link = new URL(message.template.variables.ACTION_URL);
 
   assert.equal(link.origin, frontendOrigin);
-  assert.equal(link.pathname, '/verify-email');
+  assert.equal(link.pathname, reset ? '/reset-password' : '/verify-email');
   assert.match(new URLSearchParams(link.hash.slice(1)).get('token') ?? '', /^[A-Za-z0-9_-]{43}$/);
 
   return { link: link.href };
@@ -85,7 +90,7 @@ try {
   const { rows } = await client.query('SELECT current_database() AS name, current_user AS username');
 
   assert.deepEqual(rows, [{ name: 'bom_trato_e2e', username: 'bom_trato_e2e' }]);
-  const result = operation === 'verification-link' ? await verificationLink() : await accountState();
+  const result = operation === 'account-state' ? await accountState() : await actionLink();
 
   await client.query('COMMIT');
   process.stdout.write(JSON.stringify(result));
