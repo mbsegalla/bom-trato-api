@@ -11,6 +11,7 @@ interface EndpointLimits {
   ip: RateWindow;
   email?: RateWindow;
   cooldown?: RateWindow;
+  session?: RateWindow;
 }
 
 const globalLimit: RateWindow = [600, 60];
@@ -21,18 +22,18 @@ const endpointLimits: Readonly<Partial<Record<string, EndpointLimits>>> = {
   login: { ip: [60, 60], email: [10, 900] },
   refresh: { ip: [120, 60] },
   logout: { ip: [120, 60] },
-  'logout-all': { ip: [60, 60] },
-  me: { ip: [120, 60] },
-  sessions: { ip: [120, 60] },
-  revokeSession: { ip: [60, 60] },
+  'logout-all': { ip: [60, 60], session: [10, 60] },
+  me: { ip: [120, 60], session: [60, 60] },
+  sessions: { ip: [120, 60], session: [30, 60] },
+  revokeSession: { ip: [60, 60], session: [20, 60] },
   'forgot-password': { ip: [30, 60], email: [5, 3600], cooldown: [1, 60] },
   'resend-verification': { ip: [30, 60], email: [5, 3600], cooldown: [1, 60] },
   'verify-email': { ip: [60, 60] },
   'reset-password': { ip: [30, 60] },
   'google-login': { ip: [30, 60] },
-  identities: { ip: [120, 60] },
-  'notification-stream-ticket': { ip: [120, 60] },
-  'google-link': { ip: [20, 60] },
+  identities: { ip: [120, 60], session: [30, 60] },
+  'notification-stream-ticket': { ip: [120, 60], session: [30, 60] },
+  'google-link': { ip: [20, 60], session: [5, 60] },
 };
 
 export class PostgresAuthRateLimit {
@@ -77,6 +78,14 @@ export class PostgresAuthRateLimit {
       response.setHeader('Retry-After', String(retryAfter));
 
       throw new HttpException('Too many attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+  }
+
+  async checkSession(sessionId: string, response: Response, bucket: string): Promise<void> {
+    const limits = Object.hasOwn(endpointLimits, bucket) ? endpointLimits[bucket] : undefined;
+
+    if (limits?.session) {
+      await this.consume(`session:${bucket}:${sessionId}`, ...limits.session, response);
     }
   }
 
