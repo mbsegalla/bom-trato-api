@@ -57,6 +57,6 @@ databaseSuite('public share rate limits (disposable PostgreSQL)', () => {
     await db.prisma.quoteShareRateLimit.update({ where: { key }, data: { count: limit - 1 } });
     await limiter.check(ip, response);
     await expect(limiter.check(ip, response)).rejects.toMatchObject({ status: 429 });
-    expect(setHeader).toHaveBeenCalledWith('Retry-After', expect.stringMatching(/^\\d+$/));
+    expect(setHeader).toHaveBeenCalledWith('Retry-After', expect.stringMatching(/^\d+$/));
   });
 });
