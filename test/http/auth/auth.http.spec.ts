@@ -98,7 +98,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       ],
       {
         cookies,
-        rateLimit: { check: rateLimit } as unknown as PostgresAuthRateLimit,
+        rateLimit: { check: rateLimit, checkSession: vi.fn().mockResolvedValue(undefined) } as unknown as PostgresAuthRateLimit,
         sessionId: itemId,
       },
     );
