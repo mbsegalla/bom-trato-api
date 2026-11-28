@@ -15,7 +15,7 @@ interface EndpointLimits {
 
 const globalLimit: RateWindow = [600, 60];
 const fallbackLimits: EndpointLimits = { ip: [20, 60], email: [10, 900] };
-const endpointLimits: Readonly<Record<string, EndpointLimits>> = {
+const endpointLimits: Readonly<Partial<Record<string, EndpointLimits>>> = {
   csrf: { ip: [300, 60] },
   register: { ip: [20, 60], email: [3, 3600] },
   login: { ip: [60, 60], email: [10, 900] },
@@ -31,6 +31,7 @@ const endpointLimits: Readonly<Record<string, EndpointLimits>> = {
   'reset-password': { ip: [30, 60] },
   'google-login': { ip: [30, 60] },
   identities: { ip: [120, 60] },
+  'notification-stream-ticket': { ip: [120, 60] },
   'google-link': { ip: [20, 60] },
 };
 
@@ -82,7 +83,7 @@ export class PostgresAuthRateLimit {
   async check(request: Request, response: Response, bucket: string): Promise<void> {
     const ip = request.ip ?? request.socket.remoteAddress ?? 'unknown';
 
-    const limits = Object.hasOwn(endpointLimits, bucket) ? endpointLimits[bucket] : fallbackLimits;
+    const limits = (Object.hasOwn(endpointLimits, bucket) ? endpointLimits[bucket] : undefined) ?? fallbackLimits;
 
     await this.consume(`ip:${ip}`, ...globalLimit, response);
     await this.consume(`route:${bucket}:${ip}`, ...limits.ip, response);
