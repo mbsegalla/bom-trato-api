@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpException, HttpStatus, Param, ParseUUIDPipe, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -19,7 +19,7 @@ import { ResendVerificationEmailUseCase } from '../../../application/useCases/re
 import { ResetPasswordUseCase } from '../../../application/useCases/resetPassword.useCase.js';
 import { RevokeSessionUseCase } from '../../../application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from '../../../application/useCases/verifyEmail.useCase.js';
-import { AuthError } from '../../../domain/errors/auth.error.js';
+import { AuthError, RefreshRateLimitError } from '../../../domain/errors/auth.error.js';
 import { AuthCookies } from '../authCookies.js';
 import { authOperation } from '../authHttpError.js';
 import type { AuthContext, AuthRequest } from '../authRequest.js';
@@ -143,6 +143,12 @@ export class AuthController {
       try {
         return await this.refreshSessionUseCase.execute(this.cookies.refresh(request));
       } catch (error: unknown) {
+        if (error instanceof RefreshRateLimitError) {
+          response.setHeader('Retry-After', String(error.retryAfterSeconds));
+
+          throw new HttpException('Too many attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+        }
+
         if (error instanceof AuthError || error instanceof UserError) {
           this.cookies.clear(response);
         }
