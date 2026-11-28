@@ -23,3 +23,11 @@ export class AuthError extends Error {
     this.name = 'AuthError';
   }
 }
+
+export class RefreshRateLimitError extends Error {
+  constructor(readonly retryAfterSeconds: number) {
+    super('REFRESH_RATE_LIMITED');
+
+    this.name = 'RefreshRateLimitError';
+  }
+}
