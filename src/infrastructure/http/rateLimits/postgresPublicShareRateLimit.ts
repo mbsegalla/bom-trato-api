@@ -6,7 +6,11 @@ import type { PrismaService } from '../../database/prisma.service.js';
 
 type PublicShareRateLimitScope = 'quote-share' | 'work-order-share' | 'receivable-payment-link';
 
-const REQUEST_LIMIT = 60;
+const requestLimits: Readonly<Record<PublicShareRateLimitScope, number>> = {
+  'quote-share': 120,
+  'work-order-share': 120,
+  'receivable-payment-link': 60,
+};
 
 export class PostgresPublicShareRateLimit {
   constructor(
@@ -16,6 +20,7 @@ export class PostgresPublicShareRateLimit {
   ) {}
 
   async check(ip: string, response: Response): Promise<void> {
+    const limit = requestLimits[this.scope];
     const key = hmacSha256(this.secret, `${this.scope}:${ip}`, 'hex');
 
     const rows = await this.prisma.$queryRaw<Array<{ count: number; expiresAt: Date }>>`
@@ -35,7 +40,7 @@ export class PostgresPublicShareRateLimit {
             THEN 1
           ELSE LEAST(
             "QuoteShareRateLimit"."count" + 1,
-            ${REQUEST_LIMIT + 1}::integer
+            ${limit + 1}::integer
           )
         END,
         "expiresAt" = CASE
@@ -52,7 +57,7 @@ export class PostgresPublicShareRateLimit {
       throw new Error('Public share rate limiter returned no result');
     }
 
-    if (row.count > REQUEST_LIMIT) {
+    if (row.count > limit) {
       const retryAfter = Math.max(1, Math.ceil((row.expiresAt.getTime() - Date.now()) / 1000));
 
       response.setHeader('Retry-After', String(retryAfter));
