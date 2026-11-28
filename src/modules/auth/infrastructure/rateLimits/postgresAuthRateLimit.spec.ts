@@ -130,6 +130,39 @@ describe('PostgresAuthRateLimit', () => {
     await expect(account.limiter.check(account.request, account.response, bucket)).rejects.toMatchObject({ status: 429 });
   });
 
+  it('isolates verified session quotas by endpoint and session ID', async () => {
+    const f = fixture();
+
+    await f.limiter.checkSession('session-a', f.response, 'sessions');
+    await f.limiter.checkSession('session-b', f.response, 'sessions');
+    await f.limiter.checkSession('session-a', f.response, 'me');
+
+    expect(f.query.mock.calls.map((call) => call[1])).toEqual([
+      hmacSha256(secret, 'session:sessions:session-a', 'hex'),
+      hmacSha256(secret, 'session:sessions:session-b', 'hex'),
+      hmacSha256(secret, 'session:me:session-a', 'hex'),
+    ]);
+  });
+
+  it('enforces the session boundary and returns retry-after', async () => {
+    const f = fixture();
+    const expiresAt = new Date(Date.now() + 60000);
+    f.query.mockResolvedValueOnce([{ count: 30, expiresAt }]);
+    f.query.mockResolvedValueOnce([{ count: 31, expiresAt }]);
+
+    await f.limiter.checkSession('session-a', f.response, 'sessions');
+    await expect(f.limiter.checkSession('session-a', f.response, 'sessions')).rejects.toMatchObject({ status: 429 });
+    expect(f.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
+  });
+
+  it('does not create session counters for public or unknown endpoints', async () => {
+    const f = fixture();
+
+    await f.limiter.checkSession('session-a', f.response, 'login');
+    await f.limiter.checkSession('session-a', f.response, 'unknown');
+    expect(f.query).not.toHaveBeenCalled();
+  });
+
   it('fails closed if the database returns no counter', async () => {
     const f = fixture();
     f.query.mockResolvedValueOnce([]);

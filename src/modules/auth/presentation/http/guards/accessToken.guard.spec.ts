@@ -18,6 +18,7 @@ function fixture(authorization?: string, policy?: AuthEndpointPolicy, isPublic =
   const verifyAccess = vi.fn().mockResolvedValue(claims);
   const authenticate = vi.fn().mockResolvedValue(user);
   const check = vi.fn().mockResolvedValue(undefined);
+  const checkSession = vi.fn().mockResolvedValue(undefined);
   const assertCsrf = vi.fn();
   const assertOrigin = vi.fn();
   const setHeader = vi.fn();
@@ -37,7 +38,7 @@ function fixture(authorization?: string, policy?: AuthEndpointPolicy, isPublic =
     { verifyAccess } as unknown as AuthSecurity,
     { authenticate } as unknown as AuthRepository,
     { assertCsrf, assertOrigin } as unknown as AuthCookies,
-    { check } as unknown as PostgresAuthRateLimit,
+    { check, checkSession } as unknown as PostgresAuthRateLimit,
   );
 
   return {
@@ -50,6 +51,7 @@ function fixture(authorization?: string, policy?: AuthEndpointPolicy, isPublic =
     verifyAccess,
     authenticate,
     check,
+    checkSession,
     assertCsrf,
     assertOrigin,
     setHeader,
@@ -83,6 +85,25 @@ describe('AccessTokenGuard', () => {
     );
     expect(f.request.auth).toEqual({ user: f.user, sessionId: f.claims.sid });
     expect(f.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+  });
+
+  it('enforces the authenticated session quota before attaching the user', async () => {
+    const f = fixture('Bearer fixture-token', { bucket: 'sessions', mutation: false });
+    const error = new Error('session rate limit');
+    f.checkSession.mockRejectedValue(error);
+
+    await expect(f.guard.canActivate(f.context)).rejects.toBe(error);
+    expect(f.authenticate).toHaveBeenCalledOnce();
+    expect(f.checkSession).toHaveBeenCalledExactlyOnceWith(f.claims.sid, f.response, 'sessions');
+    expect(f.request.auth).toBeUndefined();
+  });
+
+  it('does not consume session quota for invalid credentials', async () => {
+    const f = fixture('Bearer fixture-token', { bucket: 'sessions', mutation: false });
+    f.authenticate.mockRejectedValue(new AuthError('INVALID_SESSION'));
+
+    await expect(f.guard.canActivate(f.context)).rejects.toMatchObject({ status: 401 });
+    expect(f.checkSession).not.toHaveBeenCalled();
   });
 
   it('does not consult the session repository when token verification fails', async () => {

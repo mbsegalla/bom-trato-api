@@ -74,6 +74,10 @@ export class AccessTokenGuard implements CanActivate {
         new Date(),
       );
 
+      if (endpoint) {
+        await this.rateLimit.checkSession(claims.sid, response, endpoint.bucket);
+      }
+
       setAuthenticatedLogUser(user.id);
 
       request.auth = {
