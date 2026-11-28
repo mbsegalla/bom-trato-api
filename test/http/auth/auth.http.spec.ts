@@ -16,7 +16,7 @@ import { ResendVerificationEmailUseCase } from '../../../src/modules/auth/applic
 import { ResetPasswordUseCase } from '../../../src/modules/auth/application/useCases/resetPassword.useCase.js';
 import { RevokeSessionUseCase } from '../../../src/modules/auth/application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from '../../../src/modules/auth/application/useCases/verifyEmail.useCase.js';
-import { AuthError } from '../../../src/modules/auth/domain/errors/auth.error.js';
+import { AuthError, RefreshRateLimitError } from '../../../src/modules/auth/domain/errors/auth.error.js';
 import type { PostgresAuthRateLimit } from '../../../src/modules/auth/infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { AuthCookies } from '../../../src/modules/auth/presentation/http/authCookies.js';
 import { AuthController } from '../../../src/modules/auth/presentation/http/controllers/auth.controller.js';
@@ -299,6 +299,15 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       assertCleared(response.headers);
     },
   );
+
+  it('returns retry-after without clearing cookies when refresh is rate limited', async () => {
+    refresh.mockRejectedValueOnce(new RefreshRateLimitError(45));
+    const response = await post('/refresh', {}, 'old-refresh');
+
+    expect(response.status).toBe(429);
+    expect(response.headers['retry-after']).toBe('45');
+    expect(response.headers['set-cookie']).toBeUndefined();
+  });
 
   it('does not clear cookies for an unexpected transient refresh failure', async () => {
     refresh.mockRejectedValueOnce(new Error('fixture database unavailable'));

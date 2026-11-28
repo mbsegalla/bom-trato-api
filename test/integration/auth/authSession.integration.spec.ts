@@ -94,6 +94,38 @@ databaseSuite('auth session persistence (disposable PostgreSQL)', () => {
     await expect(f.repository.authenticate(f.identity, now)).rejects.toThrow('INVALID_SESSION');
   }, 30000);
 
+  it('limits rotations per session, recovers after the window and still detects replay', async () => {
+    const f = await setup();
+    const other = await setup();
+    let current = f.tokenHash;
+    const now = new Date(f.now.getTime() + 1000);
+
+    for (let i = 0; i < 10; i++) {
+      const nextHash = hash();
+      await f.repository.rotate({ tokenHash: current, nextHash, now, idleSeconds: 3600 });
+      current = nextHash;
+    }
+
+    await expect(
+      f.repository.rotate({ tokenHash: current, nextHash: hash(), now, idleSeconds: 3600 }),
+    ).rejects.toMatchObject({ message: 'REFRESH_RATE_LIMITED', retryAfterSeconds: 60 });
+    expect(await db.prisma.refreshToken.findUniqueOrThrow({ where: { tokenHash: current } })).toMatchObject({
+      usedAt: null,
+    });
+    await expect(
+      other.repository.rotate({ tokenHash: other.tokenHash, nextHash: hash(), now, idleSeconds: 3600 }),
+    ).resolves.toMatchObject({ identity: other.identity });
+
+    const later = new Date(now.getTime() + 60000);
+    await expect(
+      f.repository.rotate({ tokenHash: current, nextHash: hash(), now: later, idleSeconds: 3600 }),
+    ).resolves.toMatchObject({ identity: f.identity });
+    await expect(
+      f.repository.rotate({ tokenHash: f.tokenHash, nextHash: hash(), now: later, idleSeconds: 3600 }),
+    ).rejects.toThrow('TOKEN_REUSED');
+    await expect(f.repository.authenticate(f.identity, later)).rejects.toThrow('INVALID_SESSION');
+  });
+
   it('rejects a session with the wrong user or stale password hash', async () => {
     const f = await setup();
     const other = await db.user();

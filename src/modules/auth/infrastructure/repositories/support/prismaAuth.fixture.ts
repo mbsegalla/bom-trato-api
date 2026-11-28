@@ -47,6 +47,7 @@ interface AuthFixtureDatabase {
   };
   refreshToken: {
     findUnique: Mock;
+    findMany: Mock;
     create: Mock;
     update: Mock;
   };
@@ -87,6 +88,7 @@ export function authFixture(): AuthFixture {
     },
     refreshToken: {
       findUnique: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue(undefined),
     },

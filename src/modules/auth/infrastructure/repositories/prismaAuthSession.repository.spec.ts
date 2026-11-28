@@ -85,6 +85,21 @@ describe('PrismaAuthRepository session persistence', () => {
     });
   });
 
+  it('rejects excess rotations without consuming the current refresh token', async () => {
+    const { repository, db } = authFixture();
+    db.refreshToken.findUnique
+      .mockResolvedValueOnce({ sessionId: session.id })
+      .mockResolvedValueOnce({ id: 'refresh', sessionId: session.id, expiresAt: session.idleExpiresAt, usedAt: null });
+    db.refreshToken.findMany.mockResolvedValueOnce(Array.from({ length: 10 }, () => ({ usedAt: now })));
+
+    await expect(
+      repository.rotate({ tokenHash: refreshHash, nextHash: 'next', now, idleSeconds: 600 }),
+    ).rejects.toMatchObject({ message: 'REFRESH_RATE_LIMITED', retryAfterSeconds: 60 });
+    expect(db.refreshToken.update).not.toHaveBeenCalled();
+    expect(db.authSession.update).not.toHaveBeenCalled();
+    expect(db.refreshToken.create).not.toHaveBeenCalled();
+  });
+
   it('persists revocation after token reuse without issuing another token', async () => {
     const { repository, db } = authFixture();
     db.refreshToken.findUnique
@@ -99,6 +114,7 @@ describe('PrismaAuthRepository session persistence', () => {
       data: { revokedAt: now, revocationReason: 'REFRESH_REUSE' },
     });
     expect(db.refreshToken.create).not.toHaveBeenCalled();
+    expect(db.refreshToken.findMany).not.toHaveBeenCalled();
   });
 
   it('scopes session revocation and active-session listings to the authenticated owner', async () => {

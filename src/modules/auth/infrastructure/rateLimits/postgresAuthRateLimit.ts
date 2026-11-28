@@ -2,6 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
+import { StructuredLogger } from '../../../../infrastructure/logging/structuredLogger.js';
 import { hmacSha256 } from '../../../../shared/security/hmac.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
 
@@ -37,6 +38,8 @@ const endpointLimits: Readonly<Partial<Record<string, EndpointLimits>>> = {
 };
 
 export class PostgresAuthRateLimit {
+  private readonly logger = new StructuredLogger('AuthRateLimit');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly secret: string,
@@ -76,6 +79,14 @@ export class PostgresAuthRateLimit {
       const retryAfter = Math.max(1, Math.ceil((row.expiresAt.getTime() - Date.now()) / 1000));
 
       response.setHeader('Retry-After', String(retryAfter));
+
+      this.logger.warn({
+        message: 'Authentication rate limit exceeded',
+        scope: identity.split(':', 1)[0],
+        limit,
+        windowSeconds: seconds,
+        retryAfter,
+      });
 
       throw new HttpException('Too many attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
     }
