@@ -33,6 +33,7 @@ import { ResetPasswordUseCase } from '../../../application/useCases/resetPasswor
 import { RevokeSessionUseCase } from '../../../application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from '../../../application/useCases/verifyEmail.useCase.js';
 import { AuthError, RefreshRateLimitError } from '../../../domain/errors/auth.error.js';
+import { PostgresAuthRateLimit } from '../../../infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { AuthCookies } from '../authCookies.js';
 import { authOperation } from '../authHttpError.js';
 import type { AuthContext, AuthRequest } from '../authRequest.js';
@@ -85,6 +86,7 @@ export class AuthController {
     private readonly loginWithGoogleUseCase: LoginWithGoogleUseCase,
     private readonly linkGoogleIdentityUseCase: LinkGoogleIdentityUseCase,
     private readonly listAuthIdentitiesUseCase: ListAuthIdentitiesUseCase,
+    private readonly rateLimit: PostgresAuthRateLimit,
   ) {}
 
   @Get('csrf')
@@ -127,13 +129,23 @@ export class AuthController {
     @Req() request: AuthRequest,
     @Res({ passthrough: true }) response: Response,
   ): Promise<TokenResponseDto> {
-    const result = await authOperation(() =>
-      this.loginUseCase.execute({
-        ...dto,
-        userAgent: request.get('user-agent') ?? null,
-        previousRefreshToken: this.cookies.refresh(request),
-      }),
-    );
+    const result = await authOperation(async () => {
+      await this.rateLimit.checkLoginFailures(request, dto.email, response);
+
+      try {
+        return await this.loginUseCase.execute({
+          ...dto,
+          userAgent: request.get('user-agent') ?? null,
+          previousRefreshToken: this.cookies.refresh(request),
+        });
+      } catch (error: unknown) {
+        if (error instanceof AuthError && error.code === 'INVALID_CREDENTIALS') {
+          await this.rateLimit.recordLoginFailure(request, dto.email, response);
+        }
+
+        throw error;
+      }
+    });
 
     return {
       accessToken: result.accessToken,

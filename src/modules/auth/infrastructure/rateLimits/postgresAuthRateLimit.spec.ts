@@ -163,6 +163,38 @@ describe('PostgresAuthRateLimit', () => {
     expect(f.query).not.toHaveBeenCalled();
   });
 
+  it('tracks failed credentials separately from the general login quota', async () => {
+    const f = fixture();
+    await f.limiter.recordLoginFailure(f.request, ' USER@EXAMPLE.INVALID ', f.response);
+
+    expect(f.query.mock.calls[0][1]).toBe(
+      hmacSha256(secret, 'login-failure:127.0.0.1:user@example.invalid', 'hex'),
+    );
+    expect(f.query.mock.calls[0].slice(2)).toEqual([300, 300]);
+  });
+
+  it('permits login before the failed credential threshold is reached', async () => {
+    const f = fixture();
+    f.query.mockResolvedValueOnce([]);
+
+    await f.limiter.checkLoginFailures(f.request, 'user@example.invalid', f.response);
+    expect(f.query.mock.calls[0].slice(1)).toEqual([
+      hmacSha256(secret, 'login-failure:127.0.0.1:user@example.invalid', 'hex'),
+      5,
+    ]);
+    expect(f.setHeader).not.toHaveBeenCalled();
+  });
+
+  it('returns retry-after for an active failed credential lockout', async () => {
+    const f = fixture();
+    f.query.mockResolvedValueOnce([{ expiresAt: new Date(Date.now() + 300000) }]);
+
+    await expect(f.limiter.checkLoginFailures(f.request, 'user@example.invalid', f.response)).rejects.toMatchObject({
+      status: 429,
+    });
+    expect(f.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
+  });
+
   it('fails closed if the database returns no counter', async () => {
     const f = fixture();
     f.query.mockResolvedValueOnce([]);

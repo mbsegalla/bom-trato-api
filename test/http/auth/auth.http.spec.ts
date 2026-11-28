@@ -17,7 +17,7 @@ import { ResetPasswordUseCase } from '../../../src/modules/auth/application/useC
 import { RevokeSessionUseCase } from '../../../src/modules/auth/application/useCases/revokeSession.useCase.js';
 import { VerifyEmailUseCase } from '../../../src/modules/auth/application/useCases/verifyEmail.useCase.js';
 import { AuthError, RefreshRateLimitError } from '../../../src/modules/auth/domain/errors/auth.error.js';
-import type { PostgresAuthRateLimit } from '../../../src/modules/auth/infrastructure/rateLimits/postgresAuthRateLimit.js';
+import { PostgresAuthRateLimit } from '../../../src/modules/auth/infrastructure/rateLimits/postgresAuthRateLimit.js';
 import { AuthCookies } from '../../../src/modules/auth/presentation/http/authCookies.js';
 import { AuthController } from '../../../src/modules/auth/presentation/http/controllers/auth.controller.js';
 import { UserError } from '../../../src/modules/users/domain/errors/user.error.js';
@@ -72,6 +72,8 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
   const link = vi.fn();
   const identities = vi.fn();
   const rateLimit = vi.fn();
+  const checkLoginFailures = vi.fn();
+  const recordLoginFailure = vi.fn();
 
   beforeAll(async () => {
     const providers = [
@@ -94,6 +96,7 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
       [AuthController],
       [
         { provide: AuthCookies, useValue: cookies },
+        { provide: PostgresAuthRateLimit, useValue: { checkLoginFailures, recordLoginFailure } },
         ...providers.map(([provide, execute]) => ({ provide, useValue: { execute } })),
       ],
       {
@@ -105,6 +108,8 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
   });
 
   beforeEach(() => {
+    checkLoginFailures.mockReset().mockResolvedValue(undefined);
+    recordLoginFailure.mockReset().mockResolvedValue(undefined);
     for (const operation of [register, logout, logoutAll, revoke, forgot, resend, reset, link, rateLimit]) {
       operation.mockReset().mockResolvedValue(undefined);
     }
@@ -281,6 +286,23 @@ describe('authentication HTTP contracts with real CSRF cookies', () => {
     expect(response.status).toBe(401);
     expect(readJsonObject(readJsonObject(response.body).error).code).toBe('INVALID_CREDENTIALS');
     expect(cookieHeaders(response.headers)).toHaveLength(0);
+  });
+
+  it('counts invalid credentials but not successful logins', async () => {
+    login.mockRejectedValueOnce(new AuthError('INVALID_CREDENTIALS'));
+    expect((await post('/login', { email, password })).status).toBe(401);
+    expect(recordLoginFailure).toHaveBeenCalledTimes(1);
+
+    expect((await post('/login', { email, password })).status).toBe(200);
+    expect(recordLoginFailure).toHaveBeenCalledTimes(1);
+    expect(checkLoginFailures).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects blocked credentials before password verification', async () => {
+    checkLoginFailures.mockRejectedValueOnce(new HttpException('Rate limited', HttpStatus.TOO_MANY_REQUESTS));
+    expect((await post('/login', { email, password })).status).toBe(429);
+    expect(login).not.toHaveBeenCalled();
+    expect(recordLoginFailure).not.toHaveBeenCalled();
   });
 
   it('rotates refresh and CSRF cookies without exposing the new refresh token in the JSON body', async () => {

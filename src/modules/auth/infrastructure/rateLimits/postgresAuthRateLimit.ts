@@ -16,6 +16,7 @@ interface EndpointLimits {
 }
 
 const globalLimit: RateWindow = [600, 60];
+const loginFailureLimit: RateWindow = [5, 300];
 const fallbackLimits: EndpointLimits = { ip: [20, 60], email: [10, 900] };
 const endpointLimits: Readonly<Partial<Record<string, EndpointLimits>>> = {
   csrf: { ip: [300, 60] },
@@ -76,20 +77,51 @@ export class PostgresAuthRateLimit {
     }
 
     if (row.count > limit) {
-      const retryAfter = Math.max(1, Math.ceil((row.expiresAt.getTime() - Date.now()) / 1000));
-
-      response.setHeader('Retry-After', String(retryAfter));
-
-      this.logger.warn({
-        message: 'Authentication rate limit exceeded',
-        scope: identity.split(':', 1)[0],
-        limit,
-        windowSeconds: seconds,
-        retryAfter,
-      });
-
-      throw new HttpException('Too many attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+      this.reject(identity.split(':', 1)[0], limit, seconds, row.expiresAt, response);
     }
+  }
+
+  private reject(scope: string, limit: number, seconds: number, expiresAt: Date, response: Response): never {
+    const retryAfter = Math.max(1, Math.ceil((expiresAt.getTime() - Date.now()) / 1000));
+
+    response.setHeader('Retry-After', String(retryAfter));
+
+    this.logger.warn({
+      message: 'Authentication rate limit exceeded',
+      scope,
+      limit,
+      windowSeconds: seconds,
+      retryAfter,
+    });
+
+    throw new HttpException('Too many attempts. Try again later.', HttpStatus.TOO_MANY_REQUESTS);
+  }
+
+  private loginFailureIdentity(request: Request, email: string): string {
+    const ip = request.ip ?? request.socket.remoteAddress ?? 'unknown';
+
+    return `login-failure:${ip}:${normalizeEmail(email)}`;
+  }
+
+  async checkLoginFailures(request: Request, email: string, response: Response): Promise<void> {
+    const key = hmacSha256(this.secret, this.loginFailureIdentity(request, email), 'hex');
+    const [limit, seconds] = loginFailureLimit;
+    const rows = await this.prisma.$queryRaw<{ expiresAt: Date }[]>`
+      SELECT "expiresAt"
+      FROM "AuthRateLimit"
+      WHERE "key" = ${key}
+        AND "count" >= ${limit}
+        AND "expiresAt" > CURRENT_TIMESTAMP
+    `;
+    const row = rows[0];
+
+    if (row) {
+      this.reject('login-failure', limit, seconds, row.expiresAt, response);
+    }
+  }
+
+  async recordLoginFailure(request: Request, email: string, response: Response): Promise<void> {
+    await this.consume(this.loginFailureIdentity(request, email), ...loginFailureLimit, response);
   }
 
   async checkSession(sessionId: string, response: Response, bucket: string): Promise<void> {
