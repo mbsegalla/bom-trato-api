@@ -35,10 +35,11 @@ describe('PostgresAuthRateLimit', () => {
     expect(f.setHeader).not.toHaveBeenCalled();
   });
 
-  it('does not consume a route-specific bucket for CSRF requests', async () => {
+  it('limits CSRF separately from other authentication requests', async () => {
     const f = fixture();
     await f.limiter.check(f.request, f.response, 'csrf');
-    expect(f.query).toHaveBeenCalledTimes(1);
+    expect(f.query).toHaveBeenCalledTimes(2);
+    expect(f.query.mock.calls[1][1]).toBe(hmacSha256(secret, 'route:csrf:127.0.0.1', 'hex'));
   });
 
   it.each(['resend-verification', 'forgot-password'])('applies email cooldown for %s', async (bucket) => {
@@ -47,7 +48,7 @@ describe('PostgresAuthRateLimit', () => {
     await f.limiter.check(f.request, f.response, bucket);
 
     expect(f.query).toHaveBeenCalledTimes(4);
-    expect(f.query.mock.calls[3][1]).toBe(
+    expect(f.query.mock.calls[2][1]).toBe(
       hmacSha256(secret, 'email-cooldown:' + bucket + ':user@example.invalid', 'hex'),
     );
   });
@@ -73,7 +74,7 @@ describe('PostgresAuthRateLimit', () => {
 
   it('rejects excess IP attempts without consuming later buckets', async () => {
     const f = fixture({ email: 'user@example.invalid' });
-    f.query.mockResolvedValueOnce([{ count: 121, expiresAt: new Date(Date.now() + 30000) }]);
+    f.query.mockResolvedValueOnce([{ count: 601, expiresAt: new Date(Date.now() + 30000) }]);
 
     await expect(f.limiter.check(f.request, f.response, 'login')).rejects.toMatchObject({ status: 429 });
     expect(f.query).toHaveBeenCalledTimes(1);
@@ -83,10 +84,50 @@ describe('PostgresAuthRateLimit', () => {
   it('accepts the exact limit and rejects an exceeded route limit', async () => {
     const f = fixture();
     f.query
-      .mockResolvedValueOnce([{ count: 120, expiresAt: new Date() }])
-      .mockResolvedValueOnce([{ count: 21, expiresAt: new Date(0) }]);
+      .mockResolvedValueOnce([{ count: 600, expiresAt: new Date() }])
+      .mockResolvedValueOnce([{ count: 61, expiresAt: new Date(0) }]);
     await expect(f.limiter.check(f.request, f.response, 'login')).rejects.toMatchObject({ status: 429 });
     expect(f.setHeader).toHaveBeenCalledWith('Retry-After', '1');
+  });
+
+  it('rejects repeated email delivery before consuming the hourly quota', async () => {
+    const f = fixture({ email: 'user@example.invalid' });
+    f.query
+      .mockResolvedValueOnce([{ count: 1, expiresAt: new Date() }])
+      .mockResolvedValueOnce([{ count: 1, expiresAt: new Date() }])
+      .mockResolvedValueOnce([{ count: 2, expiresAt: new Date(Date.now() + 60000) }]);
+
+    await expect(f.limiter.check(f.request, f.response, 'forgot-password')).rejects.toMatchObject({ status: 429 });
+    expect(f.query).toHaveBeenCalledTimes(3);
+    expect(f.setHeader).toHaveBeenCalledWith('Retry-After', expect.any(String));
+  });
+
+  it.each([
+    ['login', 60, 10, 900],
+    ['register', 20, 3, 3600],
+    ['forgot-password', 30, 5, 3600],
+    ['resend-verification', 30, 5, 3600],
+  ] as const)('uses the intended route and email policy for %s', async (bucket, route, email, seconds) => {
+    const f = fixture({ email: 'user@example.invalid' });
+    await f.limiter.check(f.request, f.response, bucket);
+
+    expect(f.query.mock.calls[1].slice(2)).toEqual([60, 60]);
+    expect(f.query.mock.calls.at(-1)?.slice(2)).toEqual([seconds, seconds]);
+
+    const blocked = fixture({ email: 'user@example.invalid' });
+    blocked.query
+      .mockResolvedValueOnce([{ count: 1, expiresAt: new Date() }])
+      .mockResolvedValueOnce([{ count: route + 1, expiresAt: new Date() }]);
+    await expect(blocked.limiter.check(blocked.request, blocked.response, bucket)).rejects.toMatchObject({ status: 429 });
+
+    const account = fixture({ email: 'user@example.invalid' });
+    account.query.mockResolvedValueOnce([{ count: 1, expiresAt: new Date() }]);
+    account.query.mockResolvedValueOnce([{ count: 1, expiresAt: new Date() }]);
+    if (bucket === 'forgot-password' || bucket === 'resend-verification') {
+      account.query.mockResolvedValueOnce([{ count: 1, expiresAt: new Date() }]);
+    }
+    account.query.mockResolvedValueOnce([{ count: email + 1, expiresAt: new Date() }]);
+    await expect(account.limiter.check(account.request, account.response, bucket)).rejects.toMatchObject({ status: 429 });
   });
 
   it('fails closed if the database returns no counter', async () => {
