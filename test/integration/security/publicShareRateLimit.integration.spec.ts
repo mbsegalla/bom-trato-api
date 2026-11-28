@@ -21,14 +21,14 @@ databaseSuite('public share rate limits (disposable PostgreSQL)', () => {
     const limiter = new PostgresPublicShareRateLimit(db.prisma, secret, 'quote-share');
 
     await limiter.check(ip, response);
-    await db.prisma.quoteShareRateLimit.update({ where: { key }, data: { count: 59 } });
+    await db.prisma.quoteShareRateLimit.update({ where: { key }, data: { count: 119 } });
     const results = await Promise.allSettled([limiter.check(ip, response), limiter.check(ip, response)]);
 
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1);
     await expect(limiter.check(ip, response)).rejects.toMatchObject({ status: 429 });
     expect(setHeader).toHaveBeenCalledWith('Retry-After', expect.stringMatching(/^\d+$/));
-    expect((await db.prisma.quoteShareRateLimit.findUniqueOrThrow({ where: { key } })).count).toBe(61);
+    expect((await db.prisma.quoteShareRateLimit.findUniqueOrThrow({ where: { key } })).count).toBe(121);
 
     await new PostgresPublicShareRateLimit(db.prisma, secret, 'work-order-share').check(ip, response);
 
@@ -38,5 +38,25 @@ databaseSuite('public share rate limits (disposable PostgreSQL)', () => {
     await limiter.check(ip, response);
 
     expect((await db.prisma.quoteShareRateLimit.findUniqueOrThrow({ where: { key } })).count).toBe(1);
+  });
+
+  it.each([
+    ['quote-share', 120],
+    ['work-order-share', 120],
+    ['receivable-payment-link', 60],
+  ] as const)('enforces the scope-specific limit for %s', async (scope, limit) => {
+    const secret = randomBytes(32).toString('hex');
+    const ip = '192.0.2.2';
+    const key = hmacSha256(secret, scope + ':' + ip, 'hex');
+    db.cleanup(() => db.prisma.quoteShareRateLimit.deleteMany({ where: { key } }));
+    const setHeader = vi.fn();
+    const response = { setHeader } as unknown as Response;
+    const limiter = new PostgresPublicShareRateLimit(db.prisma, secret, scope);
+
+    await limiter.check(ip, response);
+    await db.prisma.quoteShareRateLimit.update({ where: { key }, data: { count: limit - 1 } });
+    await limiter.check(ip, response);
+    await expect(limiter.check(ip, response)).rejects.toMatchObject({ status: 429 });
+    expect(setHeader).toHaveBeenCalledWith('Retry-After', expect.stringMatching(/^\\d+$/));
   });
 });
