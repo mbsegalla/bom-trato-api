@@ -14,7 +14,7 @@ import { AuthActionToken } from '../../domain/entities/authActionToken.entity.js
 import { AuthIdentityProps } from '../../domain/entities/authIdentity.entity.js';
 import { AuthSession, AuthSessionProps } from '../../domain/entities/authSession.entity.js';
 import { RefreshToken } from '../../domain/entities/refreshToken.entity.js';
-import { AuthError } from '../../domain/errors/auth.error.js';
+import { AuthError, RefreshRateLimitError } from '../../domain/errors/auth.error.js';
 import { AuthSessionPolicy } from '../../domain/policies/authSession.policy.js';
 import {
   AuthRepository,
@@ -29,6 +29,9 @@ import {
   StartFederatedSessionParams,
   StartSessionParams,
 } from '../../domain/repositories/auth.repository.js';
+
+const refreshWindowMs = 60_000;
+const refreshLimit = 10;
 
 const userSelect = {
   id: true,
@@ -358,6 +361,20 @@ export class PrismaAuthRepository extends AuthRepository {
       session.renew(now, idleSeconds);
 
       const state = session.snapshot();
+
+      const recent = await tx.refreshToken.findMany({
+        where: { sessionId: state.id, usedAt: { gt: new Date(now.getTime() - refreshWindowMs) } },
+        orderBy: { usedAt: 'desc' },
+        take: refreshLimit,
+        select: { usedAt: true },
+      });
+      const oldest = recent.at(-1)?.usedAt;
+
+      if (recent.length === refreshLimit && oldest) {
+        const retryAfter = Math.max(1, Math.ceil((oldest.getTime() + refreshWindowMs - now.getTime()) / 1000));
+
+        throw new RefreshRateLimitError(retryAfter);
+      }
 
       await tx.refreshToken.update({
         where: { id: row.id },
