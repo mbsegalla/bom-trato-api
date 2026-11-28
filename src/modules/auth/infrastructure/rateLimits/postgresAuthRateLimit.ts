@@ -2,8 +2,8 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import type { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
-import { hmacSha256 } from '../../../../shared/security/hmac.js';
 import { StructuredLogger } from '../../../../infrastructure/logging/structuredLogger.js';
+import { hmacSha256 } from '../../../../shared/security/hmac.js';
 import { normalizeEmail } from '../../../../shared/text/email.js';
 
 type RateWindow = readonly [limit: number, seconds: number];
